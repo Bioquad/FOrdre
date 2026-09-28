@@ -6,7 +6,7 @@
 
 \[!\[HTML5](https://img.shields.io/badge/Architecture-Single\_File-orange?style=flat\&logo=html5)](#)
 
-\[!\[License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+\[!\[License](https://img.shields.io/badge/License-CERN--OHL--S--2.0-blue.svg)](LICENSE)
 
 
 

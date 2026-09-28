@@ -1,0 +1,26 @@
+# Sistema operatiu
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# Editors i IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependències i builds
+node_modules/
+dist/
+build/
+.cache/
+
+# Registres i temporals
+*.log
+*.tmp
+*.bak
+
+# Entorn i secrets
+.env
+.env.*
