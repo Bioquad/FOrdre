@@ -1,0 +1,7 @@
+Item No.,Part Number,Description,QTY.,Length (mm),Width (mm),Height (mm),Mass (g)
+1,ASM-100,Base assembly,1,300,200,80,2400
+1.1,PL-10,Base plate,1,180,150,5,900
+1.2,SUB-20,Bracket subassembly,2,50,40,30,120
+1.2.1,BR-1,Bracket,1,50,40,3,40
+1.2.2,M4x10,Screw M4x10,4,10,7,7,1.6
+1.3,M5x12,Screw M5x12,8,12,8,8,2.5

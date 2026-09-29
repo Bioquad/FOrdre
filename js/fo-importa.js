@@ -1,0 +1,296 @@
+// ═══════════════════════════════════════════════════════════════
+// FOrdre — Importació de llistes de peces
+// ───────────────────────────────────────────────────────────────
+// Dos formats, seleccionables:
+//  · 'pla'  — full propi de FOrdre: cada fila és un material dins un
+//             conjunt (columnes conjunt, pare, codi, quantitat, mides…).
+//             Una fila sense codi de material defineix el conjunt en si
+//             (i, si porta mides, les dades de la peça muntada).
+//  · 'bom'  — llista de materials indentada d'un programa CAD
+//             (FreeCAD, Fusion 360, SolidWorks, Inventor, Onshape…):
+//             una columna de nivell (1, 2, 3 · 1.2.3 · sagnat) indica
+//             la jerarquia. Una fila amb fills és un conjunt.
+// Les columnes es detecten pel nom en català, castellà o anglès, i
+// l'usuari les pot corregir abans d'importar.
+// ═══════════════════════════════════════════════════════════════
+(function (G) {
+    'use strict';
+    const FO = G.FO || (G.FO = {});
+
+    FO.CAMPS_IMPORT = {
+        conjunt: { nom: 'Conjunt (codi)', sin: ['conjunt', 'codi conjunt', 'conjunt codi', 'assembly', 'grup', 'group', 'conjunto', 'subassembly'] },
+        conjuntNom: { nom: 'Conjunt (nom)', sin: ['nom conjunt', 'nom del conjunt', 'assembly name', 'nombre conjunto', 'group name'] },
+        pare: { nom: 'Conjunt pare', sin: ['pare', 'parent', 'padre', 'conjunt pare', 'parent assembly'] },
+        nivell: { nom: 'Nivell (BOM)', sin: ['nivell', 'level', 'nivel', 'lvl', 'item', 'item no', 'item no.', 'item number', 'pos', 'posició', 'posicion', 'position', 'bom level', 'indent', 'núm', 'num', 'no.', '#'] },
+        codi: { nom: 'Codi material', sin: ['codi', 'code', 'part number', 'partnumber', 'part no', 'part no.', 'part', 'pn', 'p/n', 'referència', 'referencia', 'ref', 'reference', 'número de pieza', 'numero de pieza', 'article', 'sku', 'id', 'label'] },
+        nom: { nom: 'Nom / descripció', sin: ['nom', 'name', 'description', 'descripció', 'descripcion', 'descripción', 'denominació', 'denominacion', 'title', 'designation', 'nombre', 'component name', 'part name'] },
+        qty: { nom: 'Quantitat', sin: ['quantitat', 'qty', 'qty.', 'quantity', 'cantidad', 'qt', 'qtat', 'uds', 'units', 'unitats', 'count', 'cant', 'n'] },
+        x: { nom: 'Llarg X', sin: ['x', 'llarg', 'llargada', 'length', 'largo', 'longitud', 'l', 'dim x', 'size x', 'bounding box x'] },
+        y: { nom: 'Ample Y', sin: ['y', 'ample', 'amplada', 'width', 'ancho', 'anchura', 'w', 'dim y', 'size y', 'bounding box y'] },
+        z: { nom: 'Alt Z', sin: ['z', 'alt', 'alçada', 'alcada', 'height', 'alto', 'altura', 'h', 'gruix', 'thickness', 'espesor', 'dim z', 'size z', 'bounding box z'] },
+        pes: { nom: 'Pes', sin: ['pes', 'weight', 'peso', 'mass', 'massa', 'masa'] },
+        tipus: { nom: 'Tipus', sin: ['tipus', 'type', 'tipo', 'categoria', 'category'] },
+        forma: { nom: 'Forma', sin: ['forma', 'shape'] },
+        esd: { nom: 'Sensible ESD', sin: ['esd', 'electrostàtica', 'electrostatica', 'electrostatic', 'antiestàtic', 'antistatic'] },
+        liquid: { nom: 'Conté líquid', sin: ['liquid', 'líquid', 'líquido', 'liquido', 'fluid', 'fluids', 'fluido'] },
+        angleMax: { nom: 'Angle màxim', sin: ['angle max', 'angle màxim', 'angle maxim', 'angle', 'max tilt', 'inclinació', 'inclinacion', 'tilt'] },
+        apilable: { nom: 'Apilable', sin: ['apilable', 'stackable', 'apilar'] },
+        maxApilat: { nom: 'Màx. apilat', sin: ['max apilat', 'màx apilat', 'max stack', 'maxapilat'] },
+        fragil: { nom: 'Fragilitat 0-10', sin: ['fragil', 'fràgil', 'fragilitat', 'fragile', 'fragility', 'fragilidad'] },
+        disposicio: { nom: 'Disposició', sin: ['disposicio', 'disposició', 'disposicion', 'layout', 'arrangement'] },
+        col: { nom: 'Color', sin: ['color', 'colour', 'col'] },
+        origen: { nom: 'Origen', sin: ['origen', 'origin', 'make/buy', 'make buy', 'fabricat/comprat'] },
+        proveidor: { nom: 'Proveïdor', sin: ['proveidor', 'proveïdor', 'proveedor', 'supplier', 'vendor', 'fabricant', 'manufacturer'] },
+        notes: { nom: 'Notes', sin: ['notes', 'nota', 'comments', 'comentaris', 'observacions', 'observaciones', 'remarks'] }
+    };
+
+    const net = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/\(.*?\)|\[.*?\]/g, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // ─── CSV ───
+    FO.llegeixCSV = function (text) {
+        text = String(text).replace(/^﻿/, '');
+        const primera = text.split(/\r?\n/)[0] || '';
+        const sep = [';', '\t', ','].map(c => [c, primera.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+        const files = [];
+        let fila = [], camp = '', cometes = false;
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            if (cometes) {
+                if (ch === '"') { if (text[i + 1] === '"') { camp += '"'; i++; } else cometes = false; }
+                else camp += ch;
+            } else if (ch === '"') cometes = true;
+            else if (ch === sep) { fila.push(camp); camp = ''; }
+            else if (ch === '\n' || ch === '\r') {
+                if (ch === '\r' && text[i + 1] === '\n') i++;
+                fila.push(camp); files.push(fila); fila = []; camp = '';
+            } else camp += ch;
+        }
+        if (camp !== '' || fila.length) { fila.push(camp); files.push(fila); }
+        return files.filter(f => f.some(c => String(c).trim() !== ''));
+    };
+
+    // Fitxer (File del navegador) → files. Excel/ODS amb SheetJS si és disponible.
+    FO.llegeixFitxer = function (file) {
+        return new Promise((ok, ko) => {
+            const nom = file.name.toLowerCase();
+            const rd = new FileReader();
+            rd.onerror = () => ko(rd.error);
+            if (/\.(xlsx|xlsm|xls|ods)$/.test(nom)) {
+                if (!G.XLSX) return ko(new Error('No s\'ha pogut carregar el lector d\'Excel. Desa el full com a CSV.'));
+                rd.onload = () => {
+                    try {
+                        const wb = G.XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+                        const fulls = wb.SheetNames.map(n => ({ nom: n, files: G.XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }) }));
+                        ok(fulls);
+                    } catch (e) { ko(e); }
+                };
+                rd.readAsArrayBuffer(file);
+            } else if (/\.json$/.test(nom)) {
+                rd.onload = () => { try { ok({ json: JSON.parse(rd.result) }); } catch (e) { ko(e); } };
+                rd.readAsText(file);
+            } else {
+                rd.onload = () => ok([{ nom: file.name, files: FO.llegeixCSV(rd.result) }]);
+                rd.readAsText(file);
+            }
+        });
+    };
+
+    // Busca la fila de capçalera (la primera amb 2+ noms de camp reconeguts)
+    FO.trobaCapcalera = function (files) {
+        let millor = 0, idx = 0;
+        files.slice(0, 15).forEach((f, i) => {
+            const n = Object.keys(FO.detectaColumnes(f)).length;
+            if (n > millor) { millor = n; idx = i; }
+        });
+        return idx;
+    };
+
+    FO.detectaColumnes = function (capcalera) {
+        const map = {}, usat = new Set();
+        const cap = capcalera.map(net);
+        // primer coincidències exactes, després parcials
+        for (const passada of [0, 1]) {
+            for (const [camp, def] of Object.entries(FO.CAMPS_IMPORT)) {
+                if (map[camp] !== undefined) continue;
+                const i = cap.findIndex((h, k) => !usat.has(k) && h && def.sin.some(s =>
+                    passada === 0 ? h === s : (s.length > 2 && (h.startsWith(s + ' ') || h.endsWith(' ' + s)))));
+                if (i >= 0) { map[camp] = i; usat.add(i); }
+            }
+        }
+        return map;
+    };
+
+    FO.formatProbable = map => (map.nivell !== undefined && map.conjunt === undefined ? 'bom' : 'pla');
+
+    // Profunditat a partir del valor de nivell: 2 · "1.2.3" · sagnat de text
+    // `ambPunts`: la columna fa servir numeració d'ítems (1, 1.1, 1.1.2…)
+    function profunditat(v, text, ambPunts) {
+        const s = String(v == null ? '' : v).trim();
+        if (/^\d+(\.\d+)*\.?$/.test(s) && (ambPunts || s.indexOf('.') > 0 && !/^\d+\.$/.test(s))) return s.replace(/\.$/, '').split('.').length - 1;
+        if (/^\d+$/.test(s)) return parseInt(s, 10);
+        const m = String(text || '').match(/^[\s.·\-–—>]+/);
+        return m ? Math.round(m[0].replace(/\t/g, '    ').length / 2) : 0;
+    }
+
+    const FACTOR_MIDA = { mm: 1, cm: 10, m: 1000, in: 25.4 };
+    const FACTOR_PES = { g: 1, kg: 1000, lb: 453.6 };
+
+    function materialDeFila(f, map, u, i) {
+        const v = k => (map[k] === undefined ? undefined : f[map[k]]);
+        const n = k => { const x = FO.num(v(k), NaN); return isFinite(x) ? x : undefined; };
+        const m = {
+            codi: String(v('codi') || '').trim(), nom: String(v('nom') || '').trim(),
+            x: n('x') !== undefined ? n('x') * u.mida : undefined, y: n('y') !== undefined ? n('y') * u.mida : undefined,
+            z: n('z') !== undefined ? n('z') * u.mida : undefined, pes: n('pes') !== undefined ? n('pes') * u.pes : undefined
+        };
+        const tipus = net(v('tipus'));
+        if (tipus) m.tipus = /consum|glue|cola|adhes|brid|etiqu/.test(tipus) ? 'consumible' : /cargol|torn|screw|bolt|nut|washer|femell|volander|rosc|fasten|hardware/.test(tipus) ? 'cargol' : 'peca';
+        const forma = net(v('forma'));
+        if (forma) m.forma = /cil|cyl|rod|tub/.test(forma) ? 'cylinder' : 'box';
+        ['esd', 'liquid', 'apilable'].forEach(k => { if (v(k) !== undefined && String(v(k)).trim() !== '') m[k] = FO.boo(v(k)); });
+        ['angleMax', 'maxApilat', 'fragil'].forEach(k => { if (n(k) !== undefined) m[k] = n(k); });
+        const disp = net(v('disposicio'));
+        if (disp) m.disposicio = /indiv/.test(disp) ? 'individual' : /apil|stack/.test(disp) ? 'apilat' : /granel|bulk|loose/.test(disp) ? 'granel' : /capa|layer/.test(disp) ? 'capa' : 'auto';
+        const col = String(v('col') || '').trim();
+        if (/^#?[0-9a-f]{6}$/i.test(col)) m.col = col[0] === '#' ? col : '#' + col;
+        const ori = net(v('origen'));
+        if (ori) m.origen = /compr|buy|purch|compra/.test(ori) ? 'comprat' : 'propi';
+        if (v('proveidor')) m.proveidor = v('proveidor');
+        if (v('notes')) m.notes = v('notes');
+        if (!m.codi && m.nom) m.codi = m.nom.toUpperCase().replace(/[^\w]+/g, '-').slice(0, 20);
+        if (!m.nom) m.nom = m.codi;
+        if (m.nom) m.nom = m.nom.replace(/^[\s.·\-–—>]+/, '');
+        return m;
+    }
+
+    const teMides = m => m.x > 0 && m.y > 0 && m.z > 0;
+
+    // Construeix {materials, conjunts, avisos} a partir de files i mapa de columnes
+    FO.construeixImport = function (files, map, format, unitats) {
+        const u = { mida: FACTOR_MIDA[(unitats || {}).mida] || 1, pes: FACTOR_PES[(unitats || {}).pes] || 1 };
+        const materials = new Map(), conjunts = new Map(), avisos = [];
+        let ordre = 0;
+        const afegeixMaterial = (m, fila) => {
+            if (!m.codi) return null;
+            const ex = materials.get(m.codi);
+            if (ex) { Object.keys(m).forEach(k => { if (ex[k] === undefined && m[k] !== undefined) ex[k] = m[k]; }); return ex; }
+            if (!teMides(m)) avisos.push(`Fila ${fila}: ${m.codi} sense mides completes (s'usen 10 mm)`);
+            const nou = Object.assign({ id: 'm:' + m.codi }, m);
+            materials.set(m.codi, nou);
+            return nou;
+        };
+        const conjunt = (codi, nom) => {
+            let c = conjunts.get(codi);
+            if (!c) { c = { id: 'c:' + codi, codi, nom: nom || codi, pare: null, ordre: ordre++, items: [] }; conjunts.set(codi, c); }
+            else if (nom && c.nom === c.codi) c.nom = nom;
+            return c;
+        };
+        const qtyDe = f => Math.max(1, Math.round(FO.num(map.qty === undefined ? 1 : f[map.qty], 1)));
+        const afegeixItem = (c, mat, q) => {
+            const it = c.items.find(i => i.mat === mat.id);
+            if (it) it.qty += q; else c.items.push({ mat: mat.id, qty: q });
+        };
+
+        if (format === 'bom') {
+            const pila = []; // [{prof, conj}]
+            const ambPunts = map.nivell !== undefined && files.some(f => /^\d+\.\d+/.test(String(f[map.nivell]).trim()));
+            const dades = files.map((f, i) => ({
+                f, fila: i + 2, prof: profunditat(map.nivell === undefined ? '' : f[map.nivell], map.nom === undefined ? '' : f[map.nom], ambPunts),
+                m: materialDeFila(f, map, u, i)
+            })).filter(d => d.m.codi);
+            const base = Math.min(...dades.map(d => d.prof));
+            dades.forEach(d => { d.prof -= base; });
+            // arrel: si hi ha més d'una fila de nivell 0, en creem una de comuna
+            const arrelsN = dades.filter(d => d.prof === 0).length;
+            let arrel = null;
+            if (arrelsN !== 1) { arrel = conjunt('MAQUINA', 'Màquina'); dades.forEach(d => { d.prof += 1; }); }
+            dades.forEach((d, i) => {
+                const seg = dades[i + 1];
+                const esConjunt = seg && seg.prof > d.prof;
+                while (pila.length && pila[pila.length - 1].prof >= d.prof) pila.pop();
+                const pare = pila.length ? pila[pila.length - 1].conj : arrel;
+                const q = qtyDe(d.f);
+                if (esConjunt) {
+                    const c = conjunt(d.m.codi, d.m.nom);
+                    c.pare = pare ? pare.id : null;
+                    c.qty = q;
+                    if (teMides(d.m)) c.muntat = Object.assign({}, d.m);
+                    pila.push({ prof: d.prof, conj: c });
+                } else {
+                    const mat = afegeixMaterial(d.m, d.fila);
+                    if (!pare) { avisos.push(`Fila ${d.fila}: ${d.m.codi} sense conjunt; s'ha posat a «Solts»`); afegeixItem(conjunt('SOLTS', 'Peces soltes'), mat, q); }
+                    else afegeixItem(pare, mat, q);
+                }
+            });
+        } else {
+            files.forEach((f, i) => {
+                const fila = i + 2;
+                const cc = String(map.conjunt === undefined ? '' : f[map.conjunt] || '').trim();
+                const cn = String(map.conjuntNom === undefined ? '' : f[map.conjuntNom] || '').trim();
+                const pc = String(map.pare === undefined ? '' : f[map.pare] || '').trim();
+                const m = materialDeFila(f, map, u, i);
+                const codiC = cc || cn || 'GENERAL';
+                const c = conjunt(codiC, cn || cc);
+                if (pc) { const p = conjunt(pc); if (p !== c) c.pare = p.id; }
+                if (!m.codi || m.codi === codiC) {
+                    // fila que descriu el conjunt: quantitat i dades de peça muntada
+                    if (map.qty !== undefined && f[map.qty] !== '') c.qty = qtyDe(f);
+                    if (teMides(m)) c.muntat = m;
+                    return;
+                }
+                afegeixItem(c, afegeixMaterial(m, fila), qtyDe(f));
+            });
+        }
+        return { materials: Array.from(materials.values()), conjunts: Array.from(conjunts.values()), avisos };
+    };
+
+    // Incorpora el resultat al projecte ('afegeix' fusiona per codi, 'substitueix' reemplaça)
+    FO.incorporaImport = function (p, imp, mode) {
+        const brut = mode === 'substitueix' ? { nom: p.nom, config: p.config, materials: [], conjunts: [] } : JSON.parse(JSON.stringify(p));
+        const perCodiM = new Map(brut.materials.map(m => [m.codi, m]));
+        const remapM = new Map();
+        imp.materials.forEach(m => {
+            const ex = perCodiM.get(m.codi);
+            if (ex) { Object.assign(ex, Object.fromEntries(Object.entries(m).filter(([k, v]) => k !== 'id' && v !== undefined))); remapM.set(m.id, ex.id); }
+            else { brut.materials.push(m); perCodiM.set(m.codi, m); remapM.set(m.id, m.id); }
+        });
+        const perCodiC = new Map(brut.conjunts.map(c => [c.codi, c]));
+        const remapC = new Map();
+        imp.conjunts.forEach(c => {
+            const ex = perCodiC.get(c.codi);
+            remapC.set(c.id, ex ? ex.id : c.id);
+            if (!ex) { brut.conjunts.push(c); perCodiC.set(c.codi, c); }
+        });
+        imp.conjunts.forEach(c => {
+            const desti = brut.conjunts.find(x => x.id === remapC.get(c.id));
+            if (desti !== c) {
+                if (c.nom && c.nom !== c.codi) desti.nom = c.nom;
+                if (c.muntat) desti.muntat = c.muntat;
+                if (c.qty) desti.qty = c.qty;
+                c.items.forEach(it => {
+                    const id = remapM.get(it.mat) || it.mat;
+                    const ex = desti.items.find(i => i.mat === id);
+                    if (ex) ex.qty = it.qty; else desti.items.push({ mat: id, qty: it.qty });
+                });
+            } else c.items.forEach(it => { it.mat = remapM.get(it.mat) || it.mat; });
+            if (c.pare) desti.pare = remapC.get(c.pare) || c.pare;
+        });
+        return FO.normalitzaProjecte(brut);
+    };
+
+    // Plantilla CSV del format pla
+    FO.plantillaCSV = function () {
+        const cap = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'x', 'y', 'z', 'pes', 'tipus', 'forma', 'esd', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes'];
+        const f = [
+            ['MAQ', 'Màquina completa', '', '', '', '1', '', '', '', '', '', '', '', '', '', '', '', '', '', '#4A90D9', '', '', 'fila de conjunt (sense codi de material)'],
+            ['XAS', 'Xassís', 'MAQ', 'PL-001', 'Placa base alumini', '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', ''],
+            ['XAS', 'Xassís', 'MAQ', 'CRG-M4x10', 'Cargol DIN912 M4x10', '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', ''],
+            ['XAS', 'Xassís', 'MAQ', 'CON-01', 'Frenafils 243', '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', ''],
+            ['MOT', 'Grup motor', 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', 'conjunt muntat: mides de la peça acabada, 2 unitats'],
+            ['MOT', 'Grup motor', 'XAS', 'MT-050', 'Motor NEMA17', '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', ''],
+            ['ELE', 'Electrònica', 'MAQ', 'PCB-100', 'Placa de control', '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '']
+        ];
+        return '﻿' + [cap].concat(f).map(r => r.join(';')).join('\n') + '\n';
+    };
+})(typeof window !== 'undefined' ? window : globalThis);
