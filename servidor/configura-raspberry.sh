@@ -73,7 +73,7 @@ sleep 3
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo
 echo "✅ FOrdre està en marxa i arrencarà sol cada cop que s'encengui."
-echo "   App de muntatge:  https://$IP:$PORT/muntatge.html"
+echo "   App del taller:   https://$IP:$PORT/muntatge.html"
 echo "   App de disseny:   https://$IP:$PORT/index.html"
 echo "   Nom de xarxa:     https://$(hostname).local:$PORT/muntatge.html"
 echo "   Primer cop:       http://$IP:$PORT_HTTP/   (certificat i ajuda)"

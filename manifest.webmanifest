@@ -1,7 +1,7 @@
 {
-    "name": "FOrdre Muntatge",
+    "name": "FOrdre Taller",
     "short_name": "FOrdre",
-    "description": "Preparació i muntatge de conjunts pas a pas: caixes, QR, instruccions, estoc i llista de compra.",
+    "description": "Omplir caixes, muntar, verificar i gestionar ordres de fabricació: cada persona amb el seu rol.",
     "lang": "ca",
     "start_url": "./muntatge.html",
     "scope": "./",

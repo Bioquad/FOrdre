@@ -3,27 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="description" content="FOrdre Muntatge — preparació i muntatge de conjunts pas a pas, amb escàner de QR, estoc i llista de compra">
+    <meta name="description" content="FOrdre Taller — omplir caixes, muntar, verificar i gestionar ordres de fabricació des del mòbil o la tauleta">
     <meta name="theme-color" content="#1C1C30">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="FOrdre">
     <!--
-      FOrdre Muntatge — app per a mòbil i tauleta
-      Carrega un projecte de FOrdre i guia el muntatge: passos en ordre,
-      caixes a agafar (amb lectura del QR de les etiquetes), instruccions,
-      parells de collada, fotos, estoc, llista de compra i registre.
-      Funciona sense connexió un cop oberta (PWA). Llicència CERN-OHL-S-2.0.
+      FOrdre Taller — app per a mòbil i tauleta
+      Cada persona entra amb el seu rol i veu només la seva feina:
+        📦 Magatzem    omple les caixes, porta l'estoc i la compra
+        🔧 Muntador    agafa les caixes i munta els passos amb les instruccions
+        ✅ Qualitat    verifica els passos muntats (aprova o rebutja amb motiu)
+        📋 Responsable ordres de fabricació, tauler, incidències, persones i resultats
+      Amb el servidor del taller tot es comparteix en temps real; sense,
+      funciona sola en aquest aparell. Funciona sense connexió (PWA).
+      Llicència CERN-OHL-S-2.0.
     -->
-    <title>FOrdre Muntatge</title>
+    <title>FOrdre Taller</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icones/icona.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icones/icona-192.png">
     <link rel="stylesheet" href="css/muntatge.css">
 </head>
 <body>
+    <!-- Capçalera: enrere · projecte i ordre · rol · estat del servidor · escàner · menú -->
     <header class="cap">
         <button class="ic" id="bEnrere" aria-label="Enrere" hidden>‹</button>
-        <div class="titol"><b>F<span>O</span>rdre</b> <small id="nomProj">Muntatge</small></div>
+        <div class="titol"><b>F<span>O</span>rdre</b> <small id="nomProj">Taller</small><button class="xip-ordre" id="bOrdre" hidden></button></div>
+        <button class="xip-rol" id="bRol" hidden></button>
         <button class="ic" id="bSrv" aria-label="Estat del servidor del taller" style="font-size:18px">●</button>
         <button class="ic" id="bEscaneja" aria-label="Escanejar">⌖</button>
         <button class="ic" id="bMenu" aria-label="Opcions">⋮</button>
@@ -31,12 +37,8 @@
 
     <main id="vista"></main>
 
-    <nav class="peu" id="peu">
-        <button data-ruta="passos" class="on"><i>☰</i>Passos</button>
-        <button data-ruta="estoc"><i>▦</i>Estoc</button>
-        <button data-ruta="compra"><i>🛒</i>Compra</button>
-        <button data-ruta="registre"><i>🕘</i>Registre</button>
-    </nav>
+    <!-- Pestanyes: les omple l'app segons el rol -->
+    <nav class="peu" id="peu"></nav>
 
     <!-- Escàner -->
     <div class="escaner" id="escaner" hidden>
@@ -49,12 +51,21 @@
         </div>
     </div>
 
+    <!-- Tria del rol -->
+    <div class="full" id="triaRol" hidden>
+        <div class="fitxa">
+            <h2>Amb quin rol treballes ara?</h2>
+            <div id="llistaRols"></div>
+            <button class="bt" data-tanca="triaRol">Tancar</button>
+        </div>
+    </div>
+
     <!-- Menú -->
     <div class="full" id="menu" hidden>
         <div class="fitxa">
             <h2>Opcions</h2>
-            <label class="camp">Operari (surt al registre)<input type="text" id="operari" placeholder="Nom"></label>
-            <label class="ck"><input type="checkbox" id="consumAuto"> Descomptar l'estoc en marcar un pas com a muntat</label>
+            <div class="grup" id="grupPersona"></div>
+            <label class="ck"><input type="checkbox" id="consumAuto"> Descomptar de l'estoc el material que no ha passat pel magatzem en marcar un pas com a muntat</label>
             <div class="grup" id="grupSrv">
                 <h3 style="margin-top:0">Servidor del taller</h3>
                 <p class="ajuda" id="infoSrv"></p>
@@ -64,19 +75,21 @@
                 <div id="projSrv"></div>
             </div>
             <div class="grup">
+                <h3>Projecte</h3>
                 <button class="bt" id="bObrirFitxer">📂 Obrir fitxer de projecte</button>
                 <button class="bt" id="bEnganxa">🔗 Enganxar un enllaç</button>
                 <button class="bt" id="bOrdinador">💻 Projecte d'aquest navegador</button>
                 <button class="bt" id="bExemple">🧪 Projecte d'exemple</button>
             </div>
             <div class="grup">
+                <h3>Progrés d'aquesta ordre</h3>
                 <button class="bt" id="bExportaProg">⬇ Exportar el progrés (JSON)</button>
                 <button class="bt" id="bImportaProg">⬆ Importar un progrés</button>
-                <button class="bt perill" id="bReinicia">Reiniciar el progrés d'aquest projecte</button>
+                <button class="bt perill" id="bReinicia">Reiniciar el progrés en aquest aparell</button>
             </div>
             <button class="bt pr" id="bInstal·la" hidden>📲 Instal·lar l'app</button>
             <p class="ajuda" id="infoApp"></p>
-            <button class="bt" id="bTancaMenu">Tancar</button>
+            <button class="bt" data-tanca="menu">Tancar</button>
         </div>
     </div>
 
@@ -91,6 +104,7 @@
     <script src="js/fo-etiquetes.js"></script>
     <script src="js/fo-compartir.js"></script>
     <script src="js/fo-progres.js"></script>
+    <script src="js/fo-informe.js"></script>
     <script src="js/fo-muntatge.js"></script>
 </body>
 </html>

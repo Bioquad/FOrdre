@@ -127,3 +127,40 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: va
 @media (min-width: 760px) {
     .dues { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start }
 }
+
+/* ─── Rols, ordres i sessió (v1.4) ─── */
+.xip-rol { border: none; border-radius: 16px; padding: 6px 10px; background: var(--p3); color: var(--wh); font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; flex-shrink: 0 }
+.xip-ordre { border: 1px solid var(--bd); border-radius: 10px; padding: 1px 7px; margin-left: 6px; background: none; color: var(--dm); font-size: 12px; cursor: pointer; vertical-align: middle }
+.xip-ordre.tancada { color: var(--er); border-color: var(--er) }
+.bt.gran { min-height: 64px; font-size: 17px; text-align: left; display: flex; align-items: center; gap: 12px }
+.bt.gran i { font-style: normal; font-size: 26px }
+.bt.gran small { display: block; font-weight: 400; color: var(--dm); font-size: 13px }
+.bt.pr small, .bt.ok small { color: #fffc }
+.camp select, .camp textarea { display: block; width: 100%; margin-top: 4px; border-radius: 10px; border: 1px solid var(--bd); background: var(--p2); padding: 10px 12px; color: var(--tx) }
+.camp select { height: 44px; padding: 0 12px }
+.camp textarea { min-height: 88px; resize: vertical }
+.pin { font-family: var(--mn); font-size: 28px; letter-spacing: 10px; text-align: center; height: 56px; width: 100%; border-radius: 10px; border: 1px solid var(--bd); background: var(--p2); color: var(--wh) }
+.teclat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 }
+.teclat button { height: 60px; border-radius: 12px; border: 1px solid var(--bd); background: var(--p2); font-size: 24px; font-weight: 600; cursor: pointer }
+.banner { border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; font-size: 15px; border: 1px solid }
+.banner.er { background: rgba(229, 57, 53, .12); border-color: var(--er) }
+.banner.wr { background: rgba(240, 160, 48, .12); border-color: var(--wr) }
+.banner.ok { background: rgba(67, 160, 71, .12); border-color: var(--ok) }
+.banner.in { background: rgba(74, 144, 217, .12); border-color: var(--ac) }
+.kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px }
+.kpi div { background: var(--p); border: 1px solid var(--bd); border-radius: 12px; padding: 10px; font-size: 13px; color: var(--dm) }
+.kpi b { display: block; font-size: 22px; color: var(--wh) }
+.estat { font-size: 12px; border-radius: 10px; padding: 2px 8px; color: #fff; white-space: nowrap }
+.fila .q small { display: block; font-size: 11px; font-weight: 400; color: var(--dm); text-align: right }
+.fila.no { cursor: default }
+.dreta { margin-left: auto }
+.fotos img.pendent { outline: 2px dashed var(--wr); outline-offset: 2px }
+body.sense-peu { padding-bottom: env(safe-area-inset-bottom) }
+main a { color: var(--ac) }
+/* mòbils estrets: el rol només amb la icona, perquè es vegi el projecte i l'ordre */
+@media (max-width: 480px) {
+    .xip-rol span { display: none }
+    .cap .ic { width: 40px }
+    #nomProj, .cap .titol > b { display: none }
+    .xip-ordre { margin-left: 0; font-size: 14px; padding: 4px 8px }
+}

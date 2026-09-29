@@ -1,11 +1,11 @@
 # Servidor del taller
 
-El servidor fa que tots els mòbils, tauletes i ordinadors del taller comparteixin el projecte, el progrés del muntatge, l'estoc, el registre i les fotos **en temps real**, sense necessitat d'internet.
+El servidor fa que tots els mòbils, tauletes i ordinadors del taller comparteixin el projecte, les ordres de fabricació, el progrés, l'estoc, el registre i les fotos **en temps real**, sense necessitat d'internet. També guarda les **persones** del taller amb el seu PIN i els seus rols, i comprova que cada acció la fa qui la pot fer.
 
 - Funciona en una **Raspberry Pi** (3, 4 o 5) o en qualsevol ordinador amb **Windows, Linux o macOS**.
 - Només necessita **Node.js 18 o superior**. No cal instal·lar res més: tot el servidor és el fitxer `fordre-servidor.js`.
 - Serveix les dues apps per la Wi-Fi del taller, amb un certificat HTTPS propi: la càmera (l'escàner) només funciona en connexions segures.
-- Si un mòbil perd la Wi-Fi, continua funcionant i envia els canvis quan torna. Si dues persones treballen alhora, no es trepitgen: l'estoc se suma i cada acció s'aplica una sola vegada.
+- Si un mòbil perd la Wi-Fi, continua funcionant i envia els canvis (i les fotos) quan torna. Si dues persones treballen alhora, no es trepitgen: l'estoc se suma i cada acció s'aplica una sola vegada.
 
 ## Raspberry Pi (o Linux amb systemd)
 
@@ -60,22 +60,38 @@ bash servidor/inicia.sh
      - **iPhone / iPad:** obre el fitxer, instal·la el perfil, i activa'l a Configuració › General › Informació › Confiança de certificats.
      - **Windows:** doble clic al fitxer › Instal·la el certificat › Màquina local › «Entitats de certificació arrel de confiança».
    - **O bé:** obre l'app i accepta l'avís de seguretat del navegador («Configuració avançada › Continua»).
-4. A l'app de muntatge, al menú ⋮, escriu el teu nom a **Operari**. Surt al registre.
+4. Entra amb el teu nom i PIN (vegeu *Persones i rols*).
 
 Si la Raspberry Pi canvia d'adreça IP, el servidor genera un certificat nou i caldrà tornar-lo a instal·lar. Per evitar-ho, dona-li una **IP fixa** al router, o fes servir sempre el nom de xarxa (`https://raspberrypi.local:8443`).
 
+## Persones i rols
+
+La primera vegada que s'obre l'app amb el servidor, demana crear el **Responsable** (nom i PIN de 4 a 8 xifres). Després, el Responsable dona d'alta la resta de persones a **📋 Tauler › 👥 Persones**, cadascuna amb un o més rols:
+
+| Rol | Pot fer |
+|---|---|
+| 📦 Magatzem | Omplir i buidar caixes, estoc, tornar caixes |
+| 🔧 Muntador | Agafar caixes, començar i marcar passos com a muntats, tornar caixes |
+| ✅ Qualitat | Verificar (aprovar o rebutjar amb motiu) i resoldre incidències |
+| 📋 Responsable | Tot l'anterior, i a més publicar projectes, obrir i tancar ordres, assignar passos i gestionar persones |
+
+Tothom pot obrir incidències, fer fotos i consultar el registre i els resultats. Qui ha muntat un pas **no** el pot verificar (regla dels quatre ulls; el Responsable sí que pot). El PIN no es guarda mai: només un resum xifrat. Cinc PIN erronis seguits bloquegen l'entrada un minut.
+
 ## Com es fa servir
 
-- A l'ordinador, obre `https://<servidor>:8443/index.html`, prepara el projecte i prem **🏭 Taller › Publicar aquest projecte**. Des del mateix diàleg es veu el progrés de tots els passos en directe.
-- Als mòbils i tauletes, obre `https://<servidor>:8443/muntatge.html`: el projecte es carrega sol. El punt de color de la capçalera indica l'estat:
-  - 🟢 connectat;
-  - 🟠 hi ha canvis per enviar;
-  - 🔴 sense connexió (els canvis es guarden i s'envien després);
-  - ⟳ el projecte s'ha actualitzat a l'ordinador (toca'l per carregar-lo).
+1. **Ordinador:** obre `https://<servidor>:8443/index.html`, prepara el projecte i prem **🏭 Taller**. Entra com a Responsable i **publica el projecte**. Des del mateix diàleg pots crear **ordres de fabricació** (una per unitat, amb número de sèrie), veure l'estat de cada pas en directe i obrir l'**informe** de l'ordre.
+2. **Mòbils i tauletes:** obre `https://<servidor>:8443/muntatge.html`, entra amb nom i PIN i tria el rol a la capçalera. L'ordre de treball es tria tocant el seu codi (p. ex. `OF-2026-001`).
+3. El punt de color de la capçalera indica l'estat:
+   - 🟢 connectat;
+   - 🟠 hi ha canvis per enviar (o el projecte no és al servidor);
+   - 🔴 sense connexió (els canvis i les fotos es guarden i s'envien sols quan torna);
+   - ⟳ el projecte s'ha actualitzat a l'ordinador (toca'l per carregar-lo).
+
+Cada ordre té el seu progrés, registre i informe. En crear-la, es guarda l'empremta del projecte publicat: si després es modifica, l'informe ho avisa.
 
 ## Dades
 
-Tot es guarda a `servidor/dades/`: `projectes/`, `progres/` (amb una còpia `.bak` de l'estat anterior), `fotos/` i `certificat/`. Per fer-ne una còpia de seguretat, copia aquesta carpeta. Git no la puja al repositori.
+Tot es guarda a `servidor/dades/`: `projectes/`, `ordres/`, `progres/` (un fitxer per projecte i ordre, amb una còpia `.bak` de l'estat anterior), `fotos/`, `persones.json` (persones, rols i resum dels PIN) i `certificat/`. El progrés d'una versió anterior del servidor passa sol a la primera ordre. Per fer-ne una còpia de seguretat, copia aquesta carpeta. Git no la puja al repositori.
 
 ## Opcions
 
@@ -83,4 +99,4 @@ Tot es guarda a `servidor/dades/`: `projectes/`, `progres/` (amb una còpia `.ba
 node servidor/fordre-servidor.js [--port 8443] [--port-http 8080] [--dades carpeta] [--clau PIN] [--nou-certificat]
 ```
 
-Amb `--clau`, cal escriure la clau al menú de l'app de muntatge. La xarxa del taller ha de ser de confiança: el servidor no està pensat per exposar-lo a internet.
+Amb `--clau`, cal escriure la clau al menú de l'app del taller: és una barrera addicional de xarxa, a part del PIN de cada persona. La xarxa del taller ha de ser de confiança: el servidor no està pensat per exposar-lo a internet.

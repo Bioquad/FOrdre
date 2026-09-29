@@ -10,7 +10,11 @@
 //  · Sincronitza el progrés entre tots els mòbils, tauletes i ordinadors:
 //    cada canvi és una operació que s'aplica una sola vegada (js/fo-progres.js)
 //    i s'envia a l'instant a la resta d'aparells (Server-Sent Events).
-//  · Guarda projectes, progrés i fotos a la carpeta servidor/dades.
+//  · Persones amb PIN i rols (Magatzem, Muntador, Qualitat, Responsable):
+//    el servidor comprova que cada operació la fa qui la pot fer i que qui
+//    verifica un pas no és qui l'ha muntat.
+//  · Ordres de fabricació: cada unitat fabricada té el seu progrés propi.
+//  · Guarda projectes, ordres, progrés, persones i fotos a servidor/dades.
 //  · HTTPS amb un certificat propi generat la primera vegada: els navegadors
 //    només deixen fer servir la càmera (escàner) en connexions segures.
 //
@@ -32,13 +36,13 @@ const DADES = path.resolve(arg('dades', process.env.FORDRE_DADES || path.join(__
 const PORT = +arg('port', process.env.FORDRE_PORT || 8443);
 const PORT_HTTP = +arg('port-http', process.env.FORDRE_PORT_HTTP || 8080);
 const CLAU = String(arg('clau', process.env.FORDRE_CLAU || '') || '');
-const VERSIO = '1.3.0';
+const VERSIO = '1.4.0';
 
 global.FO = {};
 require(path.join(ARREL, 'js', 'fo-progres.js'));
 const FO = global.FO;
 
-for (const d of ['projectes', 'progres', 'fotos', 'certificat']) fs.mkdirSync(path.join(DADES, d), { recursive: true });
+for (const d of ['projectes', 'progres', 'fotos', 'certificat', 'ordres']) fs.mkdirSync(path.join(DADES, d), { recursive: true });
 
 // ═══ Certificat autosignat (X.509 v3 codificat a mà, sense OpenSSL) ═══
 const der = {
@@ -106,43 +110,106 @@ function certificat() {
 // ═══ Emmagatzematge ═══
 const netId = id => String(id || '').replace(/[^\w.-]/g, '_').slice(0, 80);
 const fitxerProj = id => path.join(DADES, 'projectes', netId(id) + '.json');
-const fitxerProg = id => path.join(DADES, 'progres', netId(id) + '.json');
+const fitxerOrdres = id => path.join(DADES, 'ordres', netId(id) + '.json');
+const fitxerProg = (id, ordre) => path.join(DADES, 'progres', netId(id) + '__' + netId(ordre) + '.json');
+const FITXER_PERSONES = path.join(DADES, 'persones.json');
 function escriuAtomic(f, text) {
     const tmp = f + '.tmp';
     fs.writeFileSync(tmp, text);
     if (fs.existsSync(f)) fs.copyFileSync(f, f + '.bak');
     fs.renameSync(tmp, f);
 }
-const progressos = new Map();   // id → estat en memòria
-function progres(id) {
-    if (!progressos.has(id)) {
-        let p = null;
-        try { p = JSON.parse(fs.readFileSync(fitxerProg(id), 'utf8')); } catch (e) { /* nou */ }
-        progressos.set(id, FO.normalitzaProgres(p));
+const llegeixJSON = (f, def) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return def; } };
+
+// Resum curt (SHA-256) del projecte publicat: identifica la versió exacta
+const empremtaProjecte = id => { try { return crypto.createHash('sha256').update(fs.readFileSync(fitxerProj(id))).digest('hex').slice(0, 12); } catch (e) { return ''; } };
+
+// ─── Ordres de fabricació ───
+// Cada projecte té una llista d'ordres; la primera es crea sola (i hi passa el
+// progrés d'una versió anterior del servidor, si n'hi havia).
+function ordres(id) {
+    let l = llegeixJSON(fitxerOrdres(id), null);
+    if (!l) {
+        l = [{ id: 'OF-1', codi: FO.codiOrdreSeguent([]), serie: '', notes: '', creada: new Date().toISOString(), creador: '', empremta: empremtaProjecte(id) }];
+        const antic = path.join(DADES, 'progres', netId(id) + '.json');
+        if (fs.existsSync(antic)) fs.renameSync(antic, fitxerProg(id, 'OF-1'));
+        escriuAtomic(fitxerOrdres(id), JSON.stringify(l, null, 1));
     }
-    return progressos.get(id);
+    return l;
+}
+function creaOrdre(id, dades, qui) {
+    const l = ordres(id);
+    const o = {
+        id: 'OF-' + (l.length + 1) + '-' + Date.now().toString(36),
+        codi: String(dades.codi || '').trim() || FO.codiOrdreSeguent(l),
+        serie: String(dades.serie || '').trim(), notes: String(dades.notes || '').trim(),
+        creada: new Date().toISOString(), creador: qui || '',
+        // empremta del projecte en crear l'ordre: permet saber amb quina versió es va fabricar
+        empremta: empremtaProjecte(id)
+    };
+    l.push(o);
+    escriuAtomic(fitxerOrdres(id), JSON.stringify(l, null, 1));
+    return o;
+}
+
+// ─── Progrés (un per projecte i ordre), en memòria i desat amb retard ───
+const progressos = new Map();   // "projecte|ordre" → estat
+const clauP = (id, ordre) => id + '|' + ordre;
+function progres(id, ordre) {
+    const k = clauP(id, ordre);
+    if (!progressos.has(k)) progressos.set(k, FO.normalitzaProgres(llegeixJSON(fitxerProg(id, ordre), null)));
+    return progressos.get(k);
 }
 const pendentsDesar = new Map();
-function desaProgres(id) {
-    clearTimeout(pendentsDesar.get(id));
-    pendentsDesar.set(id, setTimeout(() => { escriuAtomic(fitxerProg(id), JSON.stringify(progres(id))); pendentsDesar.delete(id); }, 250));
+function desaProgres(id, ordre) {
+    const k = clauP(id, ordre);
+    clearTimeout(pendentsDesar.get(k));
+    pendentsDesar.set(k, setTimeout(() => { escriuAtomic(fitxerProg(id, ordre), JSON.stringify(progres(id, ordre))); pendentsDesar.delete(k); }, 250));
 }
 function llistaProjectes() {
     return fs.readdirSync(path.join(DADES, 'projectes')).filter(f => f.endsWith('.json')).map(f => {
         try {
             const p = JSON.parse(fs.readFileSync(path.join(DADES, 'projectes', f), 'utf8'));
-            const pr = progres(p.id);
-            return { id: p.id, nom: p.nom, actualitzat: fs.statSync(path.join(DADES, 'projectes', f)).mtime, passosFets: Object.keys(pr.fets).length, rev: pr.rev };
+            const ords = ordres(p.id).map(o => {
+                const pr = progres(p.id, o.id);
+                return Object.assign({}, o, { passosFets: Object.keys(pr.fets).length, tancada: !!pr.tancada, rev: pr.rev });
+            });
+            return { id: p.id, nom: p.nom, actualitzat: fs.statSync(path.join(DADES, 'projectes', f)).mtime, empremta: empremtaProjecte(p.id), ordres: ords };
         } catch (e) { return null; }
     }).filter(Boolean);
 }
 
+// ═══ Persones, rols i sessions ═══
+// persones.json: [{ nom, rols: [...], sal, hash, actiu }]. El PIN no es guarda mai:
+// només el seu resum (scrypt amb sal). Les sessions són fitxes aleatòries en memòria
+// que també es desen per sobreviure a un reinici.
+let persones = llegeixJSON(FITXER_PERSONES, { persones: [], sessions: {} });
+const desaPersones = () => escriuAtomic(FITXER_PERSONES, JSON.stringify(persones, null, 1));
+const resumPIN = (pin, sal) => crypto.scryptSync(String(pin), sal, 32).toString('hex');
+const configurat = () => persones.persones.some(x => x.actiu && x.rols.includes('responsable'));
+const publica = x => ({ nom: x.nom, rols: x.rols, actiu: x.actiu });
+function sessioDe(req, url) {
+    const t = req.headers['x-fordre-token'] || url.searchParams.get('token');
+    const s = t && persones.sessions[t];
+    if (!s) return null;
+    const pers = persones.persones.find(x => x.nom === s.nom && x.actiu);
+    return pers ? { token: t, nom: pers.nom, rols: pers.rols } : null;
+}
+// Protecció contra provar PINs a l'atzar: 5 intents fallits → 60 s d'espera
+const intents = new Map();
+function massaIntents(ip) { const i = intents.get(ip); return i && i.n >= 5 && Date.now() - i.t < 60000; }
+function intentFallit(ip) { const i = intents.get(ip) || { n: 0, t: 0 }; i.n = Date.now() - i.t > 60000 ? 1 : i.n + 1; i.t = Date.now(); intents.set(ip, i); }
+
 // ═══ Temps real (Server-Sent Events) ═══
-const subscriptors = new Map();   // id → Set(res)
-function emet(id, tipus, dades) {
-    const s = subscriptors.get(id); if (!s) return;
+const subscriptors = new Map();   // "projecte|ordre" → Set(res)   ·   "projecte" → avisos de projecte
+function emet(clau, tipus, dades) {
+    const s = subscriptors.get(clau); if (!s) return;
     const msg = `event: ${tipus}\ndata: ${JSON.stringify(dades)}\n\n`;
     s.forEach(res => { try { res.write(msg); } catch (e) { /* desconnectat */ } });
+}
+function subscriu(clau, res) {
+    if (!subscriptors.has(clau)) subscriptors.set(clau, new Set());
+    subscriptors.get(clau).add(res);
 }
 setInterval(() => subscriptors.forEach(s => s.forEach(res => { try { res.write(': viu\n\n'); } catch (e) { /* */ } })), 25000);
 
@@ -155,8 +222,8 @@ const TIPUS = {
 function capcaleres(req, extra) {
     return Object.assign({
         'Access-Control-Allow-Origin': req.headers.origin || '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-FOrdre-Clau',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-FOrdre-Clau, X-FOrdre-Token, X-FOrdre-Rol',
         'Access-Control-Allow-Private-Network': 'true',
         'Cache-Control': 'no-cache'
     }, extra || {});
@@ -170,16 +237,69 @@ function llegeixCos(req, max) {
         req.on('error', ko);
     });
 }
+// Clau de xarxa opcional (--clau): una barrera abans de tot, a part de les persones
 function autoritzat(req, url) {
     if (!CLAU) return true;
     return req.headers['x-fordre-clau'] === CLAU || url.searchParams.get('clau') === CLAU;
 }
 
-async function api(req, res, url, cert) {
-    const p = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);   // ['api', recurs, id, ...]
-    if (p[1] === 'estat') return json(req, res, 200, { app: 'FOrdre', versio: VERSIO, hora: new Date(), clau: !!CLAU, projectes: autoritzat(req, url) ? llistaProjectes() : [] });
+async function api(req, res, url) {
+    const p = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);   // ['api', recurs, …]
+    const ip = req.socket.remoteAddress || '';
+    if (p[1] === 'estat') return json(req, res, 200, { app: 'FOrdre', versio: VERSIO, hora: new Date(), clau: !!CLAU, configurat: configurat() });
     if (!autoritzat(req, url)) return json(req, res, 401, { error: 'Cal la clau del taller' });
+    const ses = sessioDe(req, url);
+    // Sense cap Responsable configurat, el taller funciona obert (primer ús o aparells sols)
+    const obert = !configurat();
+    const cal = rol => {
+        if (obert) return true;
+        if (!ses) { json(req, res, 401, { error: 'Cal iniciar sessió' }); return false; }
+        if (rol && !ses.rols.includes(rol) && !ses.rols.includes('responsable')) { json(req, res, 403, { error: 'Cal el rol de ' + FO.ROLS[rol].nom }); return false; }
+        return true;
+    };
+
+    // ─── Persones i sessions ───
+    if (p[1] === 'persones' && req.method === 'GET') return json(req, res, 200, persones.persones.filter(x => x.actiu).map(publica));
+    if (p[1] === 'persones' && req.method === 'POST') {
+        // el primer Responsable es pot crear sense sessió; després, només un Responsable
+        if (!obert && !cal('responsable')) return;
+        const d = await llegeixCos(req, 1e5);
+        const nom = String(d.nom || '').trim().slice(0, 60);
+        const rols = (Array.isArray(d.rols) ? d.rols : []).filter(r => FO.ROLS[r]);
+        if (!nom || !rols.length) return json(req, res, 400, { error: 'Cal un nom i almenys un rol' });
+        if (obert && !rols.includes('responsable')) return json(req, res, 400, { error: 'La primera persona ha de ser Responsable' });
+        let pers = persones.persones.find(x => x.nom.toLowerCase() === nom.toLowerCase());
+        if (!pers && !/^\d{4,8}$/.test(String(d.pin || ''))) return json(req, res, 400, { error: 'El PIN ha de tenir de 4 a 8 xifres' });
+        if (!pers) { pers = { nom, rols, actiu: true }; persones.persones.push(pers); }
+        pers.rols = rols; pers.actiu = d.actiu !== false;
+        if (d.pin) { if (!/^\d{4,8}$/.test(String(d.pin))) return json(req, res, 400, { error: 'El PIN ha de tenir de 4 a 8 xifres' }); pers.sal = crypto.randomBytes(8).toString('hex'); pers.hash = resumPIN(d.pin, pers.sal); }
+        if (!pers.actiu) Object.keys(persones.sessions).forEach(t => { if (persones.sessions[t].nom === pers.nom) delete persones.sessions[t]; });
+        desaPersones();
+        console.log(`👤 Persona ${pers.actiu ? 'desada' : 'desactivada'}: ${pers.nom} (${pers.rols.join(', ')})`);
+        return json(req, res, 200, publica(pers));
+    }
+    if (p[1] === 'sessio' && req.method === 'POST') {
+        if (massaIntents(ip)) return json(req, res, 429, { error: 'Massa intents. Espera un minut.' });
+        const d = await llegeixCos(req, 1e4);
+        const pers = persones.persones.find(x => x.actiu && x.nom === d.nom);
+        if (!pers || !pers.hash || resumPIN(d.pin || '', pers.sal) !== pers.hash) { intentFallit(ip); return json(req, res, 401, { error: 'Nom o PIN incorrectes' }); }
+        intents.delete(ip);
+        const token = crypto.randomBytes(24).toString('hex');
+        persones.sessions[token] = { nom: pers.nom, creat: new Date().toISOString() };
+        desaPersones();
+        return json(req, res, 200, { token, nom: pers.nom, rols: pers.rols });
+    }
+    if (p[1] === 'sessio' && req.method === 'DELETE') {
+        if (ses) { delete persones.sessions[ses.token]; desaPersones(); }
+        return json(req, res, 200, { ok: true });
+    }
+    if (p[1] === 'jo') return ses ? json(req, res, 200, { nom: ses.nom, rols: ses.rols }) : json(req, res, 401, { error: 'Sense sessió' });
+
+    // A partir d'aquí cal sessió (si el taller està configurat)
+    if (!cal()) return;
     const id = netId(p[2]);
+
+    // ─── Projectes ───
     if (p[1] === 'projectes' && !p[2]) return json(req, res, 200, llistaProjectes());
     if (p[1] === 'projectes' && id) {
         if (req.method === 'GET') {
@@ -188,37 +308,68 @@ async function api(req, res, url, cert) {
             return fs.createReadStream(fitxerProj(id)).pipe(res);
         }
         if (req.method === 'PUT') {
+            if (!cal('responsable')) return;
             const proj = await llegeixCos(req, 40e6);
             if (!proj || !Array.isArray(proj.conjunts)) return json(req, res, 400, { error: 'No és un projecte de FOrdre' });
             proj.id = id;
             escriuAtomic(fitxerProj(id), JSON.stringify(proj));
+            ordres(id);
             emet(id, 'projecte', { id, nom: proj.nom, hora: new Date() });
             console.log(`📦 Projecte publicat: ${proj.nom} (${id})`);
             return json(req, res, 200, { ok: true, id });
         }
     }
-    if (p[1] === 'progres' && id) {
-        if (p[3] === 'flux') {
+
+    // ─── Ordres de fabricació ───
+    if (p[1] === 'ordres' && id) {
+        if (!fs.existsSync(fitxerProj(id))) return json(req, res, 404, { error: 'Projecte desconegut' });
+        if (req.method === 'GET') return json(req, res, 200, ordres(id));
+        if (req.method === 'POST') {
+            if (!cal('responsable')) return;
+            const o = creaOrdre(id, await llegeixCos(req, 1e5), ses ? ses.nom : '');
+            emet(id, 'ordres', ordres(id));
+            console.log(`🏭 Ordre nova: ${o.codi} (${id})`);
+            return json(req, res, 200, o);
+        }
+    }
+
+    // ─── Progrés d'una ordre ───
+    if (p[1] === 'progres' && id && p[3]) {
+        const ordre = netId(p[3]);
+        if (!ordres(id).some(o => o.id === ordre)) return json(req, res, 404, { error: 'Ordre desconeguda' });
+        const k = clauP(id, ordre);
+        if (p[4] === 'flux') {
             res.writeHead(200, capcaleres(req, { 'Content-Type': 'text/event-stream', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' }));
-            res.write(`event: estat\ndata: ${JSON.stringify(progres(id))}\n\n`);
-            if (!subscriptors.has(id)) subscriptors.set(id, new Set());
-            subscriptors.get(id).add(res);
-            req.on('close', () => subscriptors.get(id).delete(res));
+            res.write(`event: estat\ndata: ${JSON.stringify(progres(id, ordre))}\n\n`);
+            subscriu(k, res); subscriu(id, res);
+            req.on('close', () => { subscriptors.get(k).delete(res); subscriptors.get(id).delete(res); });
             return;
         }
-        if (p[3] === 'ops' && req.method === 'POST') {
+        if (p[4] === 'ops' && req.method === 'POST') {
             const cos = await llegeixCos(req, 5e6);
-            const est = progres(id);
-            let n = 0;
-            (Array.isArray(cos.ops) ? cos.ops : []).slice(0, 5000).forEach(o => { if (FO.aplicaOp(est, o)) n++; });
-            if (n) { desaProgres(id); emet(id, 'estat', est); }
-            return json(req, res, 200, { aplicades: n, estat: est });
+            const est = progres(id, ordre);
+            // qui fa l'operació el decideix la sessió, no l'aparell
+            const usuari = ses ? { nom: ses.nom, rols: ses.rols } : null;
+            // rol amb què treballa: el de l'operació, o el de la capçalera, si la persona el té
+            const rolDe = o => [o.rol, req.headers['x-fordre-rol']].find(r => r && ses.rols.includes(r)) || ses.rols[0];
+            let n = 0; const rebutjades = [];
+            (Array.isArray(cos.ops) ? cos.ops : []).slice(0, 5000).forEach(o => {
+                if (!o || !o.id || (est._vist && est._vist.has(o.id)) || est.vist.includes(o.id)) return;
+                if (usuari) { o.op = usuari.nom; o.rol = rolDe(o); }
+                const motiu = FO.validaOp(est, o, usuari);
+                if (motiu) { rebutjades.push({ id: o.id, motiu }); return; }
+                if (FO.aplicaOp(est, o)) n++;
+            });
+            if (n) { desaProgres(id, ordre); emet(k, 'estat', est); }
+            return json(req, res, 200, { aplicades: n, rebutjades, estat: est });
         }
-        if (req.method === 'GET') return json(req, res, 200, progres(id));
+        if (req.method === 'GET') return json(req, res, 200, progres(id, ordre));
     }
-    if (p[1] === 'fotos' && id) {
-        const dir = path.join(DADES, 'fotos', id);
-        if (req.method === 'POST' && !p[3]) {
+
+    // ─── Fotos (per ordre) ───
+    if (p[1] === 'fotos' && id && p[3]) {
+        const dir = path.join(DADES, 'fotos', id, netId(p[3]));
+        if (req.method === 'POST' && !p[4]) {
             const cos = await llegeixCos(req, 15e6);
             const m = /^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(cos.dades || '');
             if (!m) return json(req, res, 400, { error: 'Imatge no vàlida' });
@@ -227,8 +378,8 @@ async function api(req, res, url, cert) {
             fs.writeFileSync(path.join(dir, nom), Buffer.from(m[2], 'base64'));
             return json(req, res, 200, { fitxer: nom });
         }
-        if (req.method === 'GET' && p[3]) {
-            const f = path.join(dir, path.basename(p[3]));
+        if (req.method === 'GET' && p[4]) {
+            const f = path.join(dir, path.basename(p[4]));
             if (!fs.existsSync(f)) return json(req, res, 404, { error: 'No existeix' });
             res.writeHead(200, capcaleres(req, { 'Content-Type': TIPUS[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'max-age=31536000' }));
             return fs.createReadStream(f).pipe(res);
@@ -269,7 +420,7 @@ function gestor(cert, segur) {
                 return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FOrdre taller</title>
 <body style="font-family:system-ui;max-width:560px;margin:24px auto;padding:0 16px;line-height:1.5">
 <h1>FOrdre · servidor del taller</h1>
-<p><a href="${desti}" style="font-size:20px">➜ Obrir l'app de muntatge</a></p>
+<p><a href="${desti}" style="font-size:20px">➜ Obrir l'app del taller</a></p>
 <p><a href="https://${host}:${PORT}/index.html">➜ Obrir l'app de disseny</a></p>
 <h2>Primer cop en aquest aparell</h2>
 <ol><li><a href="/certificat">Descarrega el certificat del taller</a> i instal·la'l com a <b>certificat de CA</b> (Android: Configuració › Seguretat › Xifratge i credencials › Instal·la un certificat › Certificat de CA · iPhone: obre'l, instal·la el perfil i activa'l a Configuració › General › Informació › Confiança de certificats).</li>
@@ -277,7 +428,7 @@ function gestor(cert, segur) {
             }
             res.writeHead(302, { Location: desti }); return res.end();
         }
-        if (url.pathname.startsWith('/api/')) return api(req, res, url, cert).catch(e => json(req, res, 400, { error: e.message }));
+        if (url.pathname.startsWith('/api/')) return api(req, res, url).catch(e => json(req, res, 400, { error: e.message }));
         if (url.pathname === '/') { res.writeHead(302, { Location: '/muntatge.html' }); return res.end(); }
         estatic(req, res, url);
     };
@@ -316,8 +467,13 @@ srv.listen(PORT, '0.0.0.0', () => {
     console.log(`  Nom de xarxa: https://${os.hostname()}.local:${PORT}/muntatge.html`);
     console.log(`  Primer cop:   ${principal}  (certificat i ajuda)`);
     if (CLAU) console.log('  Clau del taller activada.');
+    console.log(configurat() ? `  Persones: ${persones.persones.filter(x => x.actiu).length} actives.` : '  Primer ús: obre l\'app del taller i crea el primer Responsable.');
     console.log('\n  Escaneja aquest QR amb el mòbil (mateixa Wi-Fi):\n');
     console.log(qrConsola(principal));
 });
-process.on('SIGINT', () => { pendentsDesar.forEach((t, id) => { clearTimeout(t); escriuAtomic(fitxerProg(id), JSON.stringify(progres(id))); }); process.exit(0); });
+// En aturar-lo, desa el que estigui pendent
+process.on('SIGINT', () => {
+    pendentsDesar.forEach((t, k) => { clearTimeout(t); const [id, ordre] = k.split('|'); escriuAtomic(fitxerProg(id, ordre), JSON.stringify(progres(id, ordre))); });
+    process.exit(0);
+});
 process.on('SIGTERM', () => process.emit('SIGINT'));
