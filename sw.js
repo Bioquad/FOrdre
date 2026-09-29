@@ -3,12 +3,12 @@
 // Estratègia: xarxa primer per als fitxers de l'app (per rebre les
 // actualitzacions) i còpia local si no hi ha connexió.
 // ═══════════════════════════════════════════════════════════════
-const CACHE = 'fordre-v1.3.0';
+const CACHE = 'fordre-v1.4.0';
 const FITXERS = [
     './', './index.html', './muntatge.html', './manifest.webmanifest',
     './css/fordre.css', './css/muntatge.css',
     './js/fo-dades.js', './js/fo-calcul.js', './js/fo-stl.js', './js/fo-etiquetes.js', './js/fo-importa.js',
-    './js/fo-compartir.js', './js/fo-progres.js', './js/fo-vista3d.js', './js/fo-app.js', './js/fo-muntatge.js',
+    './js/fo-compartir.js', './js/fo-progres.js', './js/fo-informe.js', './js/fo-vista3d.js', './js/fo-app.js', './js/fo-muntatge.js',
     './vendor/three.min.js', './vendor/qrcode.js', './vendor/xlsx.full.min.js', './vendor/jsQR.js',
     './icones/icona.svg', './icones/icona-192.png', './icones/icona-512.png',
     './exemples/dosificadora_DX-1.fordre.json'

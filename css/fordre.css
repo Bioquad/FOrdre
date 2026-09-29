@@ -141,3 +141,9 @@ button, input, select, textarea { font-family: inherit; font-size: 11px; color: 
     .ca { height: 60vh; flex: none }
     .tb { padding: 6px 10px }
 }
+
+/* Diàleg del taller: camps d'entrada i botons amagats */
+label.f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--dm); margin: 6px 0 }
+label.f input, label.f select { height: 28px; border: 1px solid var(--bd); border-radius: 4px; background: var(--p2); color: var(--tx); padding: 0 6px }
+.b[hidden] { display: none }
+.dlg a { color: var(--ac) }

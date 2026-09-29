@@ -44,8 +44,6 @@
         return g;
     }
 
-    const mescla = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
-
     // Pseudoaleatori determinista (el mateix dibuix cada vegada)
     function rnd(seed) { let s = seed >>> 0 || 1; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822507) + 0x9e3779b9 >>> 0) / 4294967296); }
 
@@ -53,7 +51,6 @@
     function posicionsPeces(c, cfg) {
         const o = c.o, out = [];
         const gir = !!c.girat;
-        const w = gir ? o.d : o.w, d = gir ? o.w : o.d; // planta de la peça en X/Y de la safata
         if (c.mode === 'granel') {
             const n = Math.min(c.qty, 400), r = rnd(c.qty * 7919 + Math.round(c.x * 31 + c.y));
             const porCapa = Math.max(1, Math.floor((c.w * c.d) / (o.w * o.d) * 0.45));
@@ -105,7 +102,7 @@
         const orb = { th: Math.PI / 2 - 0.5, ph: 0.95, r: 900, tg: new THREE.Vector3() };
         let anim = null, brut = true;
         let safates = [];     // [{s, r, grup, malla, mat, peces:[{mesh, c, idx}], caixMarc}]
-        let mostraPeces = true, mostraFalca = true, mostraTapes = true, cfgAct = null;
+        let mostraPeces = true, mostraFalca = true, mostraTapes = true;
         let marca = null, selConj = null, selCaix = null;
 
         function updCam() {
@@ -161,7 +158,6 @@
 
         function construeix(pla, cfg) {
             buida();
-            cfgAct = cfg;
             let x = 0, zFila = 0, fondFila = 0;
             const geoCaixa = new THREE.BoxGeometry(1, 1, 1), geoCil = new THREE.CylinderGeometry(0.5, 0.5, 1, 20);
             pla.forEach(r => {

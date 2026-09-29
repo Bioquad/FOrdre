@@ -5,7 +5,7 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir', 'fo-progres']) require(path.join(__dirname, '..', 'js', f + '.js'));
+for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir', 'fo-progres', 'fo-informe']) require(path.join(__dirname, '..', 'js', f + '.js'));
 const FO = globalThis.FO;
 globalThis.qrcode = require(path.join(__dirname, '..', 'vendor', 'qrcode.js'));   // per als QR gravats
 const jsQR = require(path.join(__dirname, '..', 'vendor', 'jsQR.js'));
@@ -269,6 +269,94 @@ prova('progrés: operacions idempotents i estoc per increments', () => {
     FO.aplicaOp(pr, { id: 'a3', t: 'desfet', conj: 'C' });
     assert(pr.estoc.X === 8 && !pr.fets.C && pr.registre.length === 1, 'desfet');
 });
+
+console.log('Processos: rols, ordres i resultats');
+{
+    const m = FO.modelTaller(p);
+    const nova = () => FO.progresBuit();
+    let k = 0;
+    const op = (pr, t, dades, qui, rol) => FO.creaOp('t', ++k, t, dades, qui, rol);
+    const fes = (pr, t, dades, qui, rols) => {
+        const o = op(pr, t, dades, qui, rols[0]);
+        const motiu = FO.validaOp(pr, o, { nom: qui, rols });
+        if (!motiu) FO.aplicaOp(pr, o);
+        return motiu;
+    };
+    const r0 = m.PLA[0], c0 = r0.conj.id;
+    prova('cada rol només pot fer les seves operacions', () => {
+        assert(FO.potFer(['magatzem'], 'omple') && !FO.potFer(['magatzem'], 'fet'));
+        assert(FO.potFer(['muntador'], 'fet') && !FO.potFer(['muntador'], 'verifica'));
+        assert(FO.potFer(['qualitat'], 'verifica') && !FO.potFer(['qualitat'], 'omple'));
+        assert(FO.potFer(['responsable'], 'tanca') && FO.potFer(['responsable'], 'omple'));
+    });
+    prova('omplir una caixa treu el material de l\'estoc i buidar-la el torna', () => {
+        const pr = nova(), e = m.aOmplir(r0)[0], mat = e.caixeti.mat.id;
+        fes(pr, 'estoc', { mat, delta: 10 }, 'Marc', ['magatzem']);
+        fes(pr, 'omple', { clau: e.clau, mat, qty: e.qty }, 'Marc', ['magatzem']);
+        assert(pr.estoc[mat] === 10 - e.qty, 'surt de l\'estoc');
+        fes(pr, 'buida', { clau: e.clau }, 'Marc', ['magatzem']);
+        assert(pr.estoc[mat] === 10 && !pr.omplert[e.clau], 'torna a l\'estoc');
+    });
+    prova('estats d\'una caixa: buida → omplint-se → plena → en ús → retornada', () => {
+        const pr = nova(), c = m.caixes.find(x => !x.guarda && x.claus.length > 1);
+        assert(FO.estatCaixa(pr, c.id, c.claus) === 'buida');
+        FO.aplicaOp(pr, { id: 'e1', t: 'omple', clau: c.claus[0], qty: 1 });
+        assert(FO.estatCaixa(pr, c.id, c.claus) === 'parcial');
+        c.claus.forEach((cl, i) => FO.aplicaOp(pr, { id: 'e2' + i, t: 'omple', clau: cl, qty: 1 }));
+        assert(FO.estatCaixa(pr, c.id, c.claus) === 'plena');
+        c.claus.forEach((cl, i) => FO.aplicaOp(pr, { id: 'e3' + i, t: 'agafa', clau: cl, v: true }));
+        assert(FO.estatCaixa(pr, c.id, c.claus) === 'en ús');
+        FO.aplicaOp(pr, { id: 'e4', t: 'retorna', obj: c.id });
+        assert(FO.estatCaixa(pr, c.id, c.claus) === 'retornada');
+    });
+    prova('un pas passa per pendent → en curs → muntat → verificat', () => {
+        const pr = nova();
+        assert(FO.estatPas(pr, c0, false) === 'pendent');
+        fes(pr, 'inicia', { conj: c0 }, 'Anna', ['muntador']);
+        assert(FO.estatPas(pr, c0, false) === 'en curs');
+        fes(pr, 'fet', { conj: c0 }, 'Anna', ['muntador']);
+        assert(FO.estatPas(pr, c0, false) === 'muntat');
+        assert(!fes(pr, 'verifica', { conj: c0, resultat: 'ok' }, 'Pau', ['qualitat']));
+        assert(FO.estatPas(pr, c0, false) === 'verificat');
+    });
+    prova('quatre ulls: qui munta no verifica, i rebutjar demana motiu', () => {
+        const pr = nova();
+        fes(pr, 'fet', { conj: c0 }, 'Joan', ['muntador', 'qualitat']);
+        assert(/altra persona/.test(fes(pr, 'verifica', { conj: c0, resultat: 'ok' }, 'Joan', ['muntador', 'qualitat'])));
+        assert(/motiu/.test(fes(pr, 'verifica', { conj: c0, resultat: 'ko' }, 'Pau', ['qualitat'])));
+        assert(!fes(pr, 'verifica', { conj: c0, resultat: 'ko', motiu: 'Falta un cargol' }, 'Pau', ['qualitat']));
+        assert(FO.estatPas(pr, c0, false) === 'rebutjat' && pr.historial.length === 1, 'torna al muntador');
+    });
+    prova('una ordre tancada no admet canvis fins que es reobre', () => {
+        const pr = nova();
+        fes(pr, 'tanca', {}, 'Rosa', ['responsable']);
+        assert(/tancada/.test(fes(pr, 'fet', { conj: c0 }, 'Anna', ['muntador'])));
+        assert(!fes(pr, 'reobre', {}, 'Rosa', ['responsable']));
+        assert(!fes(pr, 'fet', { conj: c0 }, 'Anna', ['muntador']));
+    });
+    prova('codis d\'ordre correlatius per any', () => {
+        const a = new Date().getFullYear();
+        assert(FO.codiOrdreSeguent([]) === `OF-${a}-001`);
+        assert(FO.codiOrdreSeguent([{ codi: `OF-${a}-001` }, { codi: `OF-${a}-007` }]) === `OF-${a}-008`);
+    });
+    prova('un progrés antic es completa amb els camps nous', () => {
+        const pr = FO.normalitzaProgres({ fets: { X: { ts: 't' } }, vist: ['a'] });
+        assert(pr.fets.X && Array.isArray(pr.historial) && pr.tancada === null && typeof pr.omplert === 'object');
+    });
+    prova('resultats: rendiment a la primera, temps i persones', () => {
+        const pr = nova(), t0 = Date.parse('2026-01-01T10:00:00Z');
+        const at = min => new Date(t0 + min * 60000).toISOString();
+        FO.aplicaOp(pr, { id: 'r1', t: 'inicia', conj: c0, op: 'Anna', ts: at(0) });
+        FO.aplicaOp(pr, { id: 'r2', t: 'fet', conj: c0, op: 'Anna', ts: at(25), text: 'muntat' });
+        FO.aplicaOp(pr, { id: 'r3', t: 'verifica', conj: c0, resultat: 'ok', op: 'Pau', ts: at(30), text: 'ok' });
+        const res = FO.resumOrdre(m, pr);
+        assert(res.verificats === 1 && res.primeraPassada === 1, 'primera passada');
+        assert(res.tempsMuntatge === 25 * 60000 && FO.textDurada(res.tempsMuntatge) === '25 min', 'temps');
+        assert(res.persones.find(x => x.nom === 'Anna').muntats === 1 && res.persones.find(x => x.nom === 'Pau').verificats === 1);
+        const html = FO.informeHTML(m, pr, { codi: 'OF-2026-001', empremta: 'aaa' }, { empremtaActual: 'bbb' });
+        assert(/Informe de fabricació/.test(html) && /s'ha modificat/.test(html), 'informe amb avís de versió');
+    });
+}
 
 console.log('Importació');
 prova('plantilla CSV → projecte', () => {

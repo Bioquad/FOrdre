@@ -68,7 +68,7 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
 
 ### Servidor del taller (Raspberry Pi o PC)
 
-Una Raspberry Pi o qualsevol ordinador amb Node.js fa de servidor a la xarxa del taller: serveix les dues apps sense internet i **sincronitza en temps real** el projecte, el progrés, l'estoc, el registre i les fotos entre tots els mòbils, tauletes i ordinadors. Si un aparell perd la Wi-Fi, continua treballant i envia els canvis quan torna. Instal·lació en una Raspberry Pi:
+Una Raspberry Pi o qualsevol ordinador amb Node.js fa de servidor a la xarxa del taller: serveix les dues apps sense internet i **sincronitza en temps real** el projecte, les ordres, el progrés, l'estoc, el registre i les fotos entre tots els mòbils, tauletes i ordinadors. Guarda les **persones amb el seu PIN i els seus rols** i comprova cada operació. Si un aparell perd la Wi-Fi, continua treballant i envia els canvis quan torna. Instal·lació en una Raspberry Pi:
 
 ```bash
 git clone https://github.com/Bioquad/FOrdre.git && cd FOrdre
@@ -77,24 +77,40 @@ sudo bash servidor/configura-raspberry.sh
 
 A Windows, doble clic a `servidor/inicia-windows.bat`. Tota la guia és a [`servidor/LLEGEIX-ME.md`](servidor/LLEGEIX-ME.md).
 
-### App de muntatge (mòbil i tauleta)
+### Del disseny al producte: processos i rols
 
-`muntatge.html` és una app de taller per fer els muntatges. Des de l'ordinador, el botó **📱 Muntatge** hi passa el projecte amb un **QR**, un **enllaç** o un **fitxer**.
+FOrdre segueix tot el camí, de la definició fins a la màquina verificada, i permet **repetir-lo** tantes vegades com calgui:
 
-- **Passos en ordre de muntatge**, amb el progrés de cadascun. Un pas queda bloquejat fins que els seus subconjunts estan muntats.
-- **Preparació:** la llista de caixes i caixetins que cal agafar (quantitat, color, ESD, líquids, peces que van dretes), incloses les caixes de guarda dels subconjunts. Es marquen tocant-los o **escanejant el QR o el codi de barres** de l'etiqueta amb la càmera (o amb un lector USB/Bluetooth). Si l'etiqueta és d'un altre pas, t'avisa amb un so i et diu de quin pas és.
-- **Muntatge:** instruccions pas a pas amb casella, eines, imatge de referència, **parells de collada** i notes de cada element, i fotos del resultat.
-- **Estoc i llista de compra:** el que cal per acabar els passos pendents, el que tens i el que falta, agrupat per proveïdor. L'estoc es descompta sol en marcar un pas com a muntat.
-- **Registre** amb data, hora i operari, exportable en CSV. El progrés es pot exportar i importar.
-- **Amb el servidor del taller**, tot es comparteix a l'instant entre tots els aparells; sense servidor, cada aparell desa el seu progrés.
-- **Funciona sense connexió** i es pot instal·lar com una app (PWA). Totes les llibreries van incloses al repositori.
+| Procés | Qui | Què fa |
+|---|---|---|
+| **Definir** | Responsable (ordinador) | Arbre de muntatge, materials, caixes, etiquetes i instruccions. En publicar-lo al servidor, el projecte fa de **plantilla**. |
+| **Omplir** | 📦 Magatzem | Posa el material a les caixes escanejant les etiquetes. El material surt de l'estoc; la compra es calcula sola. |
+| **Utilitzar** | 🔧 Muntador | Agafa les caixes, segueix les instruccions i els parells de collada, fa fotos, marca el pas com a muntat i torna les caixes buides. |
+| **Comprovar** | ✅ Qualitat | Verifica cada pas amb una llista de comprovació. Aprova, o rebutja amb el motiu i el pas torna al muntador. **Qui munta no pot verificar** el seu propi pas (quatre ulls). |
+| **Gestionar** | 📋 Responsable | Obre **ordres de fabricació** (una per unitat, amb número de sèrie), assigna passos, resol incidències, dona d'alta persones i tanca l'ordre. |
+| **Resultats** | Tothom | Estat de cada pas i caixa, temps de muntatge, rendiment a la primera, rebutjos, incidències, material mogut i **informe imprimible** amb tota la traçabilitat. |
+
+Cada pas passa per *pendent → preparat → en curs → muntat → verificat* (o *rebutjat*), i cada caixa per *buida → omplint-se → plena → en ús → retornada*. Cada ordre recorda la versió exacta del projecte amb què es va fabricar.
+
+### App del taller (mòbil i tauleta)
+
+`muntatge.html` és l'app dels aparells del taller. Cada persona entra amb el seu **nom i PIN** i tria el **rol** amb què treballa (una persona pot tenir-ne més d'un); només veu la seva feina:
+
+- **📦 Magatzem:** caixes per omplir de l'ordre, per pas. Escanejant l'etiqueta d'un caixetí s'omple; escanejant la d'una caixa s'obre. Estoc (amb recompte) i llista de compra per proveïdor.
+- **🔧 Muntador:** passos en ordre (bloquejats fins que els subconjunts estan fets), caixes a agafar amb lectura de **QR i codi de barres** (càmera o lector USB/Bluetooth), instruccions amb casella, eines, imatge de referència, parells de collada, fotos, avís si el magatzem encara no ha omplert les caixes i motiu del rebuig si Qualitat l'ha rebutjat.
+- **✅ Qualitat:** passos per verificar, llista de comprovació (instruccions, parells, peces, acabat), fotos, aprovar o rebutjar amb motiu.
+- **📋 Responsable:** tauler de l'ordre, assignacions, ordres de fabricació, persones i resultats amb l'informe.
+- **Incidències** (tothom en pot obrir; Qualitat i Responsable les resolen) i **registre** amb data, persona i rol, exportable en CSV.
+- **Amb el servidor del taller**, tot es comparteix a l'instant i el servidor comprova les regles. **Sense connexió**, l'app continua treballant: els canvis i les fotos es guarden i s'envien sols quan torna. **Sense servidor**, l'aparell treballa sol i es pot triar qualsevol rol.
+- Des de l'ordinador, el botó **📱 Muntatge** hi passa el projecte amb un QR, un enllaç o un fitxer, i el diàleg **🏭 Taller** publica el projecte, obre ordres i mostra l'estat de cada pas en directe.
+- Es pot instal·lar com una app (PWA). Totes les llibreries van incloses al repositori.
 
 ### Fitxers
 
 | Fitxer | Contingut |
 |---|---|
 | `index.html` | Aplicació d'escriptori: disseny dels kits |
-| `muntatge.html` | App de muntatge per a mòbil i tauleta |
+| `muntatge.html` | App del taller per a mòbil i tauleta (per rols) |
 | `js/fo-dades.js` | Model de dades, arbre i ordre de muntatge |
 | `js/fo-calcul.js` | Mida dels caixetins i distribució en safates |
 | `js/fo-stl.js` | Motor de geometria (llavis, imants, text, tapes, calibratge), STL, 3MF, tandes i ZIP |
@@ -103,13 +119,15 @@ A Windows, doble clic a `servidor/inicia-windows.bat`. Tota la guia és a [`serv
 | `js/fo-vista3d.js` | Vista 3D |
 | `js/fo-app.js` | Interfície d'escriptori |
 | `js/fo-compartir.js` | Enllaços i QR per passar el projecte al mòbil |
-| `js/fo-muntatge.js` | App de muntatge |
-| `js/fo-progres.js` | Progrés com a operacions (compartit entre mòbil, ordinador i servidor) |
+| `js/fo-muntatge.js` | App del taller: Magatzem, Muntador, Qualitat i Responsable |
+| `js/fo-progres.js` | Processos: operacions, rols, permisos, estats i ordres (compartit entre mòbil, ordinador i servidor) |
+| `js/fo-informe.js` | Model del taller (caixes de cada pas) i resultats i informe d'una ordre |
 | `servidor/` | Servidor del taller (Raspberry Pi / PC), scripts d'instal·lació i guia |
 | `sw.js`, `manifest.webmanifest`, `icones/` | Funcionament sense connexió i instal·lació |
 | `vendor/` | Llibreries de tercers (Three.js, qrcode-generator, SheetJS, jsQR) amb les seves llicències |
 | `exemples/` | Projecte d'exemple, plantilla CSV i BOM de mostra |
-| `proves/proves.js` | Proves del nucli: `node proves/proves.js` |
+| `proves/` | Proves del nucli (`node proves/proves.js`) i del servidor (`node proves/proves-servidor.js`) |
+| `eslint.config.js` | Regles de revisió del codi (`npx eslint js servidor proves sw.js`) |
 
 El projecte es desa en un fitxer `.fordre.json`. El navegador també en guarda una còpia local per comoditat.
 
@@ -119,11 +137,11 @@ Les llibreries de tercers van incloses a `vendor/`: no cal connexió ni cap inst
 
 ## 🇪🇸 Español
 
-FOrdre prepara, para cada paso de montaje de una máquina, un **kit**: bandeja fusionada, cajas individuales, cajas dentro de un contenedor general o mixto, con un compartimento a medida para cada material (nunca se mezclan), en el material y color de impresión que elijas y una etiqueta para cada uno (código, nombre, cantidad, colores, QR, código de barras, RFID/NFC). Importa listas desde Excel/CSV o BOM indentadas de CAD, separa las piezas ESD en su propia bandeja, mantiene verticales las piezas con líquidos, admite bandejas inclinadas con cuña y genera cajas de almacenaje para subconjuntos ya montados, que entran como una pieza más en el conjunto padre. Cierre con labio interior (0-5 mm), tapa a presión o tapa con imanes, código grabado en relieve, pieza de calibración, tandas de impresión en 3MF por material y color, y revisiones de la lista de materiales. Contenedores apilables con asas, nidos a medida a partir del STL de cada pieza y QR grabado en las tapas. Un **servidor de taller** sin dependencias (Raspberry Pi o PC) sincroniza en tiempo real el progreso, el stock y las fotos entre todos los dispositivos. Incluye una **app de montaje para móvil y tableta** (sin conexión): pasos, lectura de QR/código de barras de las etiquetas, instrucciones, pares de apriete, fotos, stock, lista de compra y registro.
+FOrdre prepara, para cada paso de montaje de una máquina, un **kit**: bandeja fusionada, cajas individuales, cajas dentro de un contenedor general o mixto, con un compartimento a medida para cada material (nunca se mezclan), en el material y color de impresión que elijas y una etiqueta para cada uno (código, nombre, cantidad, colores, QR, código de barras, RFID/NFC). Importa listas desde Excel/CSV o BOM indentadas de CAD, separa las piezas ESD en su propia bandeja, mantiene verticales las piezas con líquidos, admite bandejas inclinadas con cuña y genera cajas de almacenaje para subconjuntos ya montados, que entran como una pieza más en el conjunto padre. Cierre con labio interior (0-5 mm), tapa a presión o tapa con imanes, código grabado en relieve, pieza de calibración, tandas de impresión en 3MF por material y color, y revisiones de la lista de materiales. Contenedores apilables con asas, nidos a medida a partir del STL de cada pieza y QR grabado en las tapas. Un **servidor de taller** sin dependencias (Raspberry Pi o PC) sincroniza en tiempo real órdenes de fabricación, progreso, stock y fotos entre todos los dispositivos, con personas, PIN y **roles**: Almacén (llenar las cajas), Montador (montar con instrucciones y pares de apriete), Calidad (verificar con lista de comprobación; quien monta no verifica) y Responsable (órdenes, asignaciones, incidencias y resultados). Cada orden genera un **informe** con la trazabilidad completa. La **app del taller para móvil y tableta** funciona sin conexión y envía los cambios y las fotos al recuperarla.
 
 ## 🇬🇧 English
 
-FOrdre builds an **assembly kit** for every step of a machine build: a fused tray, individual boxes, boxes inside an open-top carrier, or a mix, with a custom-sized pocket for each part (never mixed), in the print material and colour you choose and a label for each pocket (code, name, quantity, colours, QR, Code 128 barcode, RFID/NFC data). It imports Excel/CSV lists and indented CAD BOMs, puts ESD-sensitive parts in their own tray, keeps liquid-filled parts upright, supports tilted trays on a printed wedge, and creates storage boxes for finished sub-assemblies, which then become parts of their parent assembly. Closures: inner lip (0-5 mm), press-fit lid or magnetic lid; embossed codes, calibration piece, 3MF print plates by material and colour, and BOM revisions. Stackable containers with handles, custom nests from each part's STL and embossed QR codes on lids. A zero-dependency **workshop server** for a Raspberry Pi or any PC syncs progress, stock and photos in real time across devices. Includes an offline **assembly app for phones and tablets**: steps, QR/barcode scanning of the labels, instructions, torque values, photos, stock, shopping list and log.
+FOrdre builds an **assembly kit** for every step of a machine build: a fused tray, individual boxes, boxes inside an open-top carrier, or a mix, with a custom-sized pocket for each part (never mixed), in the print material and colour you choose and a label for each pocket (code, name, quantity, colours, QR, Code 128 barcode, RFID/NFC data). It imports Excel/CSV lists and indented CAD BOMs, puts ESD-sensitive parts in their own tray, keeps liquid-filled parts upright, supports tilted trays on a printed wedge, and creates storage boxes for finished sub-assemblies, which then become parts of their parent assembly. Closures: inner lip (0-5 mm), press-fit lid or magnetic lid; embossed codes, calibration piece, 3MF print plates by material and colour, and BOM revisions. Stackable containers with handles, custom nests from each part's STL and embossed QR codes on lids. A zero-dependency **workshop server** for a Raspberry Pi or any PC syncs production orders, progress, stock and photos in real time, with people, PINs and **roles**: Warehouse (fill the boxes), Assembler (build with instructions and torque values), Quality (checklist verification; whoever assembles cannot verify) and Manager (orders, assignments, issues and results). Each order produces a **report** with full traceability. The offline-capable **workshop app for phones and tablets** queues changes and photos and sends them when back online.
 
 ---
 

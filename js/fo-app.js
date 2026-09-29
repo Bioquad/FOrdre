@@ -7,7 +7,7 @@
     const $ = id => document.getElementById(id);
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmt = (v, d) => (Math.round(v * Math.pow(10, d || 0)) / Math.pow(10, d || 0)).toLocaleString('ca-ES');
-    const CLAU_LOCAL = 'fordre.projecte.v1';   // compartida amb l'app de muntatge
+    const CLAU_LOCAL = 'fordre.projecte.v1';   // compartida amb l'app del taller
 
     let P = null;             // projecte
     let PLA = [];             // resultat del càlcul (un element per conjunt)
@@ -68,7 +68,7 @@
         recalcula(true);
         setTimeout(() => vista.veureTot(), 50);
         if (missatge) hint(missatge);
-        if (taller.url) { taller.prog = null; escoltaTaller(); }
+        if (taller.url) actualitzaTaller();
     }
 
     // ─── Etiqueta d'un caixetí ───
@@ -159,7 +159,7 @@
                 ${c.muntat && c.pare ? '<span class="bd mt" title="Té caixa de guarda com a peça muntada">▣</span>' : ''}
                 ${nSaf > 1 ? `<span class="bd mt" title="Objectes del kit">${nSaf}</span>` : ''}
                 ${fmtK ? `<span class="bd mt" title="Format del kit: ${esc(fmtK)}">${esc(fmtK.split(' ')[0])}</span>` : ''}
-                ${taller.prog && taller.prog.fets[c.id] ? '<span class="bd" style="background:var(--ok);color:#fff" title="Muntat al taller">✓</span>' : ''}
+                ${['muntat', 'verificat', 'rebutjat', 'en curs'].includes(estatConjTaller(c.id)) ? xipPas(estatConjTaller(c.id)) : ''}
                 ${avisos ? `<span class="bd av" title="Avisos">${avisos}</span>` : ''}
             </div>`;
             if (!obert) return;
@@ -810,7 +810,7 @@
         hint(`${fitxers.length - 2} fitxers STL exportats`);
     }
 
-    // ─── App de muntatge (mòbil / tauleta) ───
+    // ─── App del taller (mòbil / tauleta) ───
     const urlMuntatge = () => location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '') + 'muntatge.html';
     async function obreMobil() {
         desaLocal();
@@ -824,15 +824,15 @@
         }
         const cabQR = !!qr;
         const teImatges = P.conjunts.some(c => c.imatge);
-        $('mobilCos').innerHTML = `<div class="ajuda">L'app de muntatge mostra els passos, la llista de cada caixa amb els parells de collada i les notes, llegeix els QR de les etiquetes amb la càmera, porta l'estoc i la llista de compra, i funciona sense connexió un cop oberta (es pot instal·lar com una app).</div>
-            <div><div class="ps-t">En aquest dispositiu</div><a class="b pr" href="${esc(urlMuntatge())}" target="_blank" rel="noopener">Obrir l'app de muntatge</a>
+        $('mobilCos').innerHTML = `<div class="ajuda">L'app del taller té una pantalla per a cada rol: Magatzem (omplir les caixes), Muntador (passos, caixes, instruccions i parells de collada), Qualitat (verificació) i Responsable (ordres i resultats). Llegeix els QR de les etiquetes amb la càmera i funciona sense connexió (es pot instal·lar com una app).</div>
+            <div><div class="ps-t">En aquest dispositiu</div><a class="b pr" href="${esc(urlMuntatge())}" target="_blank" rel="noopener">Obrir l'app del taller</a>
                 <div class="ajuda" style="margin-top:4px">Fa servir el projecte que tens obert ara.</div></div>
             <div><div class="ps-t">En un altre dispositiu</div>
             ${cabQR ? `<div class="fx" style="align-items:flex-start;gap:14px"><div style="width:220px;background:#fff;padding:6px;border-radius:6px">${qr}</div>
                 <div class="ajuda" style="flex:1">Escaneja aquest QR amb la càmera del mòbil o la tauleta: s'obrirà l'app amb el projecte carregat.${teImatges ? '<br>Les imatges de referència no hi caben: envia el fitxer si les necessites.' : ''}</div></div>`
                 : `<div class="ajuda">El projecte és massa gran per a un QR (${fmt(url.length / 1000, 1)} kB). Fes servir l'enllaç o el fitxer.</div>`}
             <div class="fx" style="margin-top:8px"><button class="b" id="mobCopia">Copiar l'enllaç</button>${navigator.share ? '<button class="b" id="mobShare">Compartir…</button>' : ''}<button class="b" id="mobFitxer">⬇ Fitxer del projecte</button></div>
-            <div class="ajuda" style="margin-top:4px">Amb el fitxer: obre l'app de muntatge al mòbil i tria <b>Obrir fitxer</b>. Inclou les imatges.</div></div>`;
+            <div class="ajuda" style="margin-top:4px">Amb el fitxer: obre l'app del taller al mòbil i tria <b>Obrir fitxer</b>. Inclou les imatges.</div></div>`;
         $('mobCopia').onclick = async () => { try { await navigator.clipboard.writeText(url); hint('Enllaç copiat'); } catch (e) { prompt('Copia l\'enllaç:', url); } };
         if ($('mobShare')) $('mobShare').onclick = async () => {
             const nom = FO.nomFitxer(P.nom) + '.fordre.json';
@@ -848,65 +848,170 @@
     $('bMobil').onclick = () => { obreMobil().catch(e => hint('Error: ' + e.message)); };
 
     // ─── Servidor del taller ───
-    const taller = { url: '', info: null, prog: null, es: null, clau: (() => { try { return localStorage.getItem('fordre.taller.clau') || ''; } catch (e) { return ''; } })() };
-    const capTaller = () => Object.assign({ 'Content-Type': 'application/json' }, taller.clau ? { 'X-FOrdre-Clau': taller.clau } : {});
-    const qClau = () => taller.clau ? '?clau=' + encodeURIComponent(taller.clau) : '';
-    async function estatTaller() {
-        const d = await (await fetch(taller.url + '/api/estat', { cache: 'no-store', headers: capTaller() })).json();
-        if (d.clau && !taller.clau) {
-            const c = prompt('Aquest taller té clau. Escriu-la:');
-            if (c) { taller.clau = c; try { localStorage.setItem('fordre.taller.clau', c); } catch (e) { /* */ } return estatTaller(); }
+    // Des de l'ordinador, el Responsable publica el projecte, obre ordres de
+    // fabricació i segueix en directe l'estat de cada pas (el mateix que veuen
+    // els mòbils). Cal entrar amb nom i PIN, com a l'app del dispositiu.
+    const llegeixLS = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+    const escriuLS = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* */ } };
+    const taller = {
+        url: '', info: null, prog: null, es: null, projectes: [], ordres: [], ordre: '',
+        ses: llegeixLS('fordre.taller.sessio'),
+        clau: (() => { try { return localStorage.getItem('fordre.taller.clau') || ''; } catch (e) { return ''; } })()
+    };
+    const esResp = () => !!(taller.ses && taller.ses.rols.includes('responsable'));
+    const qAuth = () => { const q = []; if (taller.ses) q.push('token=' + encodeURIComponent(taller.ses.token)); if (taller.clau) q.push('clau=' + encodeURIComponent(taller.clau)); return q.length ? '?' + q.join('&') : ''; };
+    // Petició a l'API del taller amb la clau i la sessió
+    async function apiTaller(ruta, opcions) {
+        opcions = opcions || {};
+        const cap = { 'Content-Type': 'application/json' };
+        if (taller.clau) cap['X-FOrdre-Clau'] = taller.clau;
+        if (taller.ses) { cap['X-FOrdre-Token'] = taller.ses.token; cap['X-FOrdre-Rol'] = 'responsable'; }
+        const r = await fetch(taller.url + ruta, Object.assign({ cache: 'no-store' }, opcions, { headers: cap }));
+        let d = null;
+        try { d = await r.json(); } catch (e) { /* sense cos */ }
+        if (!r.ok) {
+            if (r.status === 401 && /sessió/i.test((d && d.error) || '')) { taller.ses = null; escriuLS('fordre.taller.sessio', null); }
+            throw new Error((d && d.error) || 'Error ' + r.status);
         }
         return d;
     }
+    async function estatTaller() {
+        const d = await apiTaller('/api/estat');
+        if (d.clau && !taller.clau) {
+            const c = prompt('Aquest taller té clau. Escriu-la:');
+            if (c) { taller.clau = c; try { localStorage.setItem('fordre.taller.clau', c); } catch (e) { /* */ } }
+        }
+        return d;
+    }
+    // L'app d'escriptori s'ha obert des del servidor del taller? Llavors apareix el botó 🏭 Taller
     async function detectaTaller() {
         try {
-            const r = await fetch('api/estat', { cache: 'no-store' });
-            const d = await r.json();
-            if (d && d.app === 'FOrdre') { taller.url = location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, ''); taller.info = d; $('bTaller').hidden = false; escoltaTaller(); }
+            const d = await (await fetch('api/estat', { cache: 'no-store' })).json();
+            if (d && d.app === 'FOrdre') {
+                taller.url = location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '');
+                taller.info = d; $('bTaller').hidden = false;
+                await actualitzaTaller();
+            }
         } catch (e) { /* sense servidor: l'app funciona igual */ }
     }
+    // Llegeix projectes i ordres del servidor i es connecta a l'ordre triada
+    async function actualitzaTaller() {
+        if (!taller.url || !taller.ses) return;
+        try {
+            taller.projectes = await apiTaller('/api/projectes');
+            const pub = taller.projectes.find(x => x.id === P.id);
+            taller.ordres = pub ? pub.ordres : [];
+            if (!taller.ordres.some(o => o.id === taller.ordre)) taller.ordre = taller.ordres.length ? taller.ordres[taller.ordres.length - 1].id : '';
+        } catch (e) { taller.projectes = []; taller.ordres = []; }
+        escoltaTaller();
+    }
     function escoltaTaller() {
-        if (!taller.url || typeof EventSource !== 'function') return;
-        if (taller.es) taller.es.close();
-        taller.es = new EventSource(taller.url + '/api/progres/' + encodeURIComponent(P.id) + '/flux' + qClau());
+        if (taller.es) { taller.es.close(); taller.es = null; }
+        taller.prog = null;
+        if (!taller.url || !taller.ses || !taller.ordre || typeof EventSource !== 'function') return;
+        taller.es = new EventSource(`${taller.url}/api/progres/${encodeURIComponent(P.id)}/${encodeURIComponent(taller.ordre)}/flux${qAuth()}`);
         taller.es.addEventListener('estat', ev => {
             try { taller.prog = FO.normalitzaProgres(JSON.parse(ev.data)); } catch (e) { return; }
             renderArbre();
             if ($('dlgTaller').classList.contains('on')) pintaTaller();
         });
+        taller.es.addEventListener('ordres', ev => { try { taller.ordres = JSON.parse(ev.data); } catch (e) { /* */ } });
     }
-    function progresPas(r) {
-        const pr = taller.prog; if (!pr) return null;
-        const ids = new Set(r.safates.filter(o => o.tipus !== 'muntat').flatMap(o => [o.id].concat(o.caixes ? o.caixes.map(q => q.obj.id) : [])));
-        r.entrades.forEach(en => { const rf = perConj.get(en.conj.id); if (rf) rf.safates.filter(o => o.tipus === 'muntat').forEach(o => ids.add(o.id)); });
-        const l = ETQ.filter(e => e.tipus === 'caixeti' && ids.has(e.safata));
-        return { total: l.length, agafats: l.filter(e => pr.agafat[e.clau]).length, fet: pr.fets[r.conj.id] };
+    // Estat d'un conjunt a l'ordre que se segueix (per a l'arbre)
+    function estatConjTaller(conjId) {
+        if (!taller.prog) return '';
+        const r = perConj.get(conjId);
+        return r ? FO.estatPas(taller.prog, conjId, false) : '';
     }
+    const xipPas = e => `<span class="bd" style="background:${FO.ESTATS_PAS[e].col};color:#fff">${esc(FO.ESTATS_PAS[e].nom)}</span>`;
+
     function pintaTaller() {
-        const pr = taller.prog;
-        const publicat = taller.info && taller.info.projectes.some(x => x.id === P.id);
-        $('tallerCos').innerHTML = `<div class="ajuda">Connectat a <b>${esc(taller.url)}</b> (FOrdre ${esc(taller.info.versio)}). Els mòbils i les tauletes del taller obren <b>${esc(taller.url)}/muntatge.html</b> i comparteixen el progrés, l'estoc i les fotos en temps real.</div>
-            <div class="${publicat ? 'ajuda' : 'av'}">${publicat ? '✓ Aquest projecte ja és al taller. Si l\'has canviat, torna\'l a publicar i els mòbils rebran l\'avís per actualitzar-lo.' : 'Aquest projecte encara no és al taller: publica\'l perquè es pugui muntar.'}</div>
-            ${pr ? `<table class="tt"><thead><tr><th>Pas</th><th>Conjunt</th><th class="n">Preparat</th><th>Estat</th></tr></thead><tbody>${PLA.map(r => {
-                const e = progresPas(r);
-                return `<tr><td>${r.pas}</td><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.conj.col}"></span> ${esc(r.conj.codi)} · ${esc(r.conj.nom)}</td><td class="n">${e.total ? e.agafats + '/' + e.total : '—'}</td><td>${e.fet ? `✓ Muntat ${esc(new Date(e.fet.ts).toLocaleString('ca-ES'))}${e.fet.op ? ' · ' + esc(e.fet.op) : ''}` : 'Pendent'}</td></tr>`;
-            }).join('')}</tbody></table>
+        const c = $('tallerCos'), I = taller.info || {};
+        $('tallerPublica').hidden = $('tallerInforme').hidden = true;
+        // 1 · Primer ús: cal crear el Responsable
+        if (!I.configurat) {
+            c.innerHTML = `<div class="ajuda">Connectat a <b>${esc(taller.url)}</b>. És el primer ús d'aquest servidor: crea el <b>Responsable</b>, que és qui publica projectes, obre ordres i dona d'alta la resta de persones.</div>
+                <label class="f">Nom<input id="tlNom"></label><label class="f">PIN (de 4 a 8 xifres)<input id="tlPin" type="password" inputmode="numeric"></label>
+                <button class="b pr" id="tlCrea">Crear el Responsable i entrar</button>`;
+            $('tlCrea').onclick = async () => {
+                try {
+                    await apiTaller('/api/persones', { method: 'POST', body: JSON.stringify({ nom: $('tlNom').value.trim(), rols: ['responsable'], pin: $('tlPin').value.trim() }) });
+                    taller.info = await estatTaller();
+                    await entraTaller($('tlNom').value.trim(), $('tlPin').value.trim());
+                } catch (e) { hint(e.message, 4000); }
+            };
+            return;
+        }
+        // 2 · Cal entrar amb nom i PIN
+        if (!taller.ses) {
+            c.innerHTML = `<div class="ajuda">Connectat a <b>${esc(taller.url)}</b>. Entra amb el teu nom i PIN per publicar projectes i seguir les ordres.</div>
+                <label class="f">Nom<select id="tlNom"></select></label><label class="f">PIN<input id="tlPin" type="password" inputmode="numeric"></label>
+                <button class="b pr" id="tlEntra">Entrar</button>`;
+            apiTaller('/api/persones').then(l => { $('tlNom').innerHTML = l.map(x => `<option>${esc(x.nom)}</option>`).join(''); }).catch(() => { });
+            const entra = () => entraTaller($('tlNom').value, $('tlPin').value.trim()).catch(e => hint(e.message, 4000));
+            $('tlEntra').onclick = entra;
+            $('tlPin').onkeydown = e => { if (e.key === 'Enter') entra(); };
+            return;
+        }
+        // 3 · Amb sessió: publicar, ordres i seguiment
+        const pub = taller.projectes.find(x => x.id === P.id), pr = taller.prog;
+        const ord = taller.ordres.find(o => o.id === taller.ordre);
+        const canviat = pub && ord && ord.empremta && pub.empremta !== ord.empremta;
+        $('tallerPublica').hidden = !esResp();
+        $('tallerInforme').hidden = !pr;
+        let res = null;
+        if (pr) res = FO.resumOrdre(FO.modelTaller(P), pr);
+        c.innerHTML = `<div class="ajuda">Connectat a <b>${esc(taller.url)}</b> (FOrdre ${esc(I.versio)}) com a <b>${esc(taller.ses.nom)}</b> (${taller.ses.rols.map(r => FO.ROLS[r].nom).join(', ')}) · <a href="#" id="tlSurt">sortir</a>.
+                Els mòbils i les tauletes obren <b>${esc(taller.url)}/muntatge.html</b>.</div>
+            <div class="${pub ? 'ajuda' : 'av'}">${pub ? '✓ Aquest projecte ja és al taller. Si l\'has canviat, torna\'l a publicar: els mòbils rebran l\'avís per actualitzar-lo.' : esResp() ? 'Aquest projecte encara no és al taller: publica\'l perquè es pugui fabricar.' : 'Aquest projecte encara no és al taller: l\'ha de publicar un Responsable.'}</div>
+            ${pub ? `<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                <label class="f" style="flex:1;min-width:200px">Ordre de fabricació<select id="tlOrdre">${taller.ordres.map(o => `<option value="${esc(o.id)}"${o.id === taller.ordre ? ' selected' : ''}>${esc(o.codi)}${o.serie ? ' · ' + esc(o.serie) : ''}${o.tancada ? ' · tancada' : ''} (${o.passosFets} muntats)</option>`).join('')}</select></label>
+                ${esResp() ? `<label class="f">Núm. de sèrie<input id="tlSerie" style="width:120px"></label><button class="b" id="tlNova">+ Nova ordre</button>` : ''}</div>` : ''}
+            ${canviat ? '<div class="av">El projecte s\'ha tornat a publicar després de crear aquesta ordre: els passos poden no coincidir exactament.</div>' : ''}
+            ${res ? `<div class="ajuda"><b>${esc(FO.textEstatOrdre(res))}</b> · ${res.verificats}/${res.total} verificats · ${res.muntats} per verificar · ${res.rebutjos} rebutjos · ${res.incidenciesObertes} incidències obertes · temps de muntatge ${FO.textDurada(res.tempsMuntatge)}</div>
+            <table class="tt"><thead><tr><th>Pas</th><th>Conjunt</th><th>Estat</th><th>Muntat per</th><th class="n">Durada</th><th>Verificat per</th></tr></thead><tbody>${res.passos.map(x => `<tr><td>${x.pas}</td>
+                <td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${x.r.conj.col}"></span> ${esc(x.codi)} · ${esc(x.nom)}${x.assignat ? ` <span class="ajuda">(👤 ${esc(x.assignat)})</span>` : ''}</td>
+                <td>${xipPas(x.estat)}${x.rebutjos.length ? ` <span class="ajuda">✗${x.rebutjos.length}</span>` : ''}</td><td>${esc(x.muntador)}</td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}</td></tr>`).join('')}</tbody></table>
             <div><div class="ps-t">Darrers moviments</div><div class="ajuda">${pr.registre.slice().sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 12).map(x => `${esc(new Date(x.ts).toLocaleString('ca-ES'))}${x.op ? ' · <b>' + esc(x.op) + '</b>' : ''} — ${esc(x.text)}`).join('<br>') || 'Encara no hi ha moviments.'}</div></div>` : ''}
-            ${taller.info.projectes.length ? `<div><div class="ps-t">Projectes al taller</div>${taller.info.projectes.map(x => `<div class="ajuda">${esc(x.nom)} · ${x.passosFets} passos muntats · ${esc(new Date(x.actualitzat).toLocaleString('ca-ES'))}</div>`).join('')}</div>` : ''}`;
+            ${taller.projectes.length ? `<div><div class="ps-t">Projectes al taller</div>${taller.projectes.map(x => `<div class="ajuda">${esc(x.nom)} · ${x.ordres.length} ordres · ${esc(new Date(x.actualitzat).toLocaleString('ca-ES'))}</div>`).join('')}</div>` : ''}`;
+        $('tlSurt').onclick = e => {
+            e.preventDefault();
+            apiTaller('/api/sessio', { method: 'DELETE' }).catch(() => { });
+            taller.ses = null; escriuLS('fordre.taller.sessio', null); escoltaTaller(); renderArbre(); pintaTaller();
+        };
+        if ($('tlOrdre')) $('tlOrdre').onchange = function () { taller.ordre = this.value; escoltaTaller(); pintaTaller(); };
+        if ($('tlNova')) $('tlNova').onclick = async () => {
+            try {
+                const o = await apiTaller('/api/ordres/' + encodeURIComponent(P.id), { method: 'POST', body: JSON.stringify({ serie: $('tlSerie').value.trim() }) });
+                taller.ordre = o.id; await actualitzaTaller(); pintaTaller(); hint('Ordre ' + o.codi + ' creada');
+            } catch (e) { hint(e.message, 4000); }
+        };
+    }
+    async function entraTaller(nom, pin) {
+        const d = await apiTaller('/api/sessio', { method: 'POST', body: JSON.stringify({ nom, pin }) });
+        taller.ses = { token: d.token, nom: d.nom, rols: d.rols };
+        escriuLS('fordre.taller.sessio', taller.ses);
+        await actualitzaTaller();
+        pintaTaller();
     }
     $('bTaller').onclick = async () => {
         try { taller.info = await estatTaller(); } catch (e) { /* */ }
-        escoltaTaller(); pintaTaller(); obre('dlgTaller');
+        await actualitzaTaller();
+        pintaTaller(); obre('dlgTaller');
     };
     $('tallerPublica').onclick = async () => {
         try {
-            const r = await fetch(taller.url + '/api/projectes/' + encodeURIComponent(P.id), { method: 'PUT', headers: capTaller(), body: JSON.stringify(P) });
-            if (r.status === 401) { taller.clau = ''; try { localStorage.removeItem('fordre.taller.clau'); } catch (e) { /* */ } }
-            if (!r.ok) throw new Error((await r.json()).error || r.status);
-            taller.info = await estatTaller();
-            escoltaTaller(); pintaTaller(); hint('Projecte publicat al taller');
+            await apiTaller('/api/projectes/' + encodeURIComponent(P.id), { method: 'PUT', body: JSON.stringify(P) });
+            await actualitzaTaller(); pintaTaller(); hint('Projecte publicat al taller');
         } catch (e) { hint('No s\'ha pogut publicar: ' + e.message, 4000); }
+    };
+    $('tallerInforme').onclick = () => {
+        if (!taller.prog) return;
+        const ord = taller.ordres.find(o => o.id === taller.ordre) || { codi: taller.ordre };
+        const pub = taller.projectes.find(x => x.id === P.id);
+        const html = FO.informeHTML(FO.modelTaller(P), taller.prog, ord, { empremtaActual: pub && pub.empremta });
+        const w = window.open('', '_blank');
+        if (w) { w.document.write(html); w.document.close(); } else descarrega(`informe_${ord.codi}.html`, html, 'text/html');
     };
 
     // ─── Tandes d'impressió ───
