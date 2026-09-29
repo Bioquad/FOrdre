@@ -5,7 +5,7 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes']) require(path.join(__dirname, '..', 'js', f + '.js'));
+for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir']) require(path.join(__dirname, '..', 'js', f + '.js'));
 const FO = globalThis.FO;
 
 let fallades = 0, total = 0;
@@ -117,7 +117,7 @@ prova('material i color de les caixes: per defecte, per conjunt i per material',
 prova('resum de filament per material i color', () => {
     const f = FO.resumFilament(pla, p.config);
     assert(f.length > 1 && f.every(e => e.grams > 0));
-    assert(f.reduce((a, e) => a + e.peces, 0) === pla.reduce((a, r) => a + obj(r).length, 0));
+    assert(f.reduce((a, e) => a + e.peces, 0) === pla.reduce((a, r) => a + obj(r).reduce((b, o) => b + FO.pecesImpressio(o, p.config).length, 0), 0));
 });
 prova('la inclinació es limita per les peces que no es poden tombar', () => {
     const q = FO.exemple(); q.config.inclinacio = 25;
@@ -142,6 +142,73 @@ prova('ZIP amb capçaleres vàlides', () => {
     const z = FO.zip([{ nom: 'a.txt', dades: 'hola' }]);
     const dv = new DataView(z.buffer);
     assert(dv.getUint32(0, true) === 0x04034b50 && dv.getUint32(z.length - 22, true) === 0x06054b50);
+});
+
+console.log('Tancaments, tapes i identificació');
+const variant = (tanc, format, extra) => {
+    const q = FO.exemple();
+    q.conjunts.forEach(c => { c.tancament = ''; c.formatKit = ''; });
+    Object.assign(q.config, { tancament: tanc, formatKit: format, rebaixEtiqueta: true, relleu: true, codiFons: true, fonsArrodonit: true, llaviAmple: 3 }, extra || {});
+    return { q, pla: FO.calculaPla(q) };
+};
+prova('els quatre tancaments generen sòlids tancats (objectes i tapes)', () => {
+    ['cap', 'llavi', 'pressio', 'imants'].forEach(t => ['fusionat', 'mixt'].forEach(f => {
+        const { q, pla: pl } = variant(t, f);
+        pl.forEach(r => obj(r).forEach(o => FO.pecesImpressio(o, q.config).forEach(pc => assert(esTancada(pc.tri), `${t}/${f}: ${pc.nom}`))));
+    }));
+});
+prova('tapes només amb pressió o imants', () => {
+    ['cap', 'llavi', 'pressio', 'imants'].forEach(t => {
+        const { q, pla: pl } = variant(t, 'individual');
+        const amb = pl.flatMap(r => obj(r)).filter(o => FO.opsTapa(o, q.config)).length;
+        assert((t === 'pressio' || t === 'imants') ? amb > 0 : amb === 0, t + ': ' + amb);
+    });
+});
+prova('el llavi (0-5 mm) mai tapa el pas de la peça', () => {
+    const { pla: pl } = variant('llavi', 'fusionat', { llaviAmple: 5 });
+    pl.forEach(r => obj(r).forEach(o => o.caixetins.forEach(c => {
+        assert(c.llavi >= 0 && c.llavi <= 5, c.mat.codi + ' ' + c.llavi);
+        if (c.mode !== 'granel') {
+            const px = c.girat ? c.o.d : c.o.w, py = c.girat ? c.o.w : c.o.d;
+            assert(c.w - 2 * c.llavi >= px && c.d - 2 * c.llavi >= py, `${c.mat.codi}: obertura massa petita`);
+        }
+    })));
+});
+prova('amb imants, les parets allotgen l\'imant', () => {
+    const { q, pla: pl } = variant('imants', 'mixt');
+    pl.forEach(r => obj(r).forEach(o => assert(o.paret >= q.config.imantD + 2 - 1e-6, o.id + ' paret ' + o.paret)));
+});
+prova('límits: parets 1-10 mm, llit 150-2000 mm, llavi 0-5 mm', () => {
+    const q = FO.normalitzaProjecte({ config: { paret: 0.2, paretCaixa: 25, paretContenidor: 5, llit: { x: 5000, y: 90, z: 120 }, llaviAmple: 9 } });
+    assert(q.config.paret === 1 && q.config.paretCaixa === 10 && q.config.paretContenidor === 5, 'parets');
+    assert(q.config.llit.x === 2000 && q.config.llit.y === 150 && q.config.llit.z === 120, 'llit');
+    assert(q.config.llaviAmple === 5, 'llavi');
+});
+prova('peça de calibratge tancada', () => assert(esTancada(FO.mallaCalibratge())));
+prova('tandes: cada peça hi és un cop i cap al llit', () => {
+    const t = FO.tandes(pla, p.config);
+    const n = pla.reduce((a, r) => a + obj(r).reduce((b, o) => b + FO.pecesImpressio(o, p.config).length, 0), 0);
+    assert(t.reduce((a, x) => a + x.items.length, 0) === n, 'peces');
+    t.filter(x => !x.massaGran).forEach(x => x.items.forEach(it => {
+        const w = it.girat ? it.p.D : it.p.W, d = it.girat ? it.p.W : it.p.D;
+        assert(it.x + w <= p.config.llit.x + 1e-6 && it.y + d <= p.config.llit.y + 1e-6, it.p.nom);
+    }));
+    t.forEach(x => assert(x.items.every(it => it.p.tri && x.material), 'material'));
+});
+prova('3MF vàlid', () => {
+    const z = FO.tresMF(FO.tandes(pla, p.config)[0], 'prova');
+    const txt = Buffer.from(z).toString('latin1');
+    assert(txt.includes('3D/3dmodel.model') && txt.includes('<triangle ') && txt.includes('displaycolor'));
+});
+prova('revisions: detecta canvis i peces a reimprimir', () => {
+    const b = JSON.parse(JSON.stringify(p));
+    b.materials.find(m => m.id === 'PL-002').x = 60;
+    b.conjunts.find(c => c.id === 'XAS').items.find(i => i.mat === 'CRG-M4x10').qty = 40;
+    const d = FO.diffProjectes(p, FO.normalitzaProjecte(b));
+    assert(d.matCanviats.some(c => c.codi === 'PL-002'), 'material');
+    assert(d.quantitats.some(q => q.mat === 'CRG-M4x10' && q.despres === 40), 'quantitat');
+    assert(d.reimprimir.length + d.nous.length > 0, 'reimprimir');
+    assert(FO.diffProjectes(p, p).buit, 'sense canvis');
 });
 
 console.log('Importació');
@@ -189,5 +256,16 @@ prova('CSV RFID amb EPC de 24 dígits hexadecimals', () => {
     assert(/;[0-9A-F]{24}$/.test(l[1]), l[1]);
 });
 
-console.log(`\n${total - fallades}/${total} proves correctes`);
-process.exit(fallades ? 1 : 0);
+console.log('Compartir amb el mòbil');
+(async () => {
+    total++;
+    try {
+        const text = JSON.stringify(FO.projecteLleuger(p));
+        const codi = await FO.comprimeix(text);
+        assert(/^[zu][A-Za-z0-9_-]+$/.test(codi), 'codi');
+        assert(await FO.descomprimeix(codi) === text, 'anada i tornada');
+        console.log(`  ✓ enllaç comprimit i recuperat (${text.length} → ${codi.length} caràcters)`);
+    } catch (e) { fallades++; console.log('  ✗ compartir\n      ' + e.message); }
+    console.log(`\n${total - fallades}/${total} proves correctes`);
+    process.exit(fallades ? 1 : 0);
+})();

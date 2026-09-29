@@ -247,7 +247,7 @@
 
     // Incorpora el resultat al projecte ('afegeix' fusiona per codi, 'substitueix' reemplaça)
     FO.incorporaImport = function (p, imp, mode) {
-        const brut = mode === 'substitueix' ? { nom: p.nom, config: p.config, materials: [], conjunts: [] } : JSON.parse(JSON.stringify(p));
+        const brut = mode === 'substitueix' ? { id: p.id, nom: p.nom, config: p.config, revisions: p.revisions, materials: [], conjunts: [] } : JSON.parse(JSON.stringify(p));
         const perCodiM = new Map(brut.materials.map(m => [m.codi, m]));
         const remapM = new Map();
         imp.materials.forEach(m => {
@@ -277,6 +277,56 @@
             if (c.pare) desti.pare = remapC.get(c.pare) || c.pare;
         });
         return FO.normalitzaProjecte(brut);
+    };
+
+    // ─── Revisions: què canvia entre dues versions del projecte ───
+    const CAMPS_MAT_DIFF = ['nom', 'tipus', 'forma', 'x', 'y', 'z', 'pes', 'esd', 'liquid', 'angleMax', 'apilable', 'maxApilat', 'fragil', 'disposicio'];
+    // Signatura d'un objecte imprès: si canvia, cal tornar-lo a imprimir
+    const signatura = o => [o.forma, o.W, o.D, o.H, o.material, o.color, o.tancament,
+        (o.caixetins || []).map(c => [c.mat.codi, c.qty, c.x, c.y, c.w, c.d, c.z, c.llavi || 0].join(':')).join(','),
+        (o.caixes || []).map(q => q.obj.id + '@' + q.x + ',' + q.y).join(',')].join('|');
+
+    FO.diffProjectes = function (a, b) {
+        const d = { matNous: [], matEliminats: [], matCanviats: [], conjNous: [], conjEliminats: [], quantitats: [], reimprimir: [], nous: [], retirar: [] };
+        const mA = new Map(a.materials.map(m => [m.codi, m])), mB = new Map(b.materials.map(m => [m.codi, m]));
+        mB.forEach((m, k) => {
+            const v = mA.get(k);
+            if (!v) d.matNous.push(k);
+            else { const camps = CAMPS_MAT_DIFF.filter(c => String(v[c]) !== String(m[c])); if (camps.length) d.matCanviats.push({ codi: k, camps }); }
+        });
+        mA.forEach((m, k) => { if (!mB.has(k)) d.matEliminats.push(k); });
+        const cA = new Map(a.conjunts.map(c => [c.codi, c])), cB = new Map(b.conjunts.map(c => [c.codi, c]));
+        const codiMat = (p, id) => { const m = p.materials.find(x => x.id === id); return m ? m.codi : id; };
+        cB.forEach((c, k) => {
+            const v = cA.get(k);
+            if (!v) { d.conjNous.push(k); return; }
+            const qa = new Map(v.items.map(i => [codiMat(a, i.mat), i.qty])), qb = new Map(c.items.map(i => [codiMat(b, i.mat), i.qty]));
+            new Set([...qa.keys(), ...qb.keys()]).forEach(m => { if ((qa.get(m) || 0) !== (qb.get(m) || 0)) d.quantitats.push({ conj: k, mat: m, abans: qa.get(m) || 0, despres: qb.get(m) || 0 }); });
+        });
+        cA.forEach((c, k) => { if (!cB.has(k)) d.conjEliminats.push(k); });
+        if (FO.calculaPla && FO.imprimibles) {
+            const sig = p => { const m = new Map(); FO.calculaPla(p).forEach(r => FO.imprimibles(r).forEach(o => m.set(o.id, signatura(o)))); return m; };
+            const sA = sig(a), sB = sig(b);
+            sB.forEach((s, id) => { if (!sA.has(id)) d.nous.push(id); else if (sA.get(id) !== s) d.reimprimir.push(id); });
+            sA.forEach((s, id) => { if (!sB.has(id)) d.retirar.push(id); });
+        }
+        d.buit = !Object.values(d).some(v => Array.isArray(v) && v.length);
+        return d;
+    };
+
+    // Text breu d'una revisió
+    FO.textDiff = function (d) {
+        const l = [];
+        if (d.matNous.length) l.push(`Materials nous: ${d.matNous.join(', ')}`);
+        if (d.matEliminats.length) l.push(`Materials eliminats: ${d.matEliminats.join(', ')}`);
+        d.matCanviats.forEach(c => l.push(`${c.codi}: canvia ${c.camps.join(', ')}`));
+        if (d.conjNous.length) l.push(`Conjunts nous: ${d.conjNous.join(', ')}`);
+        if (d.conjEliminats.length) l.push(`Conjunts eliminats: ${d.conjEliminats.join(', ')}`);
+        d.quantitats.forEach(q => l.push(`${q.conj} · ${q.mat}: ${q.abans} → ${q.despres}`));
+        if (d.reimprimir.length) l.push(`Cal tornar a imprimir: ${d.reimprimir.join(', ')}`);
+        if (d.nous.length) l.push(`Peces noves a imprimir: ${d.nous.join(', ')}`);
+        if (d.retirar.length) l.push(`Ja no calen: ${d.retirar.join(', ')}`);
+        return l;
     };
 
     // Plantilla CSV del format pla
