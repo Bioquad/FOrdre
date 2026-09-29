@@ -1,9 +1,9 @@
 {
-    "name": "FOrdre",
+    "name": "FOrdre Taller",
     "short_name": "FOrdre",
-    "description": "Puja la llista de materials i FOrdre genera les caixes i safates a mida per imprimir en 3D, amb etiquetes.",
+    "description": "Omplir caixes, muntar, verificar i gestionar ordres de fabricació: cada persona amb el seu rol.",
     "lang": "ca",
-    "start_url": "./index.html",
+    "start_url": "./muntatge.html",
     "scope": "./",
     "display": "standalone",
     "orientation": "any",
@@ -34,8 +34,8 @@
     ],
     "shortcuts": [
         {
-            "name": "App del taller (mòbil i tauleta)",
-            "url": "./muntatge.html"
+            "name": "Disseny de kits (ordinador)",
+            "url": "./index.html"
         }
     ]
 }
