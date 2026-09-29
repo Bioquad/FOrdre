@@ -1,0 +1,21 @@
+{
+    "name": "FOrdre Muntatge",
+    "short_name": "FOrdre",
+    "description": "Preparació i muntatge de conjunts pas a pas: caixes, QR, instruccions, estoc i llista de compra.",
+    "lang": "ca",
+    "start_url": "./muntatge.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#12121F",
+    "theme_color": "#1C1C30",
+    "icons": [
+        { "src": "icones/icona-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "icones/icona-512.png", "sizes": "512x512", "type": "image/png" },
+        { "src": "icones/icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+        { "src": "icones/icona.svg", "sizes": "any", "type": "image/svg+xml" }
+    ],
+    "shortcuts": [
+        { "name": "Disseny de kits (ordinador)", "url": "./index.html" }
+    ]
+}

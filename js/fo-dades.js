@@ -14,7 +14,7 @@
     'use strict';
     const FO = G.FO || (G.FO = {});
 
-    FO.VERSIO = '1.1.0';
+    FO.VERSIO = '1.2.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -50,7 +50,44 @@
         esquemaColor: 'material',   // color de les caixes individuals: material | conjunt | tipus | fix
         ajustaFilaments: true,      // ajustar els colors automàtics al filament disponible més proper
         filaments: ['#FFFFFF', '#212121', '#9E9E9E', '#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5', '#8E24AA', '#6D4C41'],
-        factorPes: 0.45             // fracció real de plàstic d'un sòlid imprès (parets + farciment)
+        factorPes: 0.45,            // fracció real de plàstic d'un sòlid imprès (parets + farciment)
+        // ─── Tancament ───
+        tancament: 'llavi',         // cap | llavi | pressio | imants
+        llaviAmple: 2,              // llavi interior: mm que sobresurt cap al centre del caixetí (0-5)
+        jocTapa: 0.25,              // folgança de la tapa a pressió
+        gruixTapa: 1.6,             // gruix de la placa de la tapa
+        tapesInternes: true,        // en formats amb contenidor, tapa també a cada caixa de dins
+        imantD: 6, imantH: 2,       // imant de disc (diàmetre × alçada)
+        // ─── Identificació física i ergonomia ───
+        relleu: true,               // codi gravat a la cara frontal
+        rebaixEtiqueta: false,      // rebaix per a l'etiqueta adhesiva (cara frontal o posterior)
+        codiFons: true,             // codi gravat al fons de cada caixetí
+        fonsArrodonit: true,        // rampa arrodonida als caixetins a granel
+        // ─── Impressió ───
+        cabal: 8,                   // cabal volumètric mitjà de la impressora (mm³/s) per estimar temps
+        separacioTanda: 6           // separació entre peces en una tanda d'impressió (mm)
+    };
+
+    // Límits dels paràmetres numèrics [mínim, màxim]
+    FO.RANGS = {
+        'llit.x': [150, 2000], 'llit.y': [150, 2000], 'llit.z': [50, 2000],
+        paret: [1, 10], paretCaixa: [1, 10], paretContenidor: [1, 10],
+        terra: [0.6, 10], separador: [0.6, 10], divisor: [0.4, 5], joc: [0, 10], dit: [0, 40],
+        minCaixeti: [5, 200], profMax: [5, 500], retencio: [0.1, 1], granel: [0.2, 0.9], omplert: [0.3, 1],
+        llavi: [0, 20], inclinacio: [0, 45], areaPetit: [0, 1e6], jocCaixes: [0, 5], alcadaContenidor: [0.2, 1],
+        factorPes: [0.1, 1], llaviAmple: [0, 5], jocTapa: [0, 1.5], gruixTapa: [0.8, 6], imantD: [2, 30], imantH: [0.5, 10],
+        cabal: [1, 60], separacioTanda: [1, 50]
+    };
+    FO.limita = function (k, v) {
+        const r = FO.RANGS[k]; if (!r) return v;
+        return Math.min(r[1], Math.max(r[0], v));
+    };
+
+    FO.TANCAMENTS = {
+        cap: { nom: 'Oberta', desc: 'Sense tancament.' },
+        llavi: { nom: 'Llavi interior', desc: 'Una vora que entra cap al centre de cada caixetí (0-5 mm) i reté les peces; s\'imprimeix a 45° sense suports.' },
+        pressio: { nom: 'Tapa a pressió', desc: 'Tapa amb una faldilla que encaixa per dins de les parets.' },
+        imants: { nom: 'Tapa amb imants', desc: 'Tapa i caixa amb allotjaments per a imants de disc a les cantonades.' }
     };
 
     // Formats del kit d'un conjunt
@@ -169,7 +206,16 @@
                 : null,
             items: (Array.isArray(c.items) ? c.items : [])
                 .filter(it => it && it.mat)
-                .map(it => ({ mat: String(it.mat), qty: Math.max(1, Math.round(num(it.qty, 1))) })),
+                .map(it => ({
+                    mat: String(it.mat), qty: Math.max(1, Math.round(num(it.qty, 1))),
+                    parell: Math.max(0, num(it.parell, 0)),   // parell de collada (N·m); 0 = no s'aplica
+                    nota: String(it.nota || '')                // indicació de muntatge per a aquest element
+                })),
+            // Muntatge: instruccions (una per línia), eines i imatge de referència
+            instruccions: String(c.instruccions || ''),
+            eines: String(c.eines || ''),
+            imatge: /^data:image\/(png|jpeg|webp);base64,/.test(c.imatge || '') || /^https?:\/\//.test(c.imatge || '') ? c.imatge : '',
+            tancament: FO.TANCAMENTS[c.tancament] ? c.tancament : '',                             // '' = el del projecte
             formatKit: FO.FORMATS_KIT[c.formatKit] ? c.formatKit : '',                            // '' = el del projecte
             materialCaixa: FO.MATERIALS_IMPRESSIO[c.materialCaixa] ? c.materialCaixa : '',
             colorCaixa: /^#[0-9a-f]{6}$/i.test(c.colorCaixa) ? c.colorCaixa : '',
@@ -184,14 +230,25 @@
         const cfg = Object.assign({}, FO.CONFIG_DEFECTE, p.config || {});
         cfg.llit = Object.assign({}, FO.CONFIG_DEFECTE.llit, (p.config || {}).llit || {});
         if (!FO.FORMATS_KIT[cfg.formatKit]) cfg.formatKit = FO.CONFIG_DEFECTE.formatKit;
+        if (!FO.TANCAMENTS[cfg.tancament]) cfg.tancament = FO.CONFIG_DEFECTE.tancament;
+        Object.keys(FO.RANGS).forEach(k => {
+            const [a, b] = k.split('.');
+            if (b) cfg[a][b] = FO.limita(k, num(cfg[a][b], FO.CONFIG_DEFECTE[a][b]));
+            else cfg[k] = FO.limita(k, num(cfg[k], FO.CONFIG_DEFECTE[k]));
+        });
         ['materialCaixa', 'materialESD', 'materialContenidor'].forEach(k => { if (!FO.MATERIALS_IMPRESSIO[cfg[k]]) cfg[k] = FO.CONFIG_DEFECTE[k]; });
         cfg.filaments = (Array.isArray(cfg.filaments) ? cfg.filaments : []).filter(c => /^#[0-9a-f]{6}$/i.test(c));
         const materials = (p.materials || []).map(FO.normalitzaMaterial);
         const conjunts = (p.conjunts || []).map(FO.normalitzaConjunt);
         const ids = new Set(conjunts.map(c => c.id));
         conjunts.forEach(c => { if (c.pare && !ids.has(c.pare)) c.pare = null; });
-        return { v: FO.VERSIO, nom: String(p.nom || 'Projecte FOrdre'), config: cfg, materials, conjunts };
+        // id estable: l'app de muntatge hi associa el progrés i l'estoc
+        const revisions = (Array.isArray(p.revisions) ? p.revisions : []).slice(-30);
+        return { v: FO.VERSIO, id: String(p.id || FO.nouId('p')), nom: String(p.nom || 'Projecte FOrdre'), config: cfg, materials, conjunts, revisions };
     };
+
+    // Tancament efectiu d'un conjunt
+    FO.tancamentDe = (conj, cfg) => (conj && conj.tancament) || cfg.tancament || 'cap';
 
     FO.nouProjecte = () => FO.normalitzaProjecte({});
 
@@ -257,8 +314,14 @@
 
     // ─── Projecte d'exemple ───
     FO.exemple = function () {
-        const M = (codi, nom, tipus, x, y, z, pes, extra) => Object.assign({ id: codi, codi, nom, tipus, x, y, z, pes }, extra || {});
+        // proveïdor d'exemple segons el prefix del codi (per a la llista de compra)
+        const PROV = { 'MT': 'RS Components', 'CRG': 'Würth', 'FEM': 'Würth', 'VOL': 'Würth', 'SEP': 'Würth', 'HID': 'SMC', 'CON': 'Ferreteria local', 'PCB-101': 'Mouser' };
+        const M = (codi, nom, tipus, x, y, z, pes, extra) => {
+            const prov = PROV[codi] || PROV[codi.split('-')[0]];
+            return Object.assign({ id: codi, codi, nom, tipus, x, y, z, pes }, prov ? { origen: 'comprat', proveidor: prov } : {}, extra || {});
+        };
         return FO.normalitzaProjecte({
+            id: 'exemple-dx1',
             nom: 'Dosificadora DX-1 (exemple)',
             materials: [
                 M('PL-001', 'Placa base alumini 3 mm', 'peca', 180, 120, 3, 175, { col: '#9AA5B1', apilable: true }),
@@ -286,25 +349,35 @@
                 { id: 'MAQ', codi: 'DX-1', nom: 'Dosificadora completa', col: '#4A90D9', ordre: 0 },
                 {
                     id: 'XAS', codi: 'DX-1.1', nom: 'Xassís', pare: 'MAQ', ordre: 1, col: '#9AA5B1',
-                    items: [{ mat: 'PL-001', qty: 2 }, { mat: 'PL-002', qty: 4 }, { mat: 'CRG-M4x10', qty: 24 }, { mat: 'FEM-M4', qty: 16 }, { mat: 'VOL-M4', qty: 24 }, { mat: 'CON-01', qty: 1 }]
+                    eines: 'Clau Allen 3 mm, clau dinamomètrica, clau fixa 7 mm',
+                    instruccions: 'Presentar les dues plaques base i alinear els forats\nMuntar els 4 escaires amb cargol, volandera i femella\nFixar els 2 grups motor a la placa superior\nComprovar l\'escaire del conjunt abans del collat final',
+                    items: [{ mat: 'PL-001', qty: 2 }, { mat: 'PL-002', qty: 4 }, { mat: 'CRG-M4x10', qty: 24, parell: 2.5 }, { mat: 'FEM-M4', qty: 16, parell: 2.5 }, { mat: 'VOL-M4', qty: 24 }, { mat: 'CON-01', qty: 1, nota: 'Una gota a cada cargol dels escaires' }]
                 },
                 {
                     id: 'MOT', codi: 'DX-1.1.1', nom: 'Grup motor', pare: 'XAS', ordre: 1, col: '#FF7043', qty: 2,
                     muntat: { x: 60, y: 50, z: 80, pes: 320, apilable: false, fragil: 3 },
-                    items: [{ mat: 'MT-050', qty: 1 }, { mat: '3D-021', qty: 1 }, { mat: 'CRG-M3x8', qty: 4 }, { mat: 'CON-01', qty: 1 }]
+                    eines: 'Clau Allen 2,5 mm',
+                    instruccions: 'Encarar el motor al suport amb el connector cap enrere\nCollar els 4 cargols en creu',
+                    items: [{ mat: 'MT-050', qty: 1 }, { mat: '3D-021', qty: 1 }, { mat: 'CRG-M3x8', qty: 4, parell: 1.2, nota: 'En creu, sense passar-se: el suport és de plàstic' }, { mat: 'CON-01', qty: 1 }]
                 },
                 {
-                    id: 'ELE', codi: 'DX-1.2', nom: 'Electrònica de control', pare: 'MAQ', ordre: 2, col: '#2E7D32', formatKit: 'contenidor',
+                    id: 'ELE', codi: 'DX-1.2', nom: 'Electrònica de control', pare: 'MAQ', ordre: 2, col: '#2E7D32', formatKit: 'contenidor', tancament: 'imants',
                     muntat: { x: 110, y: 80, z: 35, pes: 90, esd: true, fragil: 7, apilable: false },
-                    items: [{ mat: 'PCB-100', qty: 1 }, { mat: 'PCB-101', qty: 2 }, { mat: 'SEP-M3', qty: 8 }, { mat: 'CRG-M3x8', qty: 8 }, { mat: '3D-022', qty: 6 }, { mat: 'CON-02', qty: 20 }, { mat: 'CON-03', qty: 1 }]
+                    eines: 'Polsera antiestàtica, tornavís PH1, alicates de tall',
+                    instruccions: 'Posar-se la polsera antiestàtica abans d\'obrir les caixes ESD\nMuntar els separadors a la placa de control\nConnectar els mòduls de pressió\nOrdenar el cablejat amb les guies i les brides\nEtiquetar tots els cables',
+                    items: [{ mat: 'PCB-100', qty: 1, nota: 'Manipular només per les vores' }, { mat: 'PCB-101', qty: 2 }, { mat: 'SEP-M3', qty: 8 }, { mat: 'CRG-M3x8', qty: 8, parell: 0.6 }, { mat: '3D-022', qty: 6 }, { mat: 'CON-02', qty: 20 }, { mat: 'CON-03', qty: 1 }]
                 },
                 {
-                    id: 'HID', codi: 'DX-1.3', nom: 'Circuit hidràulic', pare: 'MAQ', ordre: 3, col: '#1E88E5', materialCaixa: 'PETG', materialContenidor: 'PETG',
-                    items: [{ mat: 'HID-200', qty: 4 }, { mat: 'HID-201', qty: 8 }, { mat: 'HID-210', qty: 1 }, { mat: 'CON-02', qty: 10 }]
+                    id: 'HID', codi: 'DX-1.3', nom: 'Circuit hidràulic', pare: 'MAQ', ordre: 3, col: '#1E88E5', materialCaixa: 'PETG', materialContenidor: 'PETG', tancament: 'pressio',
+                    eines: 'Talla-tubs, clau fixa 14 mm',
+                    instruccions: 'Tallar les mànegues a escaire\nEndollar els racords fins al tope\nOmplir el circuit des del dipòsit i purgar l\'aire\nProva d\'estanquitat a 6 bar durant 10 min',
+                    items: [{ mat: 'HID-200', qty: 4 }, { mat: 'HID-201', qty: 8, parell: 8 }, { mat: 'HID-210', qty: 1, nota: 'Mantenir vertical' }, { mat: 'CON-02', qty: 10 }]
                 },
                 {
                     formatKit: 'fusionat', id: 'CAR', codi: 'DX-1.4', nom: 'Carcassa', pare: 'MAQ', ordre: 4, col: '#E0D6A8',
-                    items: [{ mat: 'FV-010', qty: 2 }, { mat: 'CRG-M3x8', qty: 12 }, { mat: 'CON-04', qty: 1 }]
+                    eines: 'Tornavís PH2, guants, espàtula',
+                    instruccions: 'Preparar la cola epoxi (temps obert 5 min)\nEncolar els reforços de les tapes\nCollar les tapes al xassís',
+                    items: [{ mat: 'FV-010', qty: 2, nota: 'Fràgil: no recolzar sobre les cantonades' }, { mat: 'CRG-M3x8', qty: 12, parell: 0.8 }, { mat: 'CON-04', qty: 1 }]
                 }
             ]
         });

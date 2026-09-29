@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="description" content="FOrdre Muntatge — preparació i muntatge de conjunts pas a pas, amb escàner de QR, estoc i llista de compra">
+    <meta name="theme-color" content="#1C1C30">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="FOrdre">
+    <!--
+      FOrdre Muntatge — app per a mòbil i tauleta
+      Carrega un projecte de FOrdre i guia el muntatge: passos en ordre,
+      caixes a agafar (amb lectura del QR de les etiquetes), instruccions,
+      parells de collada, fotos, estoc, llista de compra i registre.
+      Funciona sense connexió un cop oberta (PWA). Llicència CERN-OHL-S-2.0.
+    -->
+    <title>FOrdre Muntatge</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icones/icona.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icones/icona-192.png">
+    <link rel="stylesheet" href="css/muntatge.css">
+</head>
+<body>
+    <header class="cap">
+        <button class="ic" id="bEnrere" aria-label="Enrere" hidden>‹</button>
+        <div class="titol"><b>F<span>O</span>rdre</b> <small id="nomProj">Muntatge</small></div>
+        <button class="ic" id="bEscaneja" aria-label="Escanejar">⌖</button>
+        <button class="ic" id="bMenu" aria-label="Opcions">⋮</button>
+    </header>
+
+    <main id="vista"></main>
+
+    <nav class="peu" id="peu">
+        <button data-ruta="passos" class="on"><i>☰</i>Passos</button>
+        <button data-ruta="estoc"><i>▦</i>Estoc</button>
+        <button data-ruta="compra"><i>🛒</i>Compra</button>
+        <button data-ruta="registre"><i>🕘</i>Registre</button>
+    </nav>
+
+    <!-- Escàner -->
+    <div class="escaner" id="escaner" hidden>
+        <video id="video" playsinline muted></video>
+        <div class="mira"></div>
+        <div class="resultat" id="resEsc"></div>
+        <div class="esc-barra">
+            <input type="text" id="codiManual" placeholder="Codi manual o lector USB…" autocomplete="off" enterkeyhint="go">
+            <button id="bTancaEsc">Tancar</button>
+        </div>
+    </div>
+
+    <!-- Menú -->
+    <div class="full" id="menu" hidden>
+        <div class="fitxa">
+            <h2>Opcions</h2>
+            <label class="camp">Operari (surt al registre)<input type="text" id="operari" placeholder="Nom"></label>
+            <label class="ck"><input type="checkbox" id="consumAuto"> Descomptar l'estoc en marcar un pas com a muntat</label>
+            <div class="grup">
+                <button class="bt" id="bObrirFitxer">📂 Obrir fitxer de projecte</button>
+                <button class="bt" id="bEnganxa">🔗 Enganxar un enllaç</button>
+                <button class="bt" id="bOrdinador">💻 Projecte d'aquest navegador</button>
+                <button class="bt" id="bExemple">🧪 Projecte d'exemple</button>
+            </div>
+            <div class="grup">
+                <button class="bt" id="bExportaProg">⬇ Exportar el progrés (JSON)</button>
+                <button class="bt" id="bImportaProg">⬆ Importar un progrés</button>
+                <button class="bt perill" id="bReinicia">Reiniciar el progrés d'aquest projecte</button>
+            </div>
+            <button class="bt pr" id="bInstal·la" hidden>📲 Instal·lar l'app</button>
+            <p class="ajuda" id="infoApp"></p>
+            <button class="bt" id="bTancaMenu">Tancar</button>
+        </div>
+    </div>
+
+    <input type="file" id="fProjecte" accept=".json,application/json" hidden>
+    <input type="file" id="fProgres" accept=".json,application/json" hidden>
+    <input type="file" id="fFoto" accept="image/*" capture="environment" hidden>
+    <div class="avis" id="avis"></div>
+
+    <script src="vendor/jsQR.js" defer></script>
+    <script src="js/fo-dades.js"></script>
+    <script src="js/fo-calcul.js"></script>
+    <script src="js/fo-etiquetes.js"></script>
+    <script src="js/fo-compartir.js"></script>
+    <script src="js/fo-muntatge.js"></script>
+</body>
+</html>

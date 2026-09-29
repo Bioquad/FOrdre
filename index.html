@@ -20,9 +20,13 @@
     -->
     <title>FOrdre — Kits de muntatge</title>
     <link rel="stylesheet" href="css/fordre.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icones/icona.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1C1C30">
+    <!-- Llibreries incloses al repositori: l'app funciona sense connexió -->
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/qrcode.js"></script>
+    <script src="vendor/xlsx.full.min.js" defer></script>
 </head>
 <body>
     <div class="tb">
@@ -40,6 +44,8 @@
         <button class="b" id="bEtiquetes" title="Imprimir totes les etiquetes">🏷 Etiquetes</button>
         <button class="b" id="bRFID" title="CSV amb les dades de cada etiqueta per a RFID/NFC">RFID / CSV</button>
         <button class="b" id="bFulla" title="Full de preparació imprimible">Full de ruta</button>
+        <button class="b" id="bTandes" title="Peces agrupades per material i color, col·locades al llit (3MF)">🖨 Tandes</button>
+        <button class="b pr" id="bMobil" title="Obrir el projecte a l'app de muntatge del mòbil o la tauleta">📱 Muntatge</button>
         <span class="fl"></span>
         <button class="b" id="bConfig" title="Impressora, gruixos, folgances i etiquetes">⚙ Configuració</button>
         <button class="b" id="bTema" title="Tema clar / fosc">◐</button>
@@ -84,6 +90,7 @@
                 <button class="b sm" id="vDalt" title="Vista de planta">Planta</button>
                 <button class="b sm on" id="vPeces" title="Mostrar les peces dins els caixetins">Peces</button>
                 <button class="b sm on" id="vFalca" title="Mostrar les safates inclinades sobre la falca">Inclinació</button>
+                <button class="b sm on" id="vTapes" title="Mostrar les tapes per sobre de cada caixa">Tapes</button>
             </div>
             <div class="lleg" id="lleg">
                 Arrossega: girar · Dret o Maj+arrossega: desplaçar · Roda: zoom · Clic: seleccionar
@@ -153,6 +160,39 @@
         </div>
     </div>
 
+    <!-- Calibratge -->
+    <div class="ov" id="dlgCalibratge">
+        <div class="dlg" style="width:560px">
+            <div class="dlg-h">Peça de calibratge</div>
+            <div class="dlg-c">
+                <div class="ajuda">1. Descarrega i imprimeix la peça amb el mateix material i la mateixa configuració que faràs servir per a les caixes.<br>
+                2. Prova d'encaixar el tac de 10 × 10 mm a cada forat. El número gravat és la folgança per costat, en centèsimes de mm.<br>
+                3. Tria el forat on el tac entra <b>fent una mica de pressió</b>: aquest serà el joc de les tapes a pressió. El joc entre caixes i al voltant de les peces s'ajusta a partir d'aquí.</div>
+                <div><button class="b pr" id="calSTL">⬇ Descarregar STL de calibratge</button></div>
+                <div id="calJocs"></div>
+            </div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgCalibratge">Tancar</button><button class="b pr" id="calAplica">Aplicar</button></div>
+        </div>
+    </div>
+
+    <!-- Tandes d'impressió -->
+    <div class="ov" id="dlgTandes">
+        <div class="dlg" style="width:820px">
+            <div class="dlg-h">Tandes d'impressió</div>
+            <div class="dlg-c" id="tandesCos"></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgTandes">Tancar</button><button class="b pr" id="tandesZip">⬇ Totes (ZIP amb 3MF)</button></div>
+        </div>
+    </div>
+
+    <!-- Enviar al mòbil -->
+    <div class="ov" id="dlgMobil">
+        <div class="dlg" style="width:620px">
+            <div class="dlg-h">📱 App de muntatge (mòbil i tauleta)</div>
+            <div class="dlg-c" id="mobilCos"></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgMobil">Tancar</button></div>
+        </div>
+    </div>
+
     <!-- Afegir material existent -->
     <div class="ov" id="dlgExistent">
         <div class="dlg" style="width:560px">
@@ -172,6 +212,7 @@
     <script src="js/fo-stl.js"></script>
     <script src="js/fo-etiquetes.js"></script>
     <script src="js/fo-importa.js"></script>
+    <script src="js/fo-compartir.js"></script>
     <script src="js/fo-vista3d.js"></script>
     <script src="js/fo-app.js"></script>
 </body>

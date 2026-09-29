@@ -246,8 +246,49 @@
         if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
         return {
             id, tipus, forma: 'safata', conj, W: r05(dist.W + 2 * cfg.paret), D: r05(dist.D + 2 * cfg.paret), H, angle,
-            caixetins, avisos, pes: caixetins.reduce((a, c) => a + c.pes, 0)
+            paret: cfg.paret, caixetins, avisos, pes: caixetins.reduce((a, c) => a + c.pes, 0)
         };
+    }
+
+    // ─── Tancament: llavi efectiu de cada caixetí i alçada del contingut ───
+    // Alçada que ocupen les peces dins un caixetí (per saber si la tapa necessita marc)
+    const altContingut = c => c.mode === 'granel' ? c.prof * 0.8 : c.mode === 'apilat' ? (c.cel ? c.cel.perCel : 1) * c.o.h : c.o.h;
+
+    // El llavi no pot tapar tant l'obertura que la peça ja no hi passi
+    function llaviMaxim(c, cfg) {
+        const gir = !!c.girat, px = gir ? c.o.d : c.o.w, py = gir ? c.o.w : c.o.d, marge = 0.4;
+        if (c.mode === 'granel') return (Math.min(c.w, c.d) - Math.max(14, c.o.d + 1)) / 2;
+        let L = Math.min((c.w - px - marge) / 2, (c.d - py - marge) / 2);
+        if (c.mode === 'individual' && c.cel) {
+            const nx = gir ? c.cel.ny : c.cel.nx, ny = gir ? c.cel.nx : c.cel.ny;
+            const cw = (c.w - (nx - 1) * cfg.divisor) / nx, cd = (c.d - (ny - 1) * cfg.divisor) / ny;
+            L = Math.min(L, cw - px - marge, cd - py - marge);
+        }
+        return L;
+    }
+
+    // Gruix de tapa (per calcular l'alçada dels contenidors que porten caixes tapades)
+    FO.gruixTapaDe = (o, cfg) => o.tancament === 'imants' ? Math.max(cfg.gruixTapa, cfg.imantH + 1)
+        : o.tancament === 'pressio' ? cfg.gruixTapa : 0;
+
+    function finalitza(o, tanc, cfg) {
+        o.tancament = tanc;
+        if (o.forma === 'contenidor') {
+            o.caixes.forEach(q => finalitza(q.obj, tanc === 'llavi' ? 'llavi' : cfg.tapesInternes ? tanc : 'cap', cfg));
+            o.cim = Math.max(...o.caixes.map(q => cfg.terra + Math.max(q.obj.H, q.obj.cim) + FO.gruixTapaDe(q.obj, cfg)));
+            return;
+        }
+        o.cim = Math.max(0, ...o.caixetins.map(c => c.z + altContingut(c)));
+        o.caixetins.forEach(c => {
+            c.llavi = 0;
+            if (tanc !== 'llavi' || cfg.llaviAmple <= 0) return;
+            const L = Math.floor(Math.max(0, Math.min(cfg.llaviAmple, llaviMaxim(c, cfg))) * 10) / 10;
+            c.llavi = L;
+            if (L < cfg.llaviAmple - 0.05) c.avisos.push(L > 0 ? `llavi reduït a ${L} mm perquè la peça hi passi` : 'sense llavi: la peça no hi passaria');
+        });
+        if (tanc === 'pressio' || tanc === 'imants') {
+            if (o.cim > o.H + 0.01) o.avisos.push(`la tapa porta un marc de ${Math.ceil(o.cim - o.H + 1)} mm perquè hi ha peces que sobresurten`);
+        }
     }
 
     // ─── Caixa individual: un sol caixetí amb parets pròpies ───
@@ -259,7 +300,7 @@
         if (H > cfg.llit.z) avisos.push(`alçada ${H} mm superior a la del llit (${cfg.llit.z} mm)`);
         return {
             id, tipus: tipus || (c.mat.esd ? 'esd' : 'kit'), forma: 'caixa', conj,
-            W: r05(c.W + 2 * p), D: r05(c.D + 2 * p), H, angle: 0, caixetins: [cc], avisos, pes: c.pes
+            W: r05(c.W + 2 * p), D: r05(c.D + 2 * p), H, angle: 0, paret: p, caixetins: [cc], avisos, pes: c.pes
         };
     }
     // Ajusta una caixa individual a l'espai que li toca dins el contenidor
@@ -300,7 +341,7 @@
             if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
             const cont = {
                 id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j)), D: r05(dist.D + 2 * (pc + j)), H,
-                angle, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
+                angle, paret: pc, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
             };
             caixes.forEach(c => { c.obj.pare = cont; c.obj.pos = { x: c.x, y: c.y, girat: c.girat }; });
             return cont;
@@ -365,6 +406,12 @@
 
     FO.safatesConjunt = function (p, conj, cfg) {
         cfg = cfg || p.config;
+        const tanc = FO.tancamentDe(conj, cfg);
+        if (tanc === 'imants') {
+            // les parets han de ser prou gruixudes per allotjar els imants
+            const s = cfg.imantD + 2;
+            cfg = Object.assign({}, cfg, { paret: Math.max(cfg.paret, s), paretCaixa: Math.max(cfg.paretCaixa, s), paretContenidor: Math.max(cfg.paretContenidor, s) });
+        }
         const maxW = cfg.llit.x - 2 * cfg.paret, maxD = cfg.llit.y - 2 * cfg.paret;
         const k = FO.multiplicador(p, conj);
         let caix = [];
@@ -404,8 +451,8 @@
                 : guarda.map((c, i) => caixaIndividual(conj.codi + '-M' + (guarda.length > 1 ? '-' + (i + 1) : ''), c, cfg, conj, 'muntat'));
             muntat.forEach(o => { o.tipus = 'muntat'; });
         }
-        const r = { conj, format, multiplicador: k, safates: safates.concat(muntat), fora, entrades };
-        r.safates.forEach(o => assignaImpressio(o, conj, cfg));
+        const r = { conj, format, tancament: tanc, multiplicador: k, safates: safates.concat(muntat), fora, entrades };
+        r.safates.forEach(o => { assignaImpressio(o, conj, cfg); finalitza(o, tanc, cfg); });
         return r;
     };
 

@@ -1,5 +1,6 @@
 {
- "v": "1.0.0",
+ "v": "1.2.0",
+ "id": "exemple-dx1",
  "nom": "Dosificadora DX-1 (exemple)",
  "config": {
   "llit": {
@@ -23,7 +24,45 @@
   "esdSeparat": true,
   "fonsElevat": "petits",
   "areaPetit": 4000,
-  "etiqueta": "cinta12"
+  "etiqueta": "cinta12",
+  "formatKit": "mixt",
+  "paretCaixa": 1.2,
+  "paretContenidor": 2,
+  "jocCaixes": 0.6,
+  "alcadaContenidor": 0.6,
+  "materialCaixa": "PLA",
+  "materialESD": "PETG-ESD",
+  "materialContenidor": "PETG",
+  "colorCaixa": "#E3E6EE",
+  "colorContenidor": "#546E7A",
+  "esquemaColor": "material",
+  "ajustaFilaments": true,
+  "filaments": [
+   "#FFFFFF",
+   "#212121",
+   "#9E9E9E",
+   "#E53935",
+   "#FB8C00",
+   "#FDD835",
+   "#43A047",
+   "#1E88E5",
+   "#8E24AA",
+   "#6D4C41"
+  ],
+  "factorPes": 0.45,
+  "tancament": "llavi",
+  "llaviAmple": 2,
+  "jocTapa": 0.25,
+  "gruixTapa": 1.6,
+  "tapesInternes": true,
+  "imantD": 6,
+  "imantH": 2,
+  "relleu": true,
+  "rebaixEtiqueta": false,
+  "codiFons": true,
+  "fonsArrodonit": true,
+  "cabal": 8,
+  "separacioTanda": 6
  },
  "materials": [
   {
@@ -46,6 +85,8 @@
    "disposicio": "auto",
    "origen": "propi",
    "proveidor": "",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -68,6 +109,8 @@
    "disposicio": "auto",
    "origen": "propi",
    "proveidor": "",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -90,6 +133,8 @@
    "disposicio": "auto",
    "origen": "propi",
    "proveidor": "",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -112,6 +157,8 @@
    "disposicio": "auto",
    "origen": "propi",
    "proveidor": "",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -134,6 +181,8 @@
    "disposicio": "capa",
    "origen": "propi",
    "proveidor": "",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -156,6 +205,8 @@
    "disposicio": "auto",
    "origen": "propi",
    "proveidor": "",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -176,8 +227,10 @@
    "maxApilat": 0,
    "fragil": 6,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Mouser",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -198,8 +251,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "RS Components",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -220,8 +275,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "capa",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "SMC",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -242,8 +299,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "SMC",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -264,8 +323,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "SMC",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -286,8 +347,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Würth",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -308,8 +371,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Würth",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -330,8 +395,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Würth",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -352,8 +419,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Würth",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -374,8 +443,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Würth",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -396,8 +467,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Ferreteria local",
+   "caixaMaterial": "PETG",
+   "caixaColor": "#FDD835",
    "notes": ""
   },
   {
@@ -418,8 +491,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Ferreteria local",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -440,8 +515,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Ferreteria local",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   },
   {
@@ -462,8 +539,10 @@
    "maxApilat": 0,
    "fragil": 0,
    "disposicio": "auto",
-   "origen": "propi",
-   "proveidor": "",
+   "origen": "comprat",
+   "proveidor": "Ferreteria local",
+   "caixaMaterial": "",
+   "caixaColor": "",
    "notes": ""
   }
  ],
@@ -478,6 +557,15 @@
    "qty": 1,
    "muntat": null,
    "items": [],
+   "instruccions": "",
+   "eines": "",
+   "imatge": "",
+   "tancament": "",
+   "formatKit": "",
+   "materialCaixa": "",
+   "colorCaixa": "",
+   "materialContenidor": "",
+   "colorContenidor": "",
    "notes": ""
   },
   {
@@ -492,29 +580,50 @@
    "items": [
     {
      "mat": "PL-001",
-     "qty": 2
+     "qty": 2,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "PL-002",
-     "qty": 4
+     "qty": 4,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "CRG-M4x10",
-     "qty": 24
+     "qty": 24,
+     "parell": 2.5,
+     "nota": ""
     },
     {
      "mat": "FEM-M4",
-     "qty": 16
+     "qty": 16,
+     "parell": 2.5,
+     "nota": ""
     },
     {
      "mat": "VOL-M4",
-     "qty": 24
+     "qty": 24,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "CON-01",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": "Una gota a cada cargol dels escaires"
     }
    ],
+   "instruccions": "Presentar les dues plaques base i alinear els forats\nMuntar els 4 escaires amb cargol, volandera i femella\nFixar els 2 grups motor a la placa superior\nComprovar l'escaire del conjunt abans del collat final",
+   "eines": "Clau Allen 3 mm, clau dinamomètrica, clau fixa 7 mm",
+   "imatge": "",
+   "tancament": "",
+   "formatKit": "",
+   "materialCaixa": "",
+   "colorCaixa": "",
+   "materialContenidor": "",
+   "colorContenidor": "",
    "notes": ""
   },
   {
@@ -545,26 +654,45 @@
     "disposicio": "auto",
     "origen": "propi",
     "proveidor": "",
+    "caixaMaterial": "",
+    "caixaColor": "",
     "notes": ""
    },
    "items": [
     {
      "mat": "MT-050",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "3D-021",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "CRG-M3x8",
-     "qty": 4
+     "qty": 4,
+     "parell": 1.2,
+     "nota": "En creu, sense passar-se: el suport és de plàstic"
     },
     {
      "mat": "CON-01",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": ""
     }
    ],
+   "instruccions": "Encarar el motor al suport amb el connector cap enrere\nCollar els 4 cargols en creu",
+   "eines": "Clau Allen 2,5 mm",
+   "imatge": "",
+   "tancament": "",
+   "formatKit": "",
+   "materialCaixa": "",
+   "colorCaixa": "",
+   "materialContenidor": "",
+   "colorContenidor": "",
    "notes": ""
   },
   {
@@ -595,38 +723,63 @@
     "disposicio": "auto",
     "origen": "propi",
     "proveidor": "",
+    "caixaMaterial": "",
+    "caixaColor": "",
     "notes": ""
    },
    "items": [
     {
      "mat": "PCB-100",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": "Manipular només per les vores"
     },
     {
      "mat": "PCB-101",
-     "qty": 2
+     "qty": 2,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "SEP-M3",
-     "qty": 8
+     "qty": 8,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "CRG-M3x8",
-     "qty": 8
+     "qty": 8,
+     "parell": 0.6,
+     "nota": ""
     },
     {
      "mat": "3D-022",
-     "qty": 6
+     "qty": 6,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "CON-02",
-     "qty": 20
+     "qty": 20,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "CON-03",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": ""
     }
    ],
+   "instruccions": "Posar-se la polsera antiestàtica abans d'obrir les caixes ESD\nMuntar els separadors a la placa de control\nConnectar els mòduls de pressió\nOrdenar el cablejat amb les guies i les brides\nEtiquetar tots els cables",
+   "eines": "Polsera antiestàtica, tornavís PH1, alicates de tall",
+   "imatge": "",
+   "tancament": "imants",
+   "formatKit": "contenidor",
+   "materialCaixa": "",
+   "colorCaixa": "",
+   "materialContenidor": "",
+   "colorContenidor": "",
    "notes": ""
   },
   {
@@ -641,21 +794,38 @@
    "items": [
     {
      "mat": "HID-200",
-     "qty": 4
+     "qty": 4,
+     "parell": 0,
+     "nota": ""
     },
     {
      "mat": "HID-201",
-     "qty": 8
+     "qty": 8,
+     "parell": 8,
+     "nota": ""
     },
     {
      "mat": "HID-210",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": "Mantenir vertical"
     },
     {
      "mat": "CON-02",
-     "qty": 10
+     "qty": 10,
+     "parell": 0,
+     "nota": ""
     }
    ],
+   "instruccions": "Tallar les mànegues a escaire\nEndollar els racords fins al tope\nOmplir el circuit des del dipòsit i purgar l'aire\nProva d'estanquitat a 6 bar durant 10 min",
+   "eines": "Talla-tubs, clau fixa 14 mm",
+   "imatge": "",
+   "tancament": "pressio",
+   "formatKit": "",
+   "materialCaixa": "PETG",
+   "colorCaixa": "",
+   "materialContenidor": "PETG",
+   "colorContenidor": "",
    "notes": ""
   },
   {
@@ -670,18 +840,34 @@
    "items": [
     {
      "mat": "FV-010",
-     "qty": 2
+     "qty": 2,
+     "parell": 0,
+     "nota": "Fràgil: no recolzar sobre les cantonades"
     },
     {
      "mat": "CRG-M3x8",
-     "qty": 12
+     "qty": 12,
+     "parell": 0.8,
+     "nota": ""
     },
     {
      "mat": "CON-04",
-     "qty": 1
+     "qty": 1,
+     "parell": 0,
+     "nota": ""
     }
    ],
+   "instruccions": "Preparar la cola epoxi (temps obert 5 min)\nEncolar els reforços de les tapes\nCollar les tapes al xassís",
+   "eines": "Tornavís PH2, guants, espàtula",
+   "imatge": "",
+   "tancament": "",
+   "formatKit": "fusionat",
+   "materialCaixa": "",
+   "colorCaixa": "",
+   "materialContenidor": "",
+   "colorContenidor": "",
    "notes": ""
   }
- ]
+ ],
+ "revisions": []
 }

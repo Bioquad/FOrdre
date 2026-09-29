@@ -105,7 +105,7 @@
         const orb = { th: Math.PI / 2 - 0.5, ph: 0.95, r: 900, tg: new THREE.Vector3() };
         let anim = null, brut = true;
         let safates = [];     // [{s, r, grup, malla, mat, peces:[{mesh, c, idx}], caixMarc}]
-        let mostraPeces = true, mostraFalca = true, cfgAct = null;
+        let mostraPeces = true, mostraFalca = true, mostraTapes = true, cfgAct = null;
         let marca = null, selConj = null, selCaix = null;
 
         function updCam() {
@@ -178,7 +178,8 @@
                     grup.position.set(px, py, pz);
                     if (girat) grup.rotation.y = Math.PI / 2;
                     const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(s.color || '#E3E6EE'), roughness: 0.72, metalness: 0.02, transparent: true, opacity: 1 });
-                    const malla = new THREE.Mesh(geomDeTriangles(FO.mallaSafata(s, cfg)), mat);
+                    const peces = FO.pecesImpressio(s, cfg);
+                    const malla = new THREE.Mesh(geomDeTriangles(peces[0].tri), mat);
                     malla.userData = { tipus: 'safata' };
                     const safGrup = new THREE.Group(); // part que s'inclina
                     safGrup.add(malla);
@@ -188,8 +189,20 @@
                         falca = new THREE.Mesh(geomDeTriangles(FO.mallaFalca(s)), new THREE.MeshStandardMaterial({ color: new THREE.Color(s.color || '#607080').multiplyScalar(0.7), roughness: 0.8, transparent: true }));
                         grup.add(falca);
                     }
+                    // tapa, girada com quan està posada, flotant una mica per sobre
+                    let tapa = null;
+                    const pt = peces.find(p => p.tipus === 'tapa');
+                    if (pt) {
+                        const alt = Math.max(...pt.tri.flat().map(v => v[2]));
+                        tapa = new THREE.Mesh(geomDeTriangles(pt.tri), new THREE.MeshStandardMaterial({ color: new THREE.Color(s.color || '#E3E6EE'), roughness: 0.6, transparent: true, opacity: 0.55, depthWrite: false }));
+                        tapa.rotation.x = Math.PI;
+                        tapa.position.set(0, Math.max(s.H, s.cim || 0) + alt + 14, -s.D);
+                        tapa.visible = mostraTapes;
+                        tapa.userData = { tipus: 'tapa' };
+                        safGrup.add(tapa);
+                    }
                     // peces
-                    const peces = [];
+                    const pecesM = [];
                     s.caixetins.forEach((c, idx) => {
                         const pos = posicionsPeces(c, cfg);
                         if (!pos.length) return;
@@ -210,7 +223,7 @@
                         im.userData = { tipus: 'peca', idx };
                         im.visible = mostraPeces;
                         safGrup.add(im);
-                        peces.push({ mesh: im, c, idx });
+                        pecesM.push({ mesh: im, c, idx });
                     });
                     // nom (només dels objectes de primer nivell)
                     let nom = null;
@@ -220,10 +233,10 @@
                         nom.position.set(s.W / 2, Math.max(s.H, ...(s.caixes || []).map(c => c.obj.H + cfg.terra)) + 10, -s.D / 2);
                         safGrup.add(nom);
                     }
-                    const reg = { s, r, grup, safGrup, malla, mat, falca, peces, nom };
+                    const reg = { s, r, grup, safGrup, malla, mat, falca, peces: pecesM, nom, tapa };
                     if (!s.pare) aplicaInclinacio(reg);
                     malla.userData.reg = reg;
-                    peces.forEach(p => { p.mesh.userData.reg = reg; });
+                    pecesM.forEach(p => { p.mesh.userData.reg = reg; });
                     pare.add(grup);
                     safates.push(reg);
                     // caixes de dins d'un contenidor
@@ -275,6 +288,7 @@
                 reg.mat.depthWrite = actiu;
                 if (reg.falca) reg.falca.material.opacity = actiu ? 1 : 0.16;
                 if (reg.nom) reg.nom.material.opacity = actiu ? 1 : 0.25;
+                if (reg.tapa) { reg.tapa.visible = mostraTapes && actiu; }
                 reg.peces.forEach(p => {
                     const marcat = selCaix && selCaix.reg === reg && selCaix.idxs.includes(p.idx);
                     p.mesh.material.opacity = actiu ? 1 : 0.12;
@@ -344,6 +358,7 @@
             },
             setFons(clar) { scene.background = new THREE.Color(clar ? 0xE4E7EF : 0x12121F); brut = true; },
             setPeces(v) { mostraPeces = v; aplicaSeleccio(); },
+            setTapes(v) { mostraTapes = v; aplicaSeleccio(); },
             setFalca(v) { mostraFalca = v; safates.forEach(aplicaInclinacio); aplicaSeleccio(); },
             // Punt de pantalla (px) de la vora superior davantera del caixetí seleccionat
             puntCartell() {
