@@ -1173,7 +1173,7 @@
     // ─── Importació ───
     const imp = { fulls: null, files: null, cap: null, map: {} };
     $('bImportar').onclick = () => {
-        imp.fulls = null; imp.files = null; $('impFitxer').value = ''; $('impFullBox').style.display = 'none';
+        imp.fulls = null; imp.files = null; imp.nomFitxer = ''; imp.exemple = false; $('impFitxer').value = ''; $('impFullBox').style.display = 'none';
         $('impMapa').innerHTML = ''; $('impPrev').innerHTML = ''; $('impRes').textContent = ''; $('impOk').disabled = true;
         ajudaFormat(); obre('dlgImport');
     };
@@ -1182,8 +1182,10 @@
             ? 'BOM indentada exportada de FreeCAD, Fusion 360, SolidWorks, Inventor, Onshape… Cal una columna de <b>nivell</b> (1, 2, 3 · 1.2.3 · o el nom sagnat), una de <b>codi</b> i una de <b>quantitat</b>. Les files que tenen fills es converteixen en conjunts; si porten mides, són la peça muntada.'
             : 'Una fila per material, amb la columna <b>conjunt</b> on es munta (i opcionalment el <b>pare</b> del conjunt). Una fila amb conjunt però sense codi de material defineix el conjunt: la quantitat i les mides de la peça muntada. Descarrega la <b>Plantilla CSV</b> per veure un exemple.';
     }
-    $('impFitxer').addEventListener('change', async function () {
-        const f = this.files[0]; if (!f) return;
+    $('impFitxer').addEventListener('change', function () { if (this.files[0]) llegeixImport(this.files[0]); });
+    // Llegeix el fitxer triat (o una llista d'exemple) i en mostra la correspondència de columnes
+    async function llegeixImport(f) {
+        imp.nomFitxer = f.name;
         try {
             const r = await FO.llegeixFitxer(f);
             if (r.json) { tanca('dlgImport'); carregaProjecte(r.json, 'Projecte obert'); return; }
@@ -1192,7 +1194,21 @@
             $('impFullBox').style.display = r.length > 1 ? 'block' : 'none';
             triaFull(0);
         } catch (e) { $('impRes').innerHTML = `<span class="av er">⚠ ${esc(e.message)}</span>`; }
-    });
+    }
+    // Llistes d'exemple del repositori: es carreguen com si s'haguessin triat del disc.
+    // Només rutes de la carpeta exemples/ del mateix lloc (no s'obre cap adreça externa).
+    async function importaExemple(ruta) {
+        if (!/^exemples\/[\w.-]+\.(csv|xlsx)$/.test(ruta)) return hint('Llista d\'exemple no vàlida');
+        try {
+            const r = await fetch(ruta);
+            if (!r.ok) throw new Error('Error ' + r.status);
+            $('bImportar').onclick();
+            document.querySelector('input[name=impMode][value=substitueix]').checked = true;   // l'exemple substitueix el projecte
+            await llegeixImport(new File([await r.blob()], ruta.split('/').pop()));
+            imp.exemple = true;
+        } catch (e) { hint('No s\'ha pogut carregar la llista d\'exemple: ' + e.message, 4000); }
+    }
+    document.querySelectorAll('[data-exemple]').forEach(b => b.onclick = () => importaExemple(b.dataset.exemple));
     $('impFull').addEventListener('change', function () { triaFull(+this.value); });
     function triaFull(i) {
         const files = imp.fulls[i].files || [];
@@ -1230,7 +1246,9 @@
     document.querySelectorAll('input[name=impMode]').forEach(r => r.addEventListener('change', previsualitza));
     $('impOk').onclick = () => {
         const nou = imp.nou, d = imp.diff;
-        if (!d.buit) nou.revisions = (nou.revisions || []).concat([{ data: new Date().toISOString(), origen: $('impFitxer').files[0] ? $('impFitxer').files[0].name : '', canvis: FO.textDiff(d), reimprimir: d.reimprimir.concat(d.nous) }]).slice(-30);
+        if (!d.buit) nou.revisions = (nou.revisions || []).concat([{ data: new Date().toISOString(), origen: imp.nomFitxer || '', canvis: FO.textDiff(d), reimprimir: d.reimprimir.concat(d.nous) }]).slice(-30);
+        // una llista d'exemple que substitueix el projecte en porta el nom, perquè no es confongui amb l'anterior
+        if (imp.exemple && document.querySelector('input[name=impMode]:checked').value === 'substitueix') nou.nom = 'Exemple · ' + imp.nomFitxer;
         tanca('dlgImport');
         carregaProjecte(nou, d.buit ? 'Importat: sense canvis' : `Importat · ${d.reimprimir.length + d.nous.length} peces a imprimir de nou`);
     };
@@ -1247,6 +1265,9 @@
     // ─── Inici ───
     const desat = llegeixLocal();
     carregaProjecte(desat && desat.conjunts && desat.conjunts.length ? desat : FO.exemple());
+    // Enllaç directe a una llista d'exemple (index.html?llista=exemples/…): obre la importació amb la llista carregada
+    const llistaURL = new URLSearchParams(location.search).get('llista');
+    if (llistaURL) importaExemple(llistaURL);
     detectaTaller();
     // Funcionament sense connexió (només en https o localhost)
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {

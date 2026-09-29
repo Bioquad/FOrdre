@@ -14,7 +14,7 @@
     'use strict';
     const FO = G.FO || (G.FO = {});
 
-    FO.VERSIO = '1.4.0';
+    FO.VERSIO = '1.4.1';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {

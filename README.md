@@ -10,12 +10,28 @@
 
 🌐 [Català](#català) | [Español](#-español) | [English](#-english)
 
-## 🚀 Prova-ho
+![FOrdre: caixes i safates a mida generades a partir de la llista de materials](imatges/1-caixes-3d.png)
 
-👉 **[Obrir FOrdre](./index.html)** · 📱 **[App de muntatge](./muntatge.html)**
+## 🚀 Prova-ho en un minut
 
-[![Live Demo](https://img.shields.io/badge/🌐_Demo-4A90D9?style=for-the-badge&logo=githubpages)](https://Bioquad.github.io/FOrdre/)
-[![App de muntatge](https://img.shields.io/badge/📱_Muntatge-43A047?style=for-the-badge)](https://Bioquad.github.io/FOrdre/muntatge.html?f=exemples/dosificadora_DX-1.fordre.json)
+**Puja la llista de materials i FOrdre genera les caixes.** No cal instal·lar res: funciona al navegador.
+
+1. **Obre FOrdre** → [https://Bioquad.github.io/FOrdre/](https://Bioquad.github.io/FOrdre/)
+2. Prem **Importar llista** i tria el teu Excel, CSV o BOM de CAD. O prova-ho directament amb una llista d'exemple:
+   - 📄 [Llista de peces (CSV)](https://Bioquad.github.io/FOrdre/?llista=exemples/plantilla_fordre.csv)
+   - 📐 [BOM indentada de CAD (SolidWorks)](https://Bioquad.github.io/FOrdre/?llista=exemples/bom_cad_solidworks.csv)
+3. Revisa com s'han reconegut les columnes i prem **Importar**.
+4. **Mira les caixes en 3D.** Toca un conjunt a l'arbre i se'n ressalten les caixes; toca un material i veuràs el seu caixetí i l'etiqueta.
+5. Descarrega els **STL** per imprimir, les **etiquetes** i el **full de ruta**.
+
+| 1 · Importar la llista | 2 · Caixes generades |
+|---|---|
+| ![Importació d'una llista de materials: correspondència de columnes i canvis](imatges/2-importar-llista.png) | ![Caixes generades per a un conjunt, ressaltades a la vista 3D](imatges/3-caixes-generades.png) |
+
+Per fer la teva llista, descarrega la [plantilla CSV](exemples/plantilla_fordre.csv) (una fila per material, amb el conjunt on es munta) o exporta la BOM del teu programa de CAD.
+
+[![Obrir FOrdre](https://img.shields.io/badge/🌐_Obrir_FOrdre-4A90D9?style=for-the-badge&logo=githubpages)](https://Bioquad.github.io/FOrdre/)
+[![Provar amb una llista](https://img.shields.io/badge/📄_Provar_amb_una_llista-43A047?style=for-the-badge)](https://Bioquad.github.io/FOrdre/?llista=exemples/plantilla_fordre.csv)
 
 ---
 
@@ -66,7 +82,15 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
 17. **Niu amb la forma real:** carrega l'STL d'una peça (plaques amb components, peces corbades o fràgils) i el fons de la seva cel·la reprodueix la cara de sota, amb folgança i un marc de centrat.
 18. **QR en relleu:** gravat a la tapa (i a la cara posterior de les caixes sense tapa, si hi cap), amb les mateixes dades que l'etiqueta.
 
-### Servidor del taller (Raspberry Pi o PC)
+---
+
+### 🏭 Al taller (opcional)
+
+Un cop impreses les caixes, FOrdre també pot guiar la feina al taller: omplir les caixes, muntar, verificar i treure'n resultats. No cal per generar les caixes.
+
+<img src="imatges/4-app-taller.png" alt="App del taller al mòbil: pas de muntatge amb les caixes a agafar" width="280" align="right">
+
+#### Servidor del taller (Raspberry Pi o PC)
 
 Una Raspberry Pi o qualsevol ordinador amb Node.js fa de servidor a la xarxa del taller: serveix les dues apps sense internet i **sincronitza en temps real** el projecte, les ordres, el progrés, l'estoc, el registre i les fotos entre tots els mòbils, tauletes i ordinadors. Guarda les **persones amb el seu PIN i els seus rols** i comprova cada operació. Si un aparell perd la Wi-Fi, continua treballant i envia els canvis quan torna. Instal·lació en una Raspberry Pi:
 
@@ -77,7 +101,7 @@ sudo bash servidor/configura-raspberry.sh
 
 A Windows, doble clic a `servidor/inicia-windows.bat`. Tota la guia és a [`servidor/LLEGEIX-ME.md`](servidor/LLEGEIX-ME.md).
 
-### Del disseny al producte: processos i rols
+#### Del disseny al producte: processos i rols
 
 FOrdre segueix tot el camí, de la definició fins a la màquina verificada, i permet **repetir-lo** tantes vegades com calgui:
 
@@ -92,7 +116,7 @@ FOrdre segueix tot el camí, de la definició fins a la màquina verificada, i p
 
 Cada pas passa per *pendent → preparat → en curs → muntat → verificat* (o *rebutjat*), i cada caixa per *buida → omplint-se → plena → en ús → retornada*. Cada ordre recorda la versió exacta del projecte amb què es va fabricar.
 
-### App del taller (mòbil i tauleta)
+#### App del taller (mòbil i tauleta)
 
 `muntatge.html` és l'app dels aparells del taller. Cada persona entra amb el seu **nom i PIN** i tria el **rol** amb què treballa (una persona pot tenir-ne més d'un); només veu la seva feina:
 
@@ -105,11 +129,15 @@ Cada pas passa per *pendent → preparat → en curs → muntat → verificat* (
 - Des de l'ordinador, el botó **📱 Muntatge** hi passa el projecte amb un QR, un enllaç o un fitxer, i el diàleg **🏭 Taller** publica el projecte, obre ordres i mostra l'estat de cada pas en directe.
 - Es pot instal·lar com una app (PWA). Totes les llibreries van incloses al repositori.
 
+<br clear="right">
+
+---
+
 ### Fitxers
 
 | Fitxer | Contingut |
 |---|---|
-| `index.html` | Aplicació d'escriptori: disseny dels kits |
+| `index.html` | **Aplicació principal:** importar llistes i generar les caixes (disseny dels kits) |
 | `muntatge.html` | App del taller per a mòbil i tauleta (per rols) |
 | `js/fo-dades.js` | Model de dades, arbre i ordre de muntatge |
 | `js/fo-calcul.js` | Mida dels caixetins i distribució en safates |
@@ -123,9 +151,10 @@ Cada pas passa per *pendent → preparat → en curs → muntat → verificat* (
 | `js/fo-progres.js` | Processos: operacions, rols, permisos, estats i ordres (compartit entre mòbil, ordinador i servidor) |
 | `js/fo-informe.js` | Model del taller (caixes de cada pas) i resultats i informe d'una ordre |
 | `servidor/` | Servidor del taller (Raspberry Pi / PC), scripts d'instal·lació i guia |
-| `sw.js`, `manifest.webmanifest`, `icones/` | Funcionament sense connexió i instal·lació |
+| `sw.js`, `manifest.webmanifest`, `manifest-taller.webmanifest`, `icones/` | Funcionament sense connexió i instal·lació |
 | `vendor/` | Llibreries de tercers (Three.js, qrcode-generator, SheetJS, jsQR) amb les seves llicències |
 | `exemples/` | Projecte d'exemple, plantilla CSV i BOM de mostra |
+| `imatges/` | Captures de la portada |
 | `proves/` | Proves del nucli (`node proves/proves.js`) i del servidor (`node proves/proves-servidor.js`) |
 | `eslint.config.js` | Regles de revisió del codi (`npx eslint js servidor proves sw.js`) |
 
@@ -137,9 +166,13 @@ Les llibreries de tercers van incloses a `vendor/`: no cal connexió ni cap inst
 
 ## 🇪🇸 Español
 
+**Sube la lista de materiales y FOrdre genera las cajas.** [Abrir FOrdre](https://Bioquad.github.io/FOrdre/) → **Importar llista** → mira las cajas en 3D → descarga STL y etiquetas. Pruébalo con una [lista de ejemplo](https://Bioquad.github.io/FOrdre/?llista=exemples/plantilla_fordre.csv) o una [BOM de CAD](https://Bioquad.github.io/FOrdre/?llista=exemples/bom_cad_solidworks.csv).
+
 FOrdre prepara, para cada paso de montaje de una máquina, un **kit**: bandeja fusionada, cajas individuales, cajas dentro de un contenedor general o mixto, con un compartimento a medida para cada material (nunca se mezclan), en el material y color de impresión que elijas y una etiqueta para cada uno (código, nombre, cantidad, colores, QR, código de barras, RFID/NFC). Importa listas desde Excel/CSV o BOM indentadas de CAD, separa las piezas ESD en su propia bandeja, mantiene verticales las piezas con líquidos, admite bandejas inclinadas con cuña y genera cajas de almacenaje para subconjuntos ya montados, que entran como una pieza más en el conjunto padre. Cierre con labio interior (0-5 mm), tapa a presión o tapa con imanes, código grabado en relieve, pieza de calibración, tandas de impresión en 3MF por material y color, y revisiones de la lista de materiales. Contenedores apilables con asas, nidos a medida a partir del STL de cada pieza y QR grabado en las tapas. Un **servidor de taller** sin dependencias (Raspberry Pi o PC) sincroniza en tiempo real órdenes de fabricación, progreso, stock y fotos entre todos los dispositivos, con personas, PIN y **roles**: Almacén (llenar las cajas), Montador (montar con instrucciones y pares de apriete), Calidad (verificar con lista de comprobación; quien monta no verifica) y Responsable (órdenes, asignaciones, incidencias y resultados). Cada orden genera un **informe** con la trazabilidad completa. La **app del taller para móvil y tableta** funciona sin conexión y envía los cambios y las fotos al recuperarla.
 
 ## 🇬🇧 English
+
+**Upload your bill of materials and FOrdre generates the boxes.** [Open FOrdre](https://Bioquad.github.io/FOrdre/) → **Importar llista** (import list) → see the boxes in 3D → download STL files and labels. Try it with a [sample parts list](https://Bioquad.github.io/FOrdre/?llista=exemples/plantilla_fordre.csv) or a [CAD BOM](https://Bioquad.github.io/FOrdre/?llista=exemples/bom_cad_solidworks.csv).
 
 FOrdre builds an **assembly kit** for every step of a machine build: a fused tray, individual boxes, boxes inside an open-top carrier, or a mix, with a custom-sized pocket for each part (never mixed), in the print material and colour you choose and a label for each pocket (code, name, quantity, colours, QR, Code 128 barcode, RFID/NFC data). It imports Excel/CSV lists and indented CAD BOMs, puts ESD-sensitive parts in their own tray, keeps liquid-filled parts upright, supports tilted trays on a printed wedge, and creates storage boxes for finished sub-assemblies, which then become parts of their parent assembly. Closures: inner lip (0-5 mm), press-fit lid or magnetic lid; embossed codes, calibration piece, 3MF print plates by material and colour, and BOM revisions. Stackable containers with handles, custom nests from each part's STL and embossed QR codes on lids. A zero-dependency **workshop server** for a Raspberry Pi or any PC syncs production orders, progress, stock and photos in real time, with people, PINs and **roles**: Warehouse (fill the boxes), Assembler (build with instructions and torque values), Quality (checklist verification; whoever assembles cannot verify) and Manager (orders, assignments, issues and results). Each order produces a **report** with full traceability. The offline-capable **workshop app for phones and tablets** queues changes and photos and sends them when back online.
 
