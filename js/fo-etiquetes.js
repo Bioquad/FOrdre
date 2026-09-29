@@ -66,7 +66,7 @@
     const fit = (s, n) => (s.length > n ? s.slice(0, Math.max(1, n - 1)) + '…' : s);
 
     // Dades que es codifiquen al QR i a l'RFID/NFC
-    FO.dadesEtiqueta = e => ['FO1', e.safata, e.conjunt, e.codi, e.qty].join('|');
+    FO.dadesEtiqueta = e => ['FO1', e.safata, e.conjunt, e.codi, e.tipus === 'tapa' ? 'TAPA' : e.qty].join('|');
 
     // EPC de 96 bits (24 hex) derivat de l'identificador (per a gravadores RFID)
     FO.epc = function (text) {
@@ -90,6 +90,13 @@
                 nom: (s.tipus === 'muntat' ? 'Guarda: ' : '') + r.conj.nom, qty: s.forma === 'contenidor' ? s.caixes.length + ' caixes' : (s.tipus === 'muntat' ? s.caixetins.reduce((a, c) => a + c.qty, 0) : ''),
                 pas: r.pas, col: r.conj.col, col2: r.conj.col, esd: tots.some(c => c.mat.esd),
                 liquid: tots.some(c => c.mat.liquid), dreta: tots.some(c => c.o.dreta), ample: s.W
+            });
+            // la tapa porta la seva etiqueta: si se separa de la caixa, se sap de quina és
+            if (s.tancament === 'pressio' || s.tancament === 'imants') out.push({
+                clau: s.id + '#T', tipus: 'tapa', safata: s.id, conjunt: r.conj.codi, codi: s.id,
+                nom: 'Tapa · ' + (s.forma === 'caixa' && s.caixetins[0] ? s.caixetins[0].mat.nom : r.conj.nom), qty: '',
+                pas: r.pas, col: s.forma === 'caixa' && s.caixetins[0] ? s.caixetins[0].mat.col : r.conj.col, col2: r.conj.col,
+                esd: tots.some(c => c.mat.esd), liquid: tots.some(c => c.mat.liquid), dreta: false, ample: s.W
             });
             s.caixetins.forEach((c, i) => out.push({
                 clau: s.id + (s.forma === 'caixa' ? '' : '#' + (i + 1)), tipus: 'caixeti', safata: s.id, conjunt: r.conj.codi, codi: c.mat.codi, nom: c.mat.nom,

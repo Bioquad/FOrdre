@@ -165,6 +165,106 @@
         return p >= 0.45 ? Math.floor(p * 20) / 20 : 0;
     };
 
+    // ═══ Niu amb la forma real de la peça (a partir del seu STL) ═══
+    // Llegeix un STL binari o ASCII → llista de triangles
+    FO.llegeixSTL = function (dades) {
+        const u8 = dades instanceof Uint8Array ? dades : new Uint8Array(dades);
+        const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+        const tri = [];
+        if (u8.length >= 84) {
+            const n = dv.getUint32(80, true);
+            if (84 + n * 50 === u8.length) {
+                for (let i = 0, o = 84; i < n; i++, o += 50) {
+                    const v = k => [dv.getFloat32(o + 12 + k * 12, true), dv.getFloat32(o + 16 + k * 12, true), dv.getFloat32(o + 20 + k * 12, true)];
+                    tri.push([v(0), v(1), v(2)]);
+                }
+                return tri;
+            }
+        }
+        const text = new TextDecoder().decode(u8);
+        const re = /vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g;
+        let m, vs = [];
+        while ((m = re.exec(text))) { vs.push([+m[1], +m[2], +m[3]]); if (vs.length === 3) { tri.push(vs); vs = []; } }
+        if (!tri.length) throw new Error('No és un fitxer STL vàlid');
+        return tri;
+    };
+
+    // Perfil de la cara de sota: per a cada punt de la graella, l'alçada mínima de la peça
+    // (respecte del seu punt més baix); −1 on no hi ha peça. Retorna el niu que es guarda al material.
+    FO.rasteritzaNiu = function (tri, resolucio) {
+        let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+        tri.forEach(t => t.forEach(v => { for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } }));
+        const w = mx[0] - mn[0], d = mx[1] - mn[1], h = mx[2] - mn[2];
+        if (!(w > 0 && d > 0 && h > 0)) throw new Error('La peça no té volum');
+        const res = resolucio || Math.max(0.5, Math.round(Math.max(w, d) / 100 * 10) / 10);
+        const nx = Math.ceil(w / res), ny = Math.ceil(d / res);
+        const z = new Float64Array(nx * ny).fill(Infinity);
+        for (const t of tri) {
+            const [a, b, c] = t.map(v => [v[0] - mn[0], v[1] - mn[1], v[2] - mn[2]]);
+            const det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+            if (Math.abs(det) < 1e-12) continue;   // triangle vertical
+            const i0 = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]) / res)), i1 = Math.min(nx - 1, Math.floor(Math.max(a[0], b[0], c[0]) / res));
+            const j0 = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]) / res)), j1 = Math.min(ny - 1, Math.floor(Math.max(a[1], b[1], c[1]) / res));
+            for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+                const px = (i + 0.5) * res, py = (j + 0.5) * res;
+                const l1 = ((b[1] - c[1]) * (px - c[0]) + (c[0] - b[0]) * (py - c[1])) / det;
+                const l2 = ((c[1] - a[1]) * (px - c[0]) + (a[0] - c[0]) * (py - c[1])) / det;
+                const l3 = 1 - l1 - l2;
+                if (l1 < -1e-9 || l2 < -1e-9 || l3 < -1e-9) continue;
+                const zz = l1 * a[2] + l2 * b[2] + l3 * c[2];
+                if (zz < z[i * ny + j]) z[i * ny + j] = zz;
+            }
+        }
+        const hs = Array.from(z, v => isFinite(v) ? Math.round(v * 10) / 10 : -1);
+        return { niu: { res, nx, ny, h: hs }, x: Math.round(w * 10) / 10, y: Math.round(d * 10) / 10, z: Math.round(h * 10) / 10, triangles: tri.length };
+    };
+
+    // Operacions del niu d'una unitat, centrada a (cx, cy), amb el fons a cz
+    function niu(ops, n, w, d, cx, cy, cz, girat, joc, alt) {
+        const r = n.res, k = Math.max(1, Math.ceil(joc / r)), anell = Math.ceil(3 / r), R = k + anell;
+        const NX = n.nx + 2 * R, NY = n.ny + 2 * R;
+        const hp = (i, j) => { i -= R; j -= R; return i < 0 || j < 0 || i >= n.nx || j >= n.ny ? -1 : n.h[i * n.ny + j]; };
+        // mínim en un veïnat quadrat (dilata la peça: folgança i anell de centrat)
+        const minim = (i, j, rad) => { let m = Infinity; for (let a = i - rad; a <= i + rad; a++) for (let b = j - rad; b <= j + rad; b++) { const v = hp(a, b); if (v >= 0 && v < m) m = v; } return m; };
+        const dn = Math.min(Math.max(3, alt * 0.4), 15);
+        for (let j = 0; j < NY; j++) {
+            let i = 0;
+            while (i < NX) {
+                const alçada = i2 => { const a = minim(i2, j, k); if (isFinite(a)) return Math.max(0, Math.min(dn, Math.floor((a - 0.3) * 2) / 2)); return isFinite(minim(i2, j, R)) ? dn : 0; };
+                const hz = alçada(i);
+                let i1 = i + 1;
+                while (i1 < NX && alçada(i1) === hz) i1++;
+                if (hz > 0) {
+                    // coordenades locals de la peça (u al llarg de la seva X, v de la seva Y), centrades
+                    const u0 = (i - R) * r - (n.nx * r - w) / 2, u1 = (i1 - R) * r - (n.nx * r - w) / 2;
+                    const v0 = (j - R) * r - (n.ny * r - d) / 2, v1 = (j + 1 - R) * r - (n.ny * r - d) / 2;
+                    if (!girat) ops.push(OP(cx - w / 2 + u0, cy - d / 2 + v0, cx - w / 2 + u1, cy - d / 2 + v1, cz, cz + hz, 1));
+                    else ops.push(OP(cx + d / 2 - v1, cy - w / 2 + u0, cx + d / 2 - v0, cy - w / 2 + u1, cz, cz + hz, 1));
+                }
+                i = i1;
+            }
+        }
+    }
+
+    // ═══ QR gravat ═══
+    // Mateixes dades que l'etiqueta: una caixa individual = el seu material; la resta = TAPA
+    FO.dadesQRObjecte = o => o.forma === 'caixa' && o.caixetins[0]
+        ? ['FO1', o.id, o.conj ? o.conj.codi : '', o.caixetins[0].mat.codi, o.caixetins[0].qty].join('|')
+        : ['FO1', o.id, o.conj ? o.conj.codi : '', o.id, 'TAPA'].join('|');
+    function matriuQR(text) {
+        const lib = G.qrcode; if (typeof lib !== 'function') return null;
+        try { const q = lib(0, 'L'); q.addData(text); q.make(); return { n: q.getModuleCount(), fosc: (r, c) => q.isDark(r, c) }; } catch (e) { return null; }
+    }
+    // Recorre els mòduls foscos per files i en retorna els trams [fila, col0, col1).
+    // Cada tram s'eixampla 0,15 mòduls per banda: els mòduls que es toquen en diagonal
+    // queden units per una cara (sòlid tancat) i el QR es continua llegint.
+    function tramsQR(q) {
+        const out = [];
+        for (let r = 0; r < q.n; r++) { let c = 0; while (c < q.n) { if (!q.fosc(r, c)) { c++; continue; } let c1 = c; while (c1 < q.n && q.fosc(r, c1)) c1++; out.push([r, c - 0.15, c1 + 0.15]); c = c1; } }
+        return out;
+    }
+    const MODUL_QR_MIN = 0.8;
+
     // ═══ Operacions d'un objecte (safata, caixa o contenidor) ═══
     const OP = (x0, y0, x1, y1, z0, z1, s) => ({ x0, y0, x1, y1, z0, z1, s });
 
@@ -232,10 +332,30 @@
         ops.push(OP(0, 0, o.W, o.D, 0, H, 1));
         let franjaText = [pw + 1, o.W - pw - 1];
         if (o.forma === 'contenidor') {
-            const osca = Math.min(30, o.W / 3), hO = Math.max(cfg.terra + 3, H * 0.45);
-            ops.push(OP(pw, pw, o.W - pw, o.D - pw, cfg.terra, H, 0));
+            const fons = o.fons || cfg.terra, peu = FO.PEU_APILABLE || 3;
+            const osca = Math.min(30, o.W / 3), hO = Math.max(fons + 3, H * 0.45);
+            ops.push(OP(pw, pw, o.W - pw, o.D - pw, fons, H, 0));
             ops.push(OP((o.W - osca) / 2, 0, (o.W + osca) / 2, pw, hO, H, 0), OP((o.W - osca) / 2, o.D - pw, (o.W + osca) / 2, o.D, hO, H, 0));
             franjaText = [pw + 1, (o.W - osca) / 2 - 1];
+            // Nanses: a cada costat curt, un bloc amb un forat vertical per als dits;
+            // la barra exterior és l'agafador. S'imprimeix sense suports.
+            if (o.nanses && o.D >= 80) {
+                const z = FO.ZONA_NANSA || 30, yc = o.D / 2, mig = Math.min(36, o.D / 2 - pw - 4), forat = mig - 6;
+                const hN = o.apilable ? H - peu - 0.6 : H;
+                [[0, 1], [o.W, -1]].forEach(([x0, sg]) => {
+                    const X = a => sg > 0 ? x0 + a : x0 - a;
+                    const xa = (a, b) => [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
+                    const [b0, b1] = xa(0, pw + z), [f0, f1] = xa(5, 5 + 22);
+                    ops.push(OP(b0, yc - mig, b1, yc + mig, 0, hN, 1));
+                    ops.push(OP(f0, yc - forat, f1, yc + forat, 0, H, 0));
+                });
+                franjaText = [pw + z + 1, (o.W - osca) / 2 - 1];
+            }
+            // Peu encastat: la base és una mica més petita i entra dins el contenidor de sota
+            if (o.apilable) {
+                const b = pw + 0.6;
+                ops.push(OP(0, 0, o.W, b, 0, peu, 0), OP(0, o.D - b, o.W, o.D, 0, peu, 0), OP(0, 0, b, o.D, 0, peu, 0), OP(o.W - b, 0, o.W, o.D, 0, peu, 0));
+            }
         } else {
             // alçada dels divisors: sense vora alta; amb tapa a pressió, per sota de la faldilla
             const cims = H - Math.max(cfg.llavi, tanc === 'pressio' ? 4.5 : 0);
@@ -246,6 +366,15 @@
                     const pwc = (c.w - (nx - 1) * t) / nx, pd = (c.d - (ny - 1) * t) / ny;
                     for (let i = 1; i < nx; i++) { const x = c.x + i * pwc + (i - 1) * t; ops.push(OP(x, c.y, x + t, c.y + c.d, c.z, cims, 1)); }
                     for (let k = 1; k < ny; k++) { const y = c.y + k * pd + (k - 1) * t; ops.push(OP(c.x, y, c.x + c.w, y + t, c.z, cims, 1)); }
+                }
+                // niu amb la forma real de la peça, una unitat per cel·la
+                if (c.mode === 'individual' && c.mat.niu && c.cel) {
+                    const nx = c.girat ? c.cel.ny : c.cel.nx, ny = c.girat ? c.cel.nx : c.cel.ny, t = cfg.divisor;
+                    const pwc = (c.w - (nx - 1) * t) / nx, pd = (c.d - (ny - 1) * t) / ny;
+                    for (let q = 0; q < c.qty; q++) {
+                        const i = q % nx, k = Math.floor(q / nx);
+                        niu(ops, c.mat.niu, c.o.w, c.o.d, c.x + i * (pwc + t) + pwc / 2, c.y + k * (pd + t) + pd / 2, c.z, !!c.girat, cfg.joc, c.o.h);
+                    }
                 }
                 if (cfg.fonsArrodonit && c.mode === 'granel') rampa(ops, c);
                 if (cfg.codiFons) gravaFons(ops, c, c.mat.codi);
@@ -273,6 +402,20 @@
                 const z0 = zText0 + (zText1 - zText0 - h) / 2, pr = Math.min(0.4, pw / 2);
                 ops.push(cara === 'darrere' ? OP(x0, o.D - pr, x0 + w, o.D, z0, z0 + h, 0) : OP(x0, 0, x0 + w, pr, z0, z0 + h, 0));
             } else avisos.push('l\'etiqueta no hi cap al rebaix');
+        }
+        // QR a la cara posterior quan no hi ha tapa i la cara és lliure
+        if (cfg.qrRelleu && tanc !== 'pressio' && tanc !== 'imants' && !(cfg.rebaixEtiqueta && cara === 'darrere')) {
+            const q = matriuQR(FO.dadesQRObjecte(o));
+            if (q) {
+                const x0f = o.forma === 'contenidor' ? pw + 1 : pw + 1, x1f = o.W - pw - 1;
+                const m = Math.min(1.6, (x1f - x0f) / (q.n + 2), (zText1 - zText0) / (q.n + 2));
+                if (m >= MODUL_QR_MIN) {
+                    const pr = Math.min(0.6, pw / 2), costat = q.n * m;
+                    const xc = (x0f + x1f) / 2, zTop = (zText0 + zText1) / 2 + costat / 2;
+                    // vist des del darrere, la X va al revés: es reflecteix perquè es llegeixi bé
+                    tramsQR(q).forEach(([r, c0, c1]) => ops.push(OP(xc + costat / 2 - c1 * m, o.D - pr, xc + costat / 2 - c0 * m, o.D, zTop - (r + 1) * m, zTop - r * m, 0)));
+                }
+            }
         }
         return { ops, avisos };
     };
@@ -306,6 +449,18 @@
         } else {
             const s = cfg.imantD + 0.3, h = cfg.imantH + 0.2;
             FO.posImants(o).forEach(([x, y]) => { const [a, b] = my(y - s / 2, y + s / 2); ops.push(OP(x - s / 2, a, x + s / 2, b, z0 - h, z0, 0)); });
+        }
+        // QR gravat a la cara de la tapa que toca el llit (la de dalt quan està posada)
+        if (cfg.qrRelleu) {
+            const q = matriuQR(FO.dadesQRObjecte(o));
+            if (q) {
+                const m = Math.min(1.6, (Math.min(W, D) - 2 * pw - 6) / (q.n + 2));
+                if (m >= MODUL_QR_MIN) {
+                    const costat = q.n * m, x0 = (W - costat) / 2, y0 = (D - costat) / 2, pr = Math.min(0.6, t / 2);
+                    // girada la tapa, la fila 0 queda al fons: en posició d'impressió va a y0
+                    tramsQR(q).forEach(([r, c0, c1]) => ops.push(OP(x0 + c0 * m, y0 + r * m, x0 + c1 * m, y0 + (r + 1) * m, 0, pr, 0)));
+                }
+            }
         }
         return ops;
     };

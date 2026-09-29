@@ -14,7 +14,7 @@
     'use strict';
     const FO = G.FO || (G.FO = {});
 
-    FO.VERSIO = '1.2.0';
+    FO.VERSIO = '1.3.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -57,6 +57,9 @@
         jocTapa: 0.25,              // folgança de la tapa a pressió
         gruixTapa: 1.6,             // gruix de la placa de la tapa
         tapesInternes: true,        // en formats amb contenidor, tapa també a cada caixa de dins
+        contenidorsApilables: true, // mida comuna, peu encastat i alçada suficient per apilar-los
+        nanses: true,               // nanses als costats curts del contenidor
+        qrRelleu: true,             // QR gravat a la tapa (i a la cara posterior si no hi ha tapa ni rebaix)
         imantD: 6, imantH: 2,       // imant de disc (diàmetre × alçada)
         // ─── Identificació física i ergonomia ───
         relleu: true,               // codi gravat a la cara frontal
@@ -185,6 +188,9 @@
             proveidor: String(m.proveidor || ''),
             caixaMaterial: FO.MATERIALS_IMPRESSIO[m.caixaMaterial] ? m.caixaMaterial : '',   // '' = per defecte
             caixaColor: /^#[0-9a-f]{6}$/i.test(m.caixaColor) ? m.caixaColor : '',            // '' = segons l'esquema
+            // perfil de la cara de sota (des del seu STL) per fer un niu a mida; null = sense forma real
+            niu: m.niu && m.niu.nx > 0 && m.niu.ny > 0 && Array.isArray(m.niu.h) && m.niu.h.length === m.niu.nx * m.niu.ny && m.niu.res > 0
+                ? { res: +m.niu.res, nx: m.niu.nx | 0, ny: m.niu.ny | 0, h: m.niu.h.map(Number), fitxer: String(m.niu.fitxer || '') } : null,
             notes: String(m.notes || '')
         };
     };

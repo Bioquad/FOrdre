@@ -24,3 +24,6 @@ build/
 # Entorn i secrets
 .env
 .env.*
+
+# Dades del servidor del taller (projectes, progrés, fotos, certificat)
+servidor/dades/

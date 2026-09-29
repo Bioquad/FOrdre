@@ -22,6 +22,8 @@
 
     // Dimensions de la peça tal com reposa al caixetí: w ≥ d (planta) i h (alçada)
     FO.orientacio = function (m) {
+        // amb niu (forma real), la peça es col·loca tal com està al seu STL
+        if (m.niu) return { w: m.x, d: m.y, h: m.z, dreta: true, niu: true };
         let w, d, h;
         const cil = m.forma === 'cylinder';
         if (FO.vaDreta(m)) {
@@ -35,6 +37,7 @@
     };
 
     FO.modeDisposicio = function (m, qty) {
+        if (m.niu) return 'individual';   // un niu per unitat
         if (m.disposicio && m.disposicio !== 'auto') return m.disposicio;
         const o = FO.orientacio(m);
         const vol = o.w * o.d * o.h;
@@ -275,7 +278,10 @@
         o.tancament = tanc;
         if (o.forma === 'contenidor') {
             o.caixes.forEach(q => finalitza(q.obj, tanc === 'llavi' ? 'llavi' : cfg.tapesInternes ? tanc : 'cap', cfg));
-            o.cim = Math.max(...o.caixes.map(q => cfg.terra + Math.max(q.obj.H, q.obj.cim) + FO.gruixTapaDe(q.obj, cfg)));
+            o.cim = Math.max(...o.caixes.map(q => (o.fons || cfg.terra) + Math.max(q.obj.H, q.obj.cim) + FO.gruixTapaDe(q.obj, cfg)));
+            // apilable: prou alt perquè el peu del contenidor de dalt no toqui les caixes de dins
+            if (o.apilable) o.H = r05(Math.max(o.H, o.cim + FO.PEU_APILABLE + 0.5));
+            if (o.H > cfg.llit.z) o.avisos.push(`alçada ${o.H} mm superior a la del llit (${cfg.llit.z} mm)`);
             return;
         }
         o.cim = Math.max(0, ...o.caixetins.map(c => c.z + altContingut(c)));
@@ -310,9 +316,14 @@
     }
 
     // ─── Contenidor general obert per dalt que agrupa caixes ───
+    FO.PEU_APILABLE = 3;    // alçada del peu encastat (mm)
+    FO.ZONA_NANSA = 30;     // espai de cada nansa als costats curts (mm)
     function contenidors(conj, objs, cfg, prefix) {
         const j = cfg.jocCaixes, pc = cfg.paretContenidor;
-        const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j });
+        const zona = cfg.nanses ? FO.ZONA_NANSA : 0;
+        const fons = cfg.terra + (cfg.contenidorsApilables ? FO.PEU_APILABLE : 0);
+        // les nanses ocupen espai als costats: el llit útil per a les caixes és més estret
+        const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j, llit: Object.assign({}, cfg.llit, { x: cfg.llit.x - 2 * zona }) });
         const items = objs.map(o => ({
             W: o.W, D: o.D, obj: o,
             mat: { tipus: o.caixetins.length && o.caixetins.every(c => c.mat.tipus === 'consumible') ? 'consumible' : 'x' }
@@ -330,18 +341,18 @@
                     const W = q.girat ? q.d : q.w, D = q.girat ? q.w : q.d;
                     redimensiona(o, W, D, cfg);
                 }
-                return { obj: o, x: q.x, y: q.y, girat: q.girat };
+                return { obj: o, x: q.x + zona, y: q.y, girat: q.girat };
             });
             const hMax = Math.max(...objs.map(o => o.H));
-            const H = r05(Math.min(hMax + cfg.terra, Math.max(15, cfg.terra + hMax * cfg.alcadaContenidor)));
+            const H = r05(Math.min(hMax + fons, Math.max(15, fons + hMax * cfg.alcadaContenidor)));
             const id = conj.codi + prefix + (multi ? '-' + String.fromCharCode(65 + lletra++) : '');
             const totsCaix = caixes.flatMap(c => c.obj.caixetins);
             const angle = Math.min(cfg.inclinacio || 0, ...totsCaix.map(c => c.mat.angleMax));
             const avisos = [];
             if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
             const cont = {
-                id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j)), D: r05(dist.D + 2 * (pc + j)), H,
-                angle, paret: pc, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
+                id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j) + 2 * zona), D: r05(dist.D + 2 * (pc + j)), H,
+                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
             };
             caixes.forEach(c => { c.obj.pare = cont; c.obj.pos = { x: c.x, y: c.y, girat: c.girat }; });
             return cont;
@@ -458,6 +469,13 @@
 
     // Resultat complet: un pla per conjunt, en ordre de muntatge
     FO.calculaPla = function (p) {
-        return FO.ordreMuntatge(p).map(o => Object.assign(FO.safatesConjunt(p, o.conj, p.config), { pas: o.pas, nivell: o.nivell }));
+        const pla = FO.ordreMuntatge(p).map(o => Object.assign(FO.safatesConjunt(p, o.conj, p.config), { pas: o.pas, nivell: o.nivell }));
+        // contenidors apilables: tots de la mateixa planta perquè encaixin uns sobre els altres
+        const conts = pla.flatMap(r => r.safates.filter(s => s.forma === 'contenidor' && s.apilable));
+        if (conts.length > 1) {
+            const W = Math.max(...conts.map(c => c.W)), D = Math.max(...conts.map(c => c.D));
+            conts.forEach(c => { c.W = W; c.D = D; });
+        }
+        return pla;
     };
 })(typeof window !== 'undefined' ? window : globalThis);

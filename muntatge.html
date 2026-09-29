@@ -24,6 +24,7 @@
     <header class="cap">
         <button class="ic" id="bEnrere" aria-label="Enrere" hidden>‹</button>
         <div class="titol"><b>F<span>O</span>rdre</b> <small id="nomProj">Muntatge</small></div>
+        <button class="ic" id="bSrv" aria-label="Estat del servidor del taller" style="font-size:18px">●</button>
         <button class="ic" id="bEscaneja" aria-label="Escanejar">⌖</button>
         <button class="ic" id="bMenu" aria-label="Opcions">⋮</button>
     </header>
@@ -54,6 +55,14 @@
             <h2>Opcions</h2>
             <label class="camp">Operari (surt al registre)<input type="text" id="operari" placeholder="Nom"></label>
             <label class="ck"><input type="checkbox" id="consumAuto"> Descomptar l'estoc en marcar un pas com a muntat</label>
+            <div class="grup" id="grupSrv">
+                <h3 style="margin-top:0">Servidor del taller</h3>
+                <p class="ajuda" id="infoSrv"></p>
+                <label class="camp">Adreça del servidor (buit = automàtic)<input type="url" id="urlSrv" placeholder="https://raspberrypi.local:8443" autocomplete="off"></label>
+                <label class="camp">Clau del taller (si n'hi ha)<input type="password" id="clauSrv" autocomplete="off"></label>
+                <button class="bt" id="bConnecta">🔌 Connectar</button>
+                <div id="projSrv"></div>
+            </div>
             <div class="grup">
                 <button class="bt" id="bObrirFitxer">📂 Obrir fitxer de projecte</button>
                 <button class="bt" id="bEnganxa">🔗 Enganxar un enllaç</button>
@@ -81,6 +90,7 @@
     <script src="js/fo-calcul.js"></script>
     <script src="js/fo-etiquetes.js"></script>
     <script src="js/fo-compartir.js"></script>
+    <script src="js/fo-progres.js"></script>
     <script src="js/fo-muntatge.js"></script>
 </body>
 </html>

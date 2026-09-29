@@ -5,8 +5,10 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir']) require(path.join(__dirname, '..', 'js', f + '.js'));
+for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir', 'fo-progres']) require(path.join(__dirname, '..', 'js', f + '.js'));
 const FO = globalThis.FO;
+globalThis.qrcode = require(path.join(__dirname, '..', 'vendor', 'qrcode.js'));   // per als QR gravats
+const jsQR = require(path.join(__dirname, '..', 'vendor', 'jsQR.js'));
 
 let fallades = 0, total = 0;
 function prova(nom, fn) {
@@ -211,6 +213,63 @@ prova('revisions: detecta canvis i peces a reimprimir', () => {
     assert(FO.diffProjectes(p, p).buit, 'sense canvis');
 });
 
+prova('niu amb la forma real (STL): sòlid tancat i bressol', () => {
+    const tri = [], N = 24, L = 60, R = 15;
+    for (let k = 0; k < N; k++) {
+        const a0 = Math.PI * k / N, a1 = Math.PI * (k + 1) / N, q = (a, x) => [x, R + R * Math.cos(a), R - R * Math.sin(a)];
+        tri.push([q(a0, 0), q(a1, 0), q(a1, L)], [q(a0, 0), q(a1, L), q(a0, L)]);
+    }
+    const r = FO.rasteritzaNiu(FO.llegeixSTL(FO.stlBinari(tri, 'semi')));
+    assert(r.x === 60 && r.y === 30 && r.z === 15, 'mides');
+    const q = FO.normalitzaProjecte({ config: { formatKit: 'fusionat' }, materials: [{ id: 'S', codi: 'SEMI', x: r.x, y: r.y, z: r.z, niu: r.niu }], conjunts: [{ id: 'C', codi: 'C', items: [{ mat: 'S', qty: 3 }] }] });
+    const s = FO.calculaPla(q)[0].safates[0];
+    assert(s.caixetins[0].mode === 'individual', 'un niu per unitat');
+    assert(esTancada(FO.mallaSafata(s, q.config)), 'tancat');
+});
+prova('contenidors apilables: mateixa planta, peu encastat i nanses tancades', () => {
+    const conts = pla.flatMap(r => r.safates.filter(x => x.forma === 'contenidor'));
+    assert(conts.length > 1 && conts.every(c => c.W === conts[0].W && c.D === conts[0].D), 'mateixa planta');
+    conts.forEach(c => {
+        assert(c.H >= c.cim + FO.PEU_APILABLE, c.id + ': massa baix per apilar');
+        assert(c.caixes.every(q => q.x >= FO.ZONA_NANSA), c.id + ': caixes a la zona de la nansa');
+    });
+});
+prova('QR gravat a les tapes: es llegeix des de la malla', () => {
+    const { q, pla: pl } = variant('pressio', 'individual');
+    let gravats = 0;
+    pl.forEach(r => obj(r).forEach(o => {
+        const t = FO.mallaTapa(o, q.config); if (!t) return;
+        const n = FO.rasteritzaNiu(t, 0.2).niu, S = 4, pad = 20, W = n.nx * S + 2 * pad, H = n.ny * S + 2 * pad;
+        if (!n.h.some(v => v > 0.3)) return;   // tapa massa petita: sense QR
+        const px = new Uint8ClampedArray(W * H * 4).fill(255);
+        for (let i = 0; i < n.nx; i++) for (let j = 0; j < n.ny; j++) if (n.h[i * n.ny + j] > 0.3)
+            for (let a = 0; a < S; a++) for (let b = 0; b < S; b++) { const k = ((pad + j * S + b) * W + pad + i * S + a) * 4; px[k] = px[k + 1] = px[k + 2] = 0; }
+        const res = jsQR(px, W, H);
+        assert(res && res.data === FO.dadesQRObjecte(o), o.id + ': QR il·legible');
+        gravats++;
+    }));
+    assert(gravats >= 5, 'gravats: ' + gravats);
+});
+prova('importació: parell, nota, instruccions, eines, tancament i format', () => {
+    const f = FO.llegeixCSV(FO.plantillaCSV()), h = FO.trobaCapcalera(f), m = FO.detectaColumnes(f[h]);
+    const q = FO.incorporaImport(FO.nouProjecte(), FO.construeixImport(f.slice(h + 1), m, 'pla', {}), 'substitueix');
+    const x = FO.conjunt(q, 'c:XAS'), it = x.items.find(i => i.mat === 'm:CRG-M4x10');
+    assert(it.parell === 2.5 && it.nota === 'En creu', 'element');
+    assert(x.instruccions.split('\n').length === 3 && x.eines && x.tancament === 'llavi', 'conjunt');
+    assert(FO.conjunt(q, 'c:MOT').formatKit === 'contenidor', 'format');
+});
+prova('progrés: operacions idempotents i estoc per increments', () => {
+    const pr = FO.progresBuit();
+    FO.aplicaOp(pr, { id: 'a1', t: 'estoc', mat: 'X', delta: 5 });
+    FO.aplicaOp(pr, { id: 'b1', t: 'estoc', mat: 'X', delta: 3 });
+    assert(!FO.aplicaOp(pr, { id: 'a1', t: 'estoc', mat: 'X', delta: 5 }), 'repetida');
+    FO.aplicaOp(pr, { id: 'a2', t: 'fet', conj: 'C', consum: { X: 2 }, text: 'muntat' });
+    FO.aplicaOp(pr, { id: 'b2', t: 'fet', conj: 'C', consum: { X: 2 } });   // un altre aparell, alhora
+    assert(pr.estoc.X === 6 && pr.fets.C, 'fet un sol cop: ' + pr.estoc.X);
+    FO.aplicaOp(pr, { id: 'a3', t: 'desfet', conj: 'C' });
+    assert(pr.estoc.X === 8 && !pr.fets.C && pr.registre.length === 1, 'desfet');
+});
+
 console.log('Importació');
 prova('plantilla CSV → projecte', () => {
     const f = FO.llegeixCSV(FO.plantillaCSV()), h = FO.trobaCapcalera(f), m = FO.detectaColumnes(f[h]);
@@ -237,7 +296,9 @@ prova('columnes en castellà amb unitats en cm i kg', () => {
 console.log('Etiquetes');
 const et = FO.etiquetesPla(pla);
 prova('una etiqueta per safata i per caixetí', () => {
-    const n = pla.reduce((a, r) => a + obj(r).reduce((b, s) => b + (s.forma === 'caixa' ? 0 : 1) + s.caixetins.length, 0), 0);
+    const tapa = s => s.tancament === 'pressio' || s.tancament === 'imants' ? 1 : 0;
+    const n = pla.reduce((a, r) => a + obj(r).reduce((b, s) => b + (s.forma === 'caixa' ? 0 : 1) + tapa(s) + s.caixetins.length, 0), 0);
+    assert(et.filter(e => e.tipus === 'tapa').every(e => FO.dadesEtiqueta(e).endsWith('|TAPA')), 'dades de la tapa');
     assert(et.length === n);
 });
 prova('Code 128: patrons de 11 mòduls i suma de control', () => {
