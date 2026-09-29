@@ -270,6 +270,9 @@ async function api(req, res, url) {
         if (obert && !rols.includes('responsable')) return json(req, res, 400, { error: 'La primera persona ha de ser Responsable' });
         let pers = persones.persones.find(x => x.nom.toLowerCase() === nom.toLowerCase());
         if (!pers && !/^\d{4,8}$/.test(String(d.pin || ''))) return json(req, res, 400, { error: 'El PIN ha de tenir de 4 a 8 xifres' });
+        // mai no es pot deixar el taller sense cap Responsable actiu: tornaria a quedar obert a qualsevol
+        const quedaResp = persones.persones.some(x => x !== pers && x.actiu && x.rols.includes('responsable')) || (d.actiu !== false && rols.includes('responsable'));
+        if (!obert && !quedaResp) return json(req, res, 400, { error: 'Ha de quedar almenys un Responsable actiu' });
         if (!pers) { pers = { nom, rols, actiu: true }; persones.persones.push(pers); }
         pers.rols = rols; pers.actiu = d.actiu !== false;
         if (d.pin) { if (!/^\d{4,8}$/.test(String(d.pin))) return json(req, res, 400, { error: 'El PIN ha de tenir de 4 a 8 xifres' }); pers.sal = crypto.randomBytes(8).toString('hex'); pers.hash = resumPIN(d.pin, pers.sal); }
@@ -335,6 +338,7 @@ async function api(req, res, url) {
 
     // ─── Progrés d'una ordre ───
     if (p[1] === 'progres' && id && p[3]) {
+        if (!fs.existsSync(fitxerProj(id))) return json(req, res, 404, { error: 'Projecte desconegut' });
         const ordre = netId(p[3]);
         if (!ordres(id).some(o => o.id === ordre)) return json(req, res, 404, { error: 'Ordre desconeguda' });
         const k = clauP(id, ordre);
@@ -368,6 +372,7 @@ async function api(req, res, url) {
 
     // ─── Fotos (per ordre) ───
     if (p[1] === 'fotos' && id && p[3]) {
+        if (!fs.existsSync(fitxerProj(id)) || !ordres(id).some(o => o.id === netId(p[3]))) return json(req, res, 404, { error: 'Ordre desconeguda' });
         const dir = path.join(DADES, 'fotos', id, netId(p[3]));
         if (req.method === 'POST' && !p[4]) {
             const cos = await llegeixCos(req, 15e6);
