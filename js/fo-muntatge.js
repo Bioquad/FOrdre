@@ -69,6 +69,18 @@
     const desaPref = () => escriu(CLAU_PREF, pref);
     desaPref();
     let pasActual = null, caixaActual = null, pantallaSessio = false;
+
+    // Accés directe per rol: muntatge.html?rol=magatzem (o muntador, qualitat, responsable).
+    // Es recorda com a rol preferit i es treu de l'adreça, perquè després es pugui canviar amb normalitat.
+    const rolDemanat = (() => {
+        const q = new URLSearchParams(location.search), r = q.get('rol');
+        if (!r) return '';
+        q.delete('rol');
+        history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+        if (!FO.ROLS[r]) return '';
+        pref.rol = r; desaPref();
+        return r;
+    })();
     const verifChecks = {};      // comprovacions marcades a la pantalla de Qualitat (per pas)
 
     // ═══ Qui treballa i amb quin rol ═══
@@ -295,8 +307,8 @@
         ses = { token: d.token, nom: d.nom, rols: d.rols, servidor: srv.url };
         escriu(CLAU_SESSIO, ses);
         if (!rolsDisponibles().includes(pref.rol)) { pref.rol = ses.rols[0]; desaPref(); }
+        avis('Hola, ' + ses.nom);   // abans d'entrar, perquè no tapi cap avís de l'arrencada
         await continuaInici();
-        avis('Hola, ' + ses.nom);
     }
     async function surt() {
         if (ses && cua.some(x => x.tok === ses.token)) await sincronitza();
@@ -541,6 +553,9 @@
         if (P) await connectaProjecte();
         pintaEstatSrv();
         if (P && !srv.url && !pref.rol) obreTriaRol();
+        // amb el servidor, només es pot fer servir un rol que la persona tingui
+        if (rolDemanat && srv.url && ses && !rolsDisponibles().includes(rolDemanat))
+            avis(`No tens el rol de ${FO.ROLS[rolDemanat].nom}: treballes com a ${FO.ROLS[rol()].nom}`, 5000);
         ruta();
     }
 

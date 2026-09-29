@@ -36,11 +36,11 @@ const DADES = path.resolve(arg('dades', process.env.FORDRE_DADES || path.join(__
 const PORT = +arg('port', process.env.FORDRE_PORT || 8443);
 const PORT_HTTP = +arg('port-http', process.env.FORDRE_PORT_HTTP || 8080);
 const CLAU = String(arg('clau', process.env.FORDRE_CLAU || '') || '');
-const VERSIO = '1.4.0';
-
 global.FO = {};
-require(path.join(ARREL, 'js', 'fo-progres.js'));
+require(path.join(ARREL, 'js', 'fo-dades.js'));     // model i número de versió (el mateix que les apps)
+require(path.join(ARREL, 'js', 'fo-progres.js'));   // operacions, rols i permisos
 const FO = global.FO;
+const VERSIO = FO.VERSIO;
 
 for (const d of ['projectes', 'progres', 'fotos', 'certificat', 'ordres']) fs.mkdirSync(path.join(DADES, d), { recursive: true });
 
@@ -426,7 +426,8 @@ function gestor(cert, segur) {
 <body style="font-family:system-ui;max-width:560px;margin:24px auto;padding:0 16px;line-height:1.5">
 <h1>FOrdre · servidor del taller</h1>
 <p><a href="${desti}" style="font-size:20px">➜ Obrir l'app del taller</a></p>
-<p><a href="https://${host}:${PORT}/index.html">➜ Obrir l'app de disseny</a></p>
+<p>Accés directe per rol: ${Object.entries(FO.ROLS).map(([r, x]) => `<a href="https://${host}:${PORT}/muntatge.html?rol=${r}">${x.ico} ${x.nom}</a>`).join(' · ')}</p>
+<p><a href="https://${host}:${PORT}/index.html">➜ Obrir el configurador (ordinador)</a></p>
 <h2>Primer cop en aquest aparell</h2>
 <ol><li><a href="/certificat">Descarrega el certificat del taller</a> i instal·la'l com a <b>certificat de CA</b> (Android: Configuració › Seguretat › Xifratge i credencials › Instal·la un certificat › Certificat de CA · iPhone: obre'l, instal·la el perfil i activa'l a Configuració › General › Informació › Confiança de certificats).</li>
 <li>O bé obre l'app i accepta l'avís de seguretat del navegador («Configuració avançada › Continua»).</li></ol></body>`);
@@ -467,8 +468,8 @@ srv.listen(PORT, '0.0.0.0', () => {
     const principal = `http://${ips[0] || 'localhost'}:${PORT_HTTP}/`;
     console.log(`\n  FOrdre · servidor del taller ${VERSIO}\n  ────────────────────────────────────`);
     console.log(`  Dades:        ${DADES}`);
-    ips.forEach(ip => console.log(`  App muntatge: https://${ip}:${PORT}/muntatge.html`));
-    console.log(`  App disseny:  https://${ips[0] || 'localhost'}:${PORT}/index.html`);
+    ips.forEach(ip => console.log(`  App taller:   https://${ip}:${PORT}/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)`));
+    console.log(`  Configurador: https://${ips[0] || 'localhost'}:${PORT}/index.html`);
     console.log(`  Nom de xarxa: https://${os.hostname()}.local:${PORT}/muntatge.html`);
     console.log(`  Primer cop:   ${principal}  (certificat i ajuda)`);
     if (CLAU) console.log('  Clau del taller activada.');
