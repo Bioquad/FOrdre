@@ -41,7 +41,17 @@
         col: { nom: 'Color', sin: ['color', 'colour', 'col'] },
         origen: { nom: 'Origen', sin: ['origen', 'origin', 'make/buy', 'make buy', 'fabricat/comprat'] },
         proveidor: { nom: 'Proveïdor', sin: ['proveidor', 'proveïdor', 'proveedor', 'supplier', 'vendor', 'fabricant', 'manufacturer'] },
-        notes: { nom: 'Notes', sin: ['notes', 'nota', 'comments', 'comentaris', 'observacions', 'observaciones', 'remarks'] }
+        notes: { nom: 'Notes', sin: ['notes', 'comments', 'comentaris', 'observacions', 'observaciones', 'remarks'] },
+        // dades de muntatge (element dins el conjunt)
+        parell: { nom: 'Parell de collada (N·m)', sin: ['parell', 'parell collada', 'parell de collada', 'torque', 'par', 'par de apriete', 'nm', 'n·m', 'apriete'] },
+        nota: { nom: 'Nota de muntatge', sin: ['nota', 'nota muntatge', 'nota de muntatge', 'assembly note', 'nota montaje', 'nota de montaje', 'indicacio', 'indicació'] },
+        // dades del conjunt (a la fila del conjunt o a la fila de nivell superior de la BOM)
+        instruccions: { nom: 'Instruccions (conjunt)', sin: ['instruccions', 'instrucciones', 'instructions', 'passos', 'pasos', 'steps', 'procediment', 'procedimiento'] },
+        eines: { nom: 'Eines (conjunt)', sin: ['eines', 'herramientas', 'tools', 'utillatge', 'utillaje'] },
+        tancament: { nom: 'Tancament (conjunt)', sin: ['tancament', 'cierre', 'closure', 'tapa', 'lid'] },
+        formatKit: { nom: 'Format del kit (conjunt)', sin: ['format kit', 'format del kit', 'formato kit', 'kit format', 'format'] },
+        caixaMaterial: { nom: 'Material de la caixa', sin: ['material caixa', 'material de la caixa', 'material caja', 'box material', 'filament'] },
+        caixaColor: { nom: 'Color de la caixa', sin: ['color caixa', 'color de la caixa', 'color caja', 'box color'] }
     };
 
     const net = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -158,6 +168,10 @@
         if (ori) m.origen = /compr|buy|purch|compra/.test(ori) ? 'comprat' : 'propi';
         if (v('proveidor')) m.proveidor = v('proveidor');
         if (v('notes')) m.notes = v('notes');
+        const cm = String(v('caixaMaterial') || '').trim().toUpperCase().replace(/\s+/g, '-');
+        if (cm && FO.MATERIALS_IMPRESSIO) { const k = Object.keys(FO.MATERIALS_IMPRESSIO).find(x => x.toUpperCase() === cm || cm.startsWith(x.toUpperCase())); if (k) m.caixaMaterial = k; }
+        const cc = String(v('caixaColor') || '').trim();
+        if (/^#?[0-9a-f]{6}$/i.test(cc)) m.caixaColor = cc[0] === '#' ? cc : '#' + cc;
         if (!m.codi && m.nom) m.codi = m.nom.toUpperCase().replace(/[^\w]+/g, '-').slice(0, 20);
         if (!m.nom) m.nom = m.codi;
         if (m.nom) m.nom = m.nom.replace(/^[\s.·\-–—>]+/, '');
@@ -165,6 +179,26 @@
     }
 
     const teMides = m => m.x > 0 && m.y > 0 && m.z > 0;
+
+    // Dades de muntatge d'un conjunt (instruccions, eines, tancament, format)
+    function dadesConjunt(f, map) {
+        const v = k => (map[k] === undefined ? '' : String(f[map[k]] == null ? '' : f[map[k]]).trim());
+        const d = {};
+        if (v('instruccions')) d.instruccions = v('instruccions').replace(/\s*[|;]\s*|\s*\\n\s*/g, '\n');
+        if (v('eines')) d.eines = v('eines');
+        const t = net(v('tancament'));
+        if (t) d.tancament = /llavi|labio|lip/.test(t) ? 'llavi' : /iman|magnet/.test(t) ? 'imants' : /pres|press|snap/.test(t) ? 'pressio' : /cap|sense|ningu|none|obert|abiert/.test(t) ? 'cap' : '';
+        const k = net(v('formatKit'));
+        if (k) d.formatKit = /fusion|fused|tray|safata|bandeja/.test(k) ? 'fusionat' : /indiv/.test(k) ? 'individual' : /mixt|mix/.test(k) ? 'mixt' : /conten|carrier/.test(k) ? 'contenidor' : '';
+        return d;
+    }
+    // Dades d'un element dins el conjunt (parell de collada i nota)
+    function dadesItem(f, map) {
+        const d = {};
+        if (map.parell !== undefined) { const n = FO.num(f[map.parell], NaN); if (isFinite(n) && n > 0) d.parell = n; }
+        if (map.nota !== undefined && String(f[map.nota] || '').trim()) d.nota = String(f[map.nota]).trim();
+        return d;
+    }
 
     // Construeix {materials, conjunts, avisos} a partir de files i mapa de columnes
     FO.construeixImport = function (files, map, format, unitats) {
@@ -187,9 +221,9 @@
             return c;
         };
         const qtyDe = f => Math.max(1, Math.round(FO.num(map.qty === undefined ? 1 : f[map.qty], 1)));
-        const afegeixItem = (c, mat, q) => {
+        const afegeixItem = (c, mat, q, extra) => {
             const it = c.items.find(i => i.mat === mat.id);
-            if (it) it.qty += q; else c.items.push({ mat: mat.id, qty: q });
+            if (it) { it.qty += q; Object.assign(it, extra || {}); } else c.items.push(Object.assign({ mat: mat.id, qty: q }, extra || {}));
         };
 
         if (format === 'bom') {
@@ -216,11 +250,12 @@
                     c.pare = pare ? pare.id : null;
                     c.qty = q;
                     if (teMides(d.m)) c.muntat = Object.assign({}, d.m);
+                    Object.assign(c, dadesConjunt(d.f, map));
                     pila.push({ prof: d.prof, conj: c });
                 } else {
                     const mat = afegeixMaterial(d.m, d.fila);
-                    if (!pare) { avisos.push(`Fila ${d.fila}: ${d.m.codi} sense conjunt; s'ha posat a «Solts»`); afegeixItem(conjunt('SOLTS', 'Peces soltes'), mat, q); }
-                    else afegeixItem(pare, mat, q);
+                    if (!pare) { avisos.push(`Fila ${d.fila}: ${d.m.codi} sense conjunt; s'ha posat a «Solts»`); afegeixItem(conjunt('SOLTS', 'Peces soltes'), mat, q, dadesItem(d.f, map)); }
+                    else afegeixItem(pare, mat, q, dadesItem(d.f, map));
                 }
             });
         } else {
@@ -237,9 +272,11 @@
                     // fila que descriu el conjunt: quantitat i dades de peça muntada
                     if (map.qty !== undefined && f[map.qty] !== '') c.qty = qtyDe(f);
                     if (teMides(m)) c.muntat = m;
+                    Object.assign(c, dadesConjunt(f, map));
                     return;
                 }
-                afegeixItem(c, afegeixMaterial(m, fila), qtyDe(f));
+                Object.assign(c, dadesConjunt(f, map));   // les dades de conjunt també poden venir a qualsevol fila
+                afegeixItem(c, afegeixMaterial(m, fila), qtyDe(f), dadesItem(f, map));
             });
         }
         return { materials: Array.from(materials.values()), conjunts: Array.from(conjunts.values()), avisos };
@@ -268,10 +305,12 @@
                 if (c.nom && c.nom !== c.codi) desti.nom = c.nom;
                 if (c.muntat) desti.muntat = c.muntat;
                 if (c.qty) desti.qty = c.qty;
+                ['instruccions', 'eines', 'tancament', 'formatKit'].forEach(k => { if (c[k]) desti[k] = c[k]; });
                 c.items.forEach(it => {
                     const id = remapM.get(it.mat) || it.mat;
                     const ex = desti.items.find(i => i.mat === id);
-                    if (ex) ex.qty = it.qty; else desti.items.push({ mat: id, qty: it.qty });
+                    if (ex) { ex.qty = it.qty; if (it.parell) ex.parell = it.parell; if (it.nota) ex.nota = it.nota; }
+                    else desti.items.push(Object.assign({}, it, { mat: id }));
                 });
             } else c.items.forEach(it => { it.mat = remapM.get(it.mat) || it.mat; });
             if (c.pare) desti.pare = remapC.get(c.pare) || c.pare;
@@ -331,15 +370,17 @@
 
     // Plantilla CSV del format pla
     FO.plantillaCSV = function () {
-        const cap = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'x', 'y', 'z', 'pes', 'tipus', 'forma', 'esd', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes'];
+        const cap = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'x', 'y', 'z', 'pes', 'tipus', 'forma', 'esd', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes',
+            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa'];
+        const buit = n => Array(n).fill('');
         const f = [
-            ['MAQ', 'Màquina completa', '', '', '', '1', '', '', '', '', '', '', '', '', '', '', '', '', '', '#4A90D9', '', '', 'fila de conjunt (sense codi de material)'],
-            ['XAS', 'Xassís', 'MAQ', 'PL-001', 'Placa base alumini', '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', ''],
-            ['XAS', 'Xassís', 'MAQ', 'CRG-M4x10', 'Cargol DIN912 M4x10', '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', ''],
-            ['XAS', 'Xassís', 'MAQ', 'CON-01', 'Frenafils 243', '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', ''],
-            ['MOT', 'Grup motor', 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', 'conjunt muntat: mides de la peça acabada, 2 unitats'],
-            ['MOT', 'Grup motor', 'XAS', 'MT-050', 'Motor NEMA17', '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', ''],
-            ['ELE', 'Electrònica', 'MAQ', 'PCB-100', 'Placa de control', '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '']
+            ['MAQ', 'Màquina completa', '', '', '', '1', ...buit(13), '#4A90D9', '', '', 'fila de conjunt (sense codi de material)', '', '', 'Muntatge final | Prova de funcionament', '', '', 'mixt', '', ''],
+            ['XAS', 'Xassís', 'MAQ', 'PL-001', 'Placa base alumini', '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', 'Presentar les plaques | Muntar els escaires | Collar en creu', 'Clau Allen 3 mm, clau dinamomètrica', 'llavi', '', '', ''],
+            ['XAS', 'Xassís', 'MAQ', 'CRG-M4x10', 'Cargol DIN912 M4x10', '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', 'En creu', '', '', '', '', '', ''],
+            ['XAS', 'Xassís', 'MAQ', 'CON-01', 'Frenafils 243', '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', 'Una gota a cada cargol', '', '', '', '', 'PETG', '#FDD835'],
+            ['MOT', 'Grup motor', 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', 'conjunt muntat: mides de la peça acabada, 2 unitats', '', '', 'Encarar el motor | Collar els 4 cargols', 'Clau Allen 2,5 mm', 'pressio', 'contenidor', '', ''],
+            ['MOT', 'Grup motor', 'XAS', 'MT-050', 'Motor NEMA17', '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', ''],
+            ['ELE', 'Electrònica', 'MAQ', 'PCB-100', 'Placa de control', '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', 'Manipular per les vores', 'Polsera antiestàtica | Muntar els separadors', 'Tornavís PH1', 'imants', '', '', '']
         ];
         return '﻿' + [cap].concat(f).map(r => r.join(';')).join('\n') + '\n';
     };

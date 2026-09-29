@@ -68,6 +68,7 @@
         recalcula(true);
         setTimeout(() => vista.veureTot(), 50);
         if (missatge) hint(missatge);
+        if (taller.url) { taller.prog = null; escoltaTaller(); }
     }
 
     // ─── Etiqueta d'un caixetí ───
@@ -158,6 +159,7 @@
                 ${c.muntat && c.pare ? '<span class="bd mt" title="Té caixa de guarda com a peça muntada">▣</span>' : ''}
                 ${nSaf > 1 ? `<span class="bd mt" title="Objectes del kit">${nSaf}</span>` : ''}
                 ${fmtK ? `<span class="bd mt" title="Format del kit: ${esc(fmtK)}">${esc(fmtK.split(' ')[0])}</span>` : ''}
+                ${taller.prog && taller.prog.fets[c.id] ? '<span class="bd" style="background:var(--ok);color:#fff" title="Muntat al taller">✓</span>' : ''}
                 ${avisos ? `<span class="bd av" title="Avisos">${avisos}</span>` : ''}
             </div>`;
             if (!obert) return;
@@ -561,6 +563,38 @@
             <div style="margin-top:8px;text-align:center">${svgPlanta(s, info.caixetins, 290)}</div></div>`;
     }
 
+    // Forma real de la peça (STL) per fer-ne el niu
+    function blocNiu(m) {
+        return `<div class="ps" id="blocNiu"><div class="ps-t">Forma real de la peça (niu a mida)</div>
+            ${m.niu ? `<div class="fx" style="align-items:flex-start"><canvas id="niuPrev" width="${m.niu.nx}" height="${m.niu.ny}" style="width:140px;image-rendering:pixelated;border:1px solid var(--bd);border-radius:4px;background:#000"></canvas>
+                <div class="ajuda" style="flex:1">${esc(m.niu.fitxer || 'STL')}<br>${fmt(m.x, 1)} × ${fmt(m.y, 1)} × ${fmt(m.z, 1)} mm · graella ${m.niu.nx} × ${m.niu.ny} (${m.niu.res} mm)<br>Cada unitat té la seva cel·la amb el fons fet amb la forma de la cara de sota de la peça. La peça es col·loca tal com està orientada a l'STL.</div></div>
+                <div class="fx" style="margin-top:6px"><button class="b sm dg" id="niuX">Treure la forma real</button></div>`
+            : `<div class="ajuda">Carrega l'STL de la peça (tal com vols que reposi a la caixa) i el fons de la cel·la tindrà la seva forma: ideal per a plaques amb components, peces corbades o fràgils.</div>
+                <input type="file" id="niuFitxer" accept=".stl,model/stl" style="margin-top:6px">`}</div>`;
+    }
+    function enllacaNiu(el, m) {
+        const cv = el.querySelector('#niuPrev');
+        if (cv && m.niu) {
+            const x = cv.getContext('2d'), img = x.createImageData(m.niu.nx, m.niu.ny), mx = Math.max(...m.niu.h) || 1;
+            for (let i = 0; i < m.niu.nx; i++) for (let j = 0; j < m.niu.ny; j++) {
+                const v = m.niu.h[i * m.niu.ny + j], k = ((m.niu.ny - 1 - j) * m.niu.nx + i) * 4, g = v < 0 ? 0 : 255 - Math.round(v / mx * 200);
+                img.data[k] = v < 0 ? 30 : g * 0.55; img.data[k + 1] = v < 0 ? 30 : g * 0.8; img.data[k + 2] = v < 0 ? 40 : g; img.data[k + 3] = 255;
+            }
+            x.putImageData(img, 0, 0);
+        }
+        const f = el.querySelector('#niuFitxer');
+        if (f) f.addEventListener('change', async () => {
+            const fitxer = f.files[0]; if (!fitxer) return;
+            try {
+                const r = FO.rasteritzaNiu(FO.llegeixSTL(await fitxer.arrayBuffer()));
+                Object.assign(m, { x: r.x, y: r.y, z: r.z, niu: Object.assign(r.niu, { fitxer: fitxer.name }) });
+                recalcula(true); renderFitxa(); hint(`Forma real carregada: ${r.triangles} triangles`);
+            } catch (e) { hint('No s\'ha pogut llegir l\'STL: ' + e.message, 4000); }
+        });
+        const x = el.querySelector('#niuX');
+        if (x) x.addEventListener('click', () => { m.niu = null; recalcula(true); renderFitxa(); });
+    }
+
     // Material i color de la caixa individual d'un material
     function blocCaixaMat(m, obj) {
         const esq = { material: 'color del material', conjunt: 'color del conjunt', tipus: 'color per tipus', fix: 'color fix' }[cfg().esquemaColor];
@@ -586,22 +620,25 @@
             ${blocCaixeti(sel.info)}
             ${blocEtiqueta(e)}
             ${blocCaixaMat(m, sel.info && sel.info.safata)}
+            ${blocNiu(m)}
             <div class="ps"><div class="ps-t">Material${usos.length > 1 ? ` · s'usa a ${usos.length} conjunts` : ''}</div>${formulari(m, CAMPS_MAT, 'm')}</div>`;
         $('itQty').addEventListener('input', function () { it.qty = Math.max(1, Math.round(FO.num(this.value, 1))); recalcula(); });
         $('itParell').addEventListener('input', function () { it.parell = Math.max(0, FO.num(this.value, 0)); desaLocal(); });
         $('itNota').addEventListener('input', function () { it.nota = this.value; desaLocal(); });
         enllaca(el.querySelector('.ps:last-child'), m, o => FO.normalitzaMaterial(o));
         enllacaImpressio(el.querySelector('#blocCaixaMat'), m);
+        enllacaNiu(el, m);
         enllacaEtiqueta(el, e);
     }
 
     function fitxaMat(el, m) {
         if (!m) { sel = null; return renderResum(el); }
         const usos = P.conjunts.filter(x => x.items.some(i => i.mat === m.id));
-        el.innerHTML = `<div class="ps"><div class="ps-t"><span class="sw" style="width:12px;height:12px;border-radius:3px;background:${m.col}"></span> Material del catàleg</div>${formulari(m, CAMPS_MAT, 'm')}</div>${blocCaixaMat(m, null)}
+        el.innerHTML = `<div class="ps"><div class="ps-t"><span class="sw" style="width:12px;height:12px;border-radius:3px;background:${m.col}"></span> Material del catàleg</div>${formulari(m, CAMPS_MAT, 'm')}</div>${blocCaixaMat(m, null)}${blocNiu(m)}
             <div class="ps"><div class="ps-t">S'usa a</div>${usos.length ? usos.map(c => `<div class="nd" data-anar="${esc(c.id)}"><span class="sw" style="background:${c.col}"></span><span class="cd">${esc(c.codi)}</span><span class="nm">${esc(c.nom)}</span><span class="q">×${c.items.find(i => i.mat === m.id).qty}</span></div>`).join('') : '<div class="ajuda">Cap conjunt. Selecciona un conjunt i fes <b>+ Existent</b> per afegir-l\'hi.</div>'}</div>`;
         enllaca(el.querySelector('.ps'), m, o => FO.normalitzaMaterial(o));
         enllacaImpressio(el.querySelector('#blocCaixaMat'), m);
+        enllacaNiu(el, m);
         el.querySelectorAll('[data-anar]').forEach(n => n.addEventListener('click', () => selecciona({ tipus: 'item', conj: n.dataset.anar, mat: m.id }, true)));
     }
 
@@ -810,6 +847,68 @@
     }
     $('bMobil').onclick = () => { obreMobil().catch(e => hint('Error: ' + e.message)); };
 
+    // ─── Servidor del taller ───
+    const taller = { url: '', info: null, prog: null, es: null, clau: (() => { try { return localStorage.getItem('fordre.taller.clau') || ''; } catch (e) { return ''; } })() };
+    const capTaller = () => Object.assign({ 'Content-Type': 'application/json' }, taller.clau ? { 'X-FOrdre-Clau': taller.clau } : {});
+    const qClau = () => taller.clau ? '?clau=' + encodeURIComponent(taller.clau) : '';
+    async function estatTaller() {
+        const d = await (await fetch(taller.url + '/api/estat', { cache: 'no-store', headers: capTaller() })).json();
+        if (d.clau && !taller.clau) {
+            const c = prompt('Aquest taller té clau. Escriu-la:');
+            if (c) { taller.clau = c; try { localStorage.setItem('fordre.taller.clau', c); } catch (e) { /* */ } return estatTaller(); }
+        }
+        return d;
+    }
+    async function detectaTaller() {
+        try {
+            const r = await fetch('api/estat', { cache: 'no-store' });
+            const d = await r.json();
+            if (d && d.app === 'FOrdre') { taller.url = location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, ''); taller.info = d; $('bTaller').hidden = false; escoltaTaller(); }
+        } catch (e) { /* sense servidor: l'app funciona igual */ }
+    }
+    function escoltaTaller() {
+        if (!taller.url || typeof EventSource !== 'function') return;
+        if (taller.es) taller.es.close();
+        taller.es = new EventSource(taller.url + '/api/progres/' + encodeURIComponent(P.id) + '/flux' + qClau());
+        taller.es.addEventListener('estat', ev => {
+            try { taller.prog = FO.normalitzaProgres(JSON.parse(ev.data)); } catch (e) { return; }
+            renderArbre();
+            if ($('dlgTaller').classList.contains('on')) pintaTaller();
+        });
+    }
+    function progresPas(r) {
+        const pr = taller.prog; if (!pr) return null;
+        const ids = new Set(r.safates.filter(o => o.tipus !== 'muntat').flatMap(o => [o.id].concat(o.caixes ? o.caixes.map(q => q.obj.id) : [])));
+        r.entrades.forEach(en => { const rf = perConj.get(en.conj.id); if (rf) rf.safates.filter(o => o.tipus === 'muntat').forEach(o => ids.add(o.id)); });
+        const l = ETQ.filter(e => e.tipus === 'caixeti' && ids.has(e.safata));
+        return { total: l.length, agafats: l.filter(e => pr.agafat[e.clau]).length, fet: pr.fets[r.conj.id] };
+    }
+    function pintaTaller() {
+        const pr = taller.prog;
+        const publicat = taller.info && taller.info.projectes.some(x => x.id === P.id);
+        $('tallerCos').innerHTML = `<div class="ajuda">Connectat a <b>${esc(taller.url)}</b> (FOrdre ${esc(taller.info.versio)}). Els mòbils i les tauletes del taller obren <b>${esc(taller.url)}/muntatge.html</b> i comparteixen el progrés, l'estoc i les fotos en temps real.</div>
+            <div class="${publicat ? 'ajuda' : 'av'}">${publicat ? '✓ Aquest projecte ja és al taller. Si l\'has canviat, torna\'l a publicar i els mòbils rebran l\'avís per actualitzar-lo.' : 'Aquest projecte encara no és al taller: publica\'l perquè es pugui muntar.'}</div>
+            ${pr ? `<table class="tt"><thead><tr><th>Pas</th><th>Conjunt</th><th class="n">Preparat</th><th>Estat</th></tr></thead><tbody>${PLA.map(r => {
+                const e = progresPas(r);
+                return `<tr><td>${r.pas}</td><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.conj.col}"></span> ${esc(r.conj.codi)} · ${esc(r.conj.nom)}</td><td class="n">${e.total ? e.agafats + '/' + e.total : '—'}</td><td>${e.fet ? `✓ Muntat ${esc(new Date(e.fet.ts).toLocaleString('ca-ES'))}${e.fet.op ? ' · ' + esc(e.fet.op) : ''}` : 'Pendent'}</td></tr>`;
+            }).join('')}</tbody></table>
+            <div><div class="ps-t">Darrers moviments</div><div class="ajuda">${pr.registre.slice().sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 12).map(x => `${esc(new Date(x.ts).toLocaleString('ca-ES'))}${x.op ? ' · <b>' + esc(x.op) + '</b>' : ''} — ${esc(x.text)}`).join('<br>') || 'Encara no hi ha moviments.'}</div></div>` : ''}
+            ${taller.info.projectes.length ? `<div><div class="ps-t">Projectes al taller</div>${taller.info.projectes.map(x => `<div class="ajuda">${esc(x.nom)} · ${x.passosFets} passos muntats · ${esc(new Date(x.actualitzat).toLocaleString('ca-ES'))}</div>`).join('')}</div>` : ''}`;
+    }
+    $('bTaller').onclick = async () => {
+        try { taller.info = await estatTaller(); } catch (e) { /* */ }
+        escoltaTaller(); pintaTaller(); obre('dlgTaller');
+    };
+    $('tallerPublica').onclick = async () => {
+        try {
+            const r = await fetch(taller.url + '/api/projectes/' + encodeURIComponent(P.id), { method: 'PUT', headers: capTaller(), body: JSON.stringify(P) });
+            if (r.status === 401) { taller.clau = ''; try { localStorage.removeItem('fordre.taller.clau'); } catch (e) { /* */ } }
+            if (!r.ok) throw new Error((await r.json()).error || r.status);
+            taller.info = await estatTaller();
+            escoltaTaller(); pintaTaller(); hint('Projecte publicat al taller');
+        } catch (e) { hint('No s\'ha pogut publicar: ' + e.message, 4000); }
+    };
+
     // ─── Tandes d'impressió ───
     let TANDES = [];
     function svgTanda(t) {
@@ -851,14 +950,20 @@
             h += `<div class="pas"><h2 style="background:${r.conj.col}">Pas ${r.pas} · ${esc(r.conj.codi)} · ${esc(r.conj.nom)}${r.multiplicador > 1 ? ` (×${r.multiplicador})` : ''}</h2>`;
             if (r.entrades.length) h += `<div class="en"><b>Cal tenir muntat:</b> ${r.entrades.map(e => `${esc(e.conj.codi)} ${esc(e.conj.nom)} ×${e.qty}`).join(' · ')}</div>`;
             if (r.conj.notes) h += `<div class="en"><b>Notes:</b> ${esc(r.conj.notes)}</div>`;
+            if (r.conj.eines) h += `<div class="en"><b>🔧 Eines:</b> ${esc(r.conj.eines)}</div>`;
+            const item = m => r.conj.items.find(i => i.mat === m.id) || {};
             r.safates.forEach(s => {
                 const files = s.forma === 'contenidor'
                     ? s.caixes.flatMap(q => q.obj.caixetins.map(c => [q.obj, c]))
                     : s.caixetins.map(c => [s, c]);
                 h += `<div class="saf"><div>${svgPlanta(s, null, 260)}<div style="text-align:center"><b>${esc(s.id)}</b> · ${esc(NOM_FORMA[s.forma])}${s.tipus === 'esd' ? ' ⚡ESD' : s.tipus === 'muntat' ? ' ▣ guarda' : ''}</div></div>
-                    <table><tr><th class="ck">✓</th><th>#</th><th>Codi</th><th>Nom</th><th>Qt.</th><th>Disposició</th>${s.forma === 'contenidor' ? '<th>Caixa</th>' : ''}</tr>` +
-                    files.map(([o, c], i) => `<tr><td class="ck">☐</td><td>${i + 1}</td><td><span class="sw" style="background:${c.mat.col}"></span> ${esc(c.mat.codi)}</td><td>${esc(c.mat.nom)}${c.mat.esd ? ' ⚡' : ''}${c.mat.liquid ? ' 💧' : ''}</td><td>${c.qty}</td><td>${esc(FO.DISPOSICIONS[c.mode])}</td>${s.forma === 'contenidor' ? `<td><span class="sw" style="background:${o.color}"></span> ${esc(o.bloc ? o.id : o.material)}</td>` : ''}</tr>`).join('') + '</table></div>';
+                    <table><tr><th class="ck">✓</th><th>#</th><th>Codi</th><th>Nom</th><th>Qt.</th><th>N·m</th><th>Nota</th>${s.forma === 'contenidor' ? '<th>Caixa</th>' : ''}</tr>` +
+                    files.map(([o, c], i) => { const it = item(c.mat); return `<tr><td class="ck">☐</td><td>${i + 1}</td><td><span class="sw" style="background:${c.mat.col}"></span> ${esc(c.mat.codi)}</td><td>${esc(c.mat.nom)}${c.mat.esd ? ' ⚡' : ''}${c.mat.liquid ? ' 💧' : ''}</td><td>${c.qty}</td><td><b>${it.parell ? fmt(it.parell, 1) : ''}</b></td><td>${esc(it.nota || '')}</td>${s.forma === 'contenidor' ? `<td><span class="sw" style="background:${o.color}"></span> ${esc(o.bloc ? o.id : o.material)}</td>` : ''}</tr>`; }).join('') + '</table></div>';
             });
+            const instr = r.conj.instruccions.split(/\r?\n/).map(t => t.trim()).filter(Boolean);
+            if (instr.length || r.conj.imatge) h += `<div class="saf">${r.conj.imatge ? `<img src="${esc(r.conj.imatge)}" alt="" style="max-width:240px;max-height:180px;border:1px solid #bbb;border-radius:4px">` : ''}
+                ${instr.length ? `<table><tr><th class="ck">✓</th><th>Muntatge</th></tr>${instr.map((t, i) => `<tr><td class="ck">☐</td><td><b>${i + 1}.</b> ${esc(t)}</td></tr>`).join('')}</table>` : ''}</div>`;
+            h += `<div class="en">Muntat per: ____________________ &nbsp; Data: ____________ &nbsp; Signatura: ____________</div>`;
             if (r.fora.length) h += `<div class="en"><b>Preparar a part (no cap a la safata):</b> ${r.fora.map(c => `${esc(c.mat.codi)} ×${c.qty}`).join(', ')}</div>`;
             h += '</div>';
         });
@@ -886,6 +991,9 @@
             </div>
             <div class="ajuda" style="margin-top:6px">${Object.values(FO.TANCAMENTS).map(t => `<b>${esc(t.nom)}</b>: ${esc(t.desc)}`).join('<br>')}<br>Amb imants, les parets es fan prou gruixudes per allotjar-los (diàmetre + 2 mm). Si hi ha peces que sobresurten, la tapa porta un marc que la fa més alta.</div>
             <label class="ck" style="margin-top:6px"><input type="checkbox" data-cfgck="tapesInternes"${c.tapesInternes ? ' checked' : ''}> Amb contenidor, tapa també a cada caixa de dins</label>
+            <label class="ck"><input type="checkbox" data-cfgck="contenidorsApilables"${c.contenidorsApilables ? ' checked' : ''}> Contenidors apilables (mateixa planta, peu encastat i prou alçada per a les caixes)</label>
+            <label class="ck"><input type="checkbox" data-cfgck="nanses"${c.nanses ? ' checked' : ''}> Nanses als costats curts dels contenidors</label>
+            <label class="ck"><input type="checkbox" data-cfgck="qrRelleu"${c.qrRelleu ? ' checked' : ''}> QR gravat a les tapes (i a la cara posterior de les caixes sense tapa, si hi cap). Es llegeix millor si el repasses amb un retolador.</label>
             <div class="fx" style="margin-top:6px"><button class="b sm" id="bCalibratge">📐 Peça de calibratge…</button></div></div>
             <div><div class="ps-t">Identificació i ergonomia</div>
                 <label class="ck"><input type="checkbox" data-cfgck="relleu"${c.relleu ? ' checked' : ''}> Codi gravat en relleu a la cara frontal</label>
@@ -1034,6 +1142,7 @@
     // ─── Inici ───
     const desat = llegeixLocal();
     carregaProjecte(desat && desat.conjunts && desat.conjunts.length ? desat : FO.exemple());
+    detectaTaller();
     // Funcionament sense connexió (només en https o localhost)
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {
         navigator.serviceWorker.register('sw.js').catch(() => { /* sense service worker */ });

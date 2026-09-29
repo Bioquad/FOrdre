@@ -46,6 +46,7 @@
         <button class="b" id="bFulla" title="Full de preparació imprimible">Full de ruta</button>
         <button class="b" id="bTandes" title="Peces agrupades per material i color, col·locades al llit (3MF)">🖨 Tandes</button>
         <button class="b pr" id="bMobil" title="Obrir el projecte a l'app de muntatge del mòbil o la tauleta">📱 Muntatge</button>
+        <button class="b" id="bTaller" title="Servidor del taller: publicar el projecte i veure el progrés" hidden>🏭 Taller</button>
         <span class="fl"></span>
         <button class="b" id="bConfig" title="Impressora, gruixos, folgances i etiquetes">⚙ Configuració</button>
         <button class="b" id="bTema" title="Tema clar / fosc">◐</button>
@@ -184,6 +185,15 @@
         </div>
     </div>
 
+    <!-- Servidor del taller -->
+    <div class="ov" id="dlgTaller">
+        <div class="dlg" style="width:760px">
+            <div class="dlg-h">🏭 Servidor del taller</div>
+            <div class="dlg-c" id="tallerCos"></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgTaller">Tancar</button><button class="b pr" id="tallerPublica">⬆ Publicar aquest projecte</button></div>
+        </div>
+    </div>
+
     <!-- Enviar al mòbil -->
     <div class="ov" id="dlgMobil">
         <div class="dlg" style="width:620px">
@@ -213,6 +223,7 @@
     <script src="js/fo-etiquetes.js"></script>
     <script src="js/fo-importa.js"></script>
     <script src="js/fo-compartir.js"></script>
+    <script src="js/fo-progres.js"></script>
     <script src="js/fo-vista3d.js"></script>
     <script src="js/fo-app.js"></script>
 </body>

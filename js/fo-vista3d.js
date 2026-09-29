@@ -242,7 +242,7 @@
                     // caixes de dins d'un contenidor
                     (s.caixes || []).forEach(c => {
                         const o = c.obj;
-                        creaObjecte(o, safGrup, c.girat ? c.x + o.D : c.x, cfg.terra, -c.y, c.girat);
+                        creaObjecte(o, safGrup, c.girat ? c.x + o.D : c.x, s.fons || cfg.terra, -c.y, c.girat);
                     });
                     return reg;
                 };
