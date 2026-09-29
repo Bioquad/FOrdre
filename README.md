@@ -36,10 +36,16 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
    - *a granel*: volum segons la quantitat (cargols, volanderes…), amb el fons elevat perquè quedin a l'abast.
    Les peces que porten líquids o no es poden tombar van dretes, amb prou fondària perquè no bolquin.
 4. **Safates.** Els caixetins d'un conjunt es col·loquen dins el llit de la teva impressora. Si no hi caben, el kit es reparteix en diverses safates (A, B…). Les peces **ESD** van a una safata pròpia (per imprimir amb filament antiestàtic) i els **consumibles** (coles, frenafils, brides, etiquetes…) al darrere. Opcionalment, les safates poden anar **inclinades** sobre una falca amb tope; la inclinació es limita automàticament si hi ha peces que no es poden tombar. Un llavi a les parets evita vessaments en moure-les.
-5. **Grups de grups.** Un conjunt pot tenir les dades de la **peça ja muntada** (mides, pes, ESD, líquids…) i les unitats que en necessita el pare. Llavors té una **caixa de guarda** pròpia i entra com una peça més al muntatge del conjunt pare. Si un subconjunt es munta diverses vegades, els materials del seu kit es multipliquen.
-6. **Vista 3D** de totes les safates amb les peces a dins, ordenades per pas de muntatge. Tria un conjunt a l'arbre i se'n ressalten les safates; tria un material i es marca el seu caixetí, amb un cartell que mostra l'etiqueta.
-7. **Sortides:**
-   - **STL** de cada safata i de cada falca (o tot en un ZIP amb un `LLEGEIX-ME.txt`). Els sòlids són tancats, llestos per laminar.
+5. **Format del kit** (per a tot el projecte o per a cada conjunt):
+   - **Safata fusionada**: una sola peça amb tots els caixetins.
+   - **Caixes individuals**: una caixa per material, cadascuna del seu color i material.
+   - **Caixes + contenidor**: les caixes individuals dins un **contenidor general** obert per dalt (amb osques per agafar-les) per transportar tot el kit alhora.
+   - **Mixt**: els materials petits en un bloc de caixetins fusionats, els grans en caixes individuals, tot dins el contenidor.
+6. **Materials i colors d'impressió.** PLA, PETG, ABS, ASA, PC, PA, PP, TPU, PETG-ESD o PLA-CF, per defecte, per conjunt (caixes i contenidor) o per a la caixa de cada material. Les caixes de peces ESD es fan automàticament en material antiestàtic. El color de les caixes individuals pot ser el del material, el del conjunt, per tipus o fix, o triat a mà; els colors automàtics s'ajusten als filaments que tinguis. FOrdre calcula els **grams de filament** per material i color.
+7. **Grups de grups.** Un conjunt pot tenir les dades de la **peça ja muntada** (mides, pes, ESD, líquids…) i les unitats que en necessita el pare. Llavors té una **caixa de guarda** pròpia i entra com una peça més al muntatge del conjunt pare. Si un subconjunt es munta diverses vegades, els materials del seu kit es multipliquen.
+8. **Vista 3D** de totes les safates amb les peces a dins, ordenades per pas de muntatge. Tria un conjunt a l'arbre i se'n ressalten les safates; tria un material i es marca el seu caixetí, amb un cartell que mostra l'etiqueta.
+9. **Sortides:**
+   - **STL** de cada safata, caixa, contenidor i falca (o tot en un ZIP amb un `LLEGEIX-ME.txt` i el filament necessari). El nom de cada fitxer porta el material i el color. Els sòlids són tancats, llestos per laminar.
    - **Etiquetes** per a qualsevol format: cintes de 9/12/18/24 mm (Brother, Dymo…), rotlles tèrmics, fulls A4 adhesius o a mida. Porten el codi, el nom, la quantitat, el pas, el conjunt, els colors del material i del conjunt, **QR** i **codi de barres** Code 128. L'etiqueta s'adapta a l'amplada del caixetí.
    - **RFID / NFC:** CSV amb les dades i un EPC de 96 bits per a gravadores RFID. Amb Chrome per a Android es poden escriure etiquetes NFC directament.
    - **Full de ruta** imprimible: passos, subconjunts que cal tenir muntats, mapa de cada safata i llista de comprovació.
@@ -68,11 +74,11 @@ Dependències (CDN): Three.js r128, qrcode-generator i SheetJS (només per llegi
 
 ## 🇪🇸 Español
 
-FOrdre prepara, para cada paso de montaje de una máquina, un **kit**: bandejas imprimibles en 3D con un compartimento a medida para cada material (nunca se mezclan) y una etiqueta para cada uno (código, nombre, cantidad, colores, QR, código de barras, RFID/NFC). Importa listas desde Excel/CSV o BOM indentadas de CAD, separa las piezas ESD en su propia bandeja, mantiene verticales las piezas con líquidos, admite bandejas inclinadas con cuña y genera cajas de almacenaje para subconjuntos ya montados, que entran como una pieza más en el conjunto padre. Visualización 3D, exportación STL/ZIP, hoja de ruta imprimible y lista de materiales.
+FOrdre prepara, para cada paso de montaje de una máquina, un **kit**: bandeja fusionada, cajas individuales, cajas dentro de un contenedor general o mixto, con un compartimento a medida para cada material (nunca se mezclan), en el material y color de impresión que elijas y una etiqueta para cada uno (código, nombre, cantidad, colores, QR, código de barras, RFID/NFC). Importa listas desde Excel/CSV o BOM indentadas de CAD, separa las piezas ESD en su propia bandeja, mantiene verticales las piezas con líquidos, admite bandejas inclinadas con cuña y genera cajas de almacenaje para subconjuntos ya montados, que entran como una pieza más en el conjunto padre. Visualización 3D, exportación STL/ZIP, hoja de ruta imprimible y lista de materiales.
 
 ## 🇬🇧 English
 
-FOrdre builds an **assembly kit** for every step of a machine build: 3D-printable trays with a custom-sized pocket for each part (never mixed) and a label for each pocket (code, name, quantity, colours, QR, Code 128 barcode, RFID/NFC data). It imports Excel/CSV lists and indented CAD BOMs, puts ESD-sensitive parts in their own tray, keeps liquid-filled parts upright, supports tilted trays on a printed wedge, and creates storage boxes for finished sub-assemblies, which then become parts of their parent assembly. 3D preview, STL/ZIP export, printable route sheet and bill of materials.
+FOrdre builds an **assembly kit** for every step of a machine build: a fused tray, individual boxes, boxes inside an open-top carrier, or a mix, with a custom-sized pocket for each part (never mixed), in the print material and colour you choose and a label for each pocket (code, name, quantity, colours, QR, Code 128 barcode, RFID/NFC data). It imports Excel/CSV lists and indented CAD BOMs, puts ESD-sensitive parts in their own tray, keeps liquid-filled parts upright, supports tilted trays on a printed wedge, and creates storage boxes for finished sub-assemblies, which then become parts of their parent assembly. 3D preview, STL/ZIP export, printable route sheet and bill of materials.
 
 ---
 

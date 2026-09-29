@@ -144,8 +144,10 @@
             const teFills = fills.length || c.items.length || (c.muntat && c.pare);
             const s = sel && sel.tipus === 'conj' && sel.id === c.id;
             const nSaf = r ? r.safates.filter(x => x.tipus !== 'muntat').length : 0;
-            const avisos = r ? r.safates.reduce((a, x) => a + x.avisos.length + x.caixetins.reduce((b, c2) => b + c2.avisos.length, 0), 0) + r.fora.length : 0;
-            const esd = r && r.safates.some(x => x.tipus === 'esd');
+            const objs = r ? FO.imprimibles(r) : [];
+            const avisos = objs.reduce((a, x) => a + x.avisos.length + x.caixetins.reduce((b, c2) => b + c2.avisos.length, 0), 0) + (r ? r.fora.length : 0);
+            const esd = objs.some(x => (FO.MATERIALS_IMPRESSIO[x.material] || {}).esd);
+            const fmtK = c.formatKit ? FO.FORMATS_KIT[c.formatKit].nom : '';
             h += `<div class="nd cj${s ? ' sel' : ''}" data-conj="${esc(c.id)}" style="padding-left:${6 + niv * 14}px">
                 <span class="tg" data-tg="${esc(c.id)}">${teFills ? (obert ? '▾' : '▸') : ''}</span>
                 <span class="sw" style="background:${c.col}"></span>
@@ -154,7 +156,8 @@
                 ${c.pare && c.qty > 1 ? `<span class="q" title="Unitats per al conjunt pare">×${c.qty}</span>` : ''}
                 ${esd ? '<span class="bd esd" title="Té safata ESD">ESD</span>' : ''}
                 ${c.muntat && c.pare ? '<span class="bd mt" title="Té caixa de guarda com a peça muntada">▣</span>' : ''}
-                ${nSaf > 1 ? `<span class="bd mt" title="Safates del kit">${nSaf}</span>` : ''}
+                ${nSaf > 1 ? `<span class="bd mt" title="Objectes del kit">${nSaf}</span>` : ''}
+                ${fmtK ? `<span class="bd mt" title="Format del kit: ${esc(fmtK)}">${esc(fmtK.split(' ')[0])}</span>` : ''}
                 ${avisos ? `<span class="bd av" title="Avisos">${avisos}</span>` : ''}
             </div>`;
             if (!obert) return;
@@ -289,40 +292,69 @@
         });
     }
 
-    // Mapa en planta d'una safata (SVG); el davant queda a baix
+    // Caixetins (i caixes) d'un objecte en coordenades del seu pla
+    function rectsDe(s) {
+        const caixes = [], caix = [];
+        if (s.forma === 'contenidor') s.caixes.forEach(q => {
+            const o = q.obj;
+            caixes.push({ x: q.x, y: q.y, w: q.girat ? o.D : o.W, d: q.girat ? o.W : o.D, col: o.color, o });
+            o.caixetins.forEach(c => caix.push(q.girat
+                ? { x: q.x + o.D - c.y - c.d, y: q.y + c.x, w: c.d, d: c.w, c }
+                : { x: q.x + c.x, y: q.y + c.y, w: c.w, d: c.d, c }));
+        });
+        else s.caixetins.forEach(c => caix.push({ x: c.x, y: c.y, w: c.w, d: c.d, c }));
+        return { caixes, caix };
+    }
+
+    // Mapa en planta (SVG); el davant queda a baix
     function svgPlanta(s, marcats, ampleMax) {
         const k = Math.min(ampleMax / s.W, 1.6 * ampleMax / s.D, 2.2);
         let h = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 ${s.W + 2} ${s.D + 2}" width="${(s.W * k).toFixed(0)}" height="${(s.D * k).toFixed(0)}" style="font-family:Arial,sans-serif">`;
-        h += `<rect x="0" y="0" width="${s.W}" height="${s.D}" rx="2" fill="#C9CEDA" stroke="#555" stroke-width="0.6"/>`;
-        s.caixetins.forEach((c, i) => {
-            const y = s.D - c.y - c.d;
+        h += `<rect x="0" y="0" width="${s.W}" height="${s.D}" rx="2" fill="${s.color || '#C9CEDA'}" fill-opacity="${s.forma === 'contenidor' ? 0.35 : 0.55}" stroke="#555" stroke-width="0.6"/>`;
+        const { caixes, caix } = rectsDe(s);
+        caixes.forEach(b => { h += `<rect x="${b.x}" y="${s.D - b.y - b.d}" width="${b.w}" height="${b.d}" rx="1" fill="${b.col}" fill-opacity="0.7" stroke="#222" stroke-width="0.6"/>`; });
+        caix.forEach(({ x, y: y0, w, d, c }) => {
+            const y = s.D - y0 - d;
             const m = marcats && marcats.includes(c);
-            h += `<rect x="${c.x}" y="${y}" width="${c.w}" height="${c.d}" fill="${c.mat.col}" fill-opacity="${m ? 0.95 : 0.45}" stroke="${m ? '#0A58CA' : '#333'}" stroke-width="${m ? 1.6 : 0.4}"/>`;
-            const fs = Math.max(2.5, Math.min(c.w / (c.mat.codi.length * 0.62 + 1), c.d / 3.2, 9));
-            h += `<text x="${c.x + c.w / 2}" y="${y + c.d / 2}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle" fill="#111">${esc(c.mat.codi)}</text>`;
-            h += `<text x="${c.x + c.w / 2}" y="${y + c.d / 2 + fs * 1.1}" font-size="${fs * 0.8}" text-anchor="middle" dominant-baseline="middle" fill="#222">×${c.qty}</text>`;
+            h += `<rect x="${x}" y="${y}" width="${w}" height="${d}" fill="${c.mat.col}" fill-opacity="${m ? 0.95 : 0.45}" stroke="${m ? '#0A58CA' : '#333'}" stroke-width="${m ? 1.6 : 0.4}"/>`;
+            const fs = Math.max(2.5, Math.min(w / (c.mat.codi.length * 0.62 + 1), d / 3.2, 9));
+            h += `<text x="${x + w / 2}" y="${y + d / 2}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle" fill="#111">${esc(c.mat.codi)}</text>`;
+            h += `<text x="${x + w / 2}" y="${y + d / 2 + fs * 1.1}" font-size="${fs * 0.8}" text-anchor="middle" dominant-baseline="middle" fill="#222">×${c.qty}</text>`;
         });
         h += `<text x="${s.W / 2}" y="${s.D - 0.2}" font-size="3" text-anchor="middle" fill="#333">▼ davant</text>`;
         return h + '</svg>';
     }
 
+    const NOM_FORMA = { safata: 'Safata', caixa: 'Caixa individual', contenidor: 'Contenidor' };
+    const swatch = col => `<span class="sw" style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid #0005;vertical-align:-1px;background:${col}"></span>`;
+    const nomMat = m => (FO.MATERIALS_IMPRESSIO[m] || { nom: m }).nom;
+    function nomSTL(r, o, sufix) {
+        return `${String(r.pas).padStart(2, '0')}_${FO.nomFitxer(o.id)}_${FO.nomFitxer(o.material)}_${o.color.slice(1).toUpperCase()}${sufix || ''}.stl`;
+    }
+
     function blocSafata(s, marcats) {
-        const vol = FO.volumMalla(FO.mallaSafata(s, cfg())) / 1000;
-        const av = s.avisos.concat(...s.caixetins.map(c => c.avisos.map(a => `${c.mat.codi}: ${a}`)));
-        const nom = s.tipus === 'esd' ? '⚡ ESD (imprimir amb filament antiestàtic)' : s.tipus === 'muntat' ? '▣ Caixa de guarda' : 'Kit';
+        const g = FO.gramsFilament(s, cfg());
+        const tots = s.forma === 'contenidor' ? s.caixes.map(c => c.obj) : [];
+        const av = s.avisos.concat(...s.caixetins.map(c => c.avisos.map(a => `${c.mat.codi}: ${a}`)), ...tots.map(o => o.avisos.map(a => `${o.id}: ${a}`)));
+        const tipus = s.tipus === 'esd' ? '⚡ ESD' : s.tipus === 'muntat' ? '▣ Guarda' : s.bloc ? 'Bloc de petits' : NOM_FORMA[s.forma];
+        const nCaix = s.forma === 'contenidor' ? `${s.caixes.length} caixes` : `${s.caixetins.length} caixetins`;
         return `<div class="sf${marcats ? ' sel' : ''}">
-            <div class="sf-h"><span>${esc(s.id)}</span><span class="bd mt">${nom}</span></div>
-            <div class="sf-d">${fmt(s.W, 1)} × ${fmt(s.D, 1)} × ${fmt(s.H, 1)} mm · ${s.caixetins.length} caixetins · ${fmt(vol, 0)} cm³ · peces ${fmt(s.pes, 0)} g${s.angle ? ` · inclinada ${s.angle}°` : ''}</div>
+            <div class="sf-h"><span>${esc(s.id)}</span><span class="bd mt">${tipus}</span></div>
+            <div class="sf-d">${fmt(s.W, 1)} × ${fmt(s.D, 1)} × ${fmt(s.H, 1)} mm · ${nCaix} · peces ${fmt(s.pes, 0)} g${s.angle ? ` · inclinada ${s.angle}°` : ''}</div>
+            <div class="sf-d">${swatch(s.color)} ${esc(nomMat(s.material))} · ≈ ${fmt(g, 0)} g de filament</div>
             <div style="margin:6px 0;text-align:center">${svgPlanta(s, marcats, 290)}</div>
+            ${tots.length ? `<table class="tt" style="margin-bottom:4px">${tots.map(o => `<tr><td>${swatch(o.color)}</td><td style="font-family:var(--mn)">${esc(o.id)}</td><td>${esc(o.bloc ? 'bloc de petits' : o.caixetins[0].mat.nom)}</td><td>${esc(o.material)}</td><td><button class="b sm" data-stl="${esc(o.id)}" title="STL d'aquesta caixa">STL</button></td></tr>`).join('')}</table>` : ''}
             ${av.map(a => `<div class="av">⚠ ${esc(a)}</div>`).join('')}
             <div class="fx" style="margin-top:6px">
-                <button class="b sm" data-stl="${esc(s.id)}">⬇ STL</button>
+                <button class="b sm" data-stl="${esc(s.id)}">⬇ STL${s.forma === 'contenidor' ? ' contenidor' : ''}</button>
+                ${tots.length ? `<button class="b sm" data-stlzip="${esc(s.id)}">⬇ Tot (ZIP)</button>` : ''}
                 ${s.angle ? `<button class="b sm" data-falca="${esc(s.id)}">⬇ Falca ${s.angle}°</button>` : ''}
                 <button class="b sm" data-etq="${esc(s.id)}">🏷 Etiquetes</button>
             </div></div>`;
     }
 
-    function safataPerId(id) { for (const r of PLA) for (const s of r.safates) if (s.id === id) return { s, r }; return null; }
+    function safataPerId(id) { for (const r of PLA) for (const s of FO.imprimibles(r)) if (s.id === id) return { s, r }; return null; }
+    const idsDe = s => [s.id].concat(s.caixes ? s.caixes.map(c => c.obj.id) : []);
 
     function renderFitxa() {
         const el = $('fitxa');
@@ -334,20 +366,29 @@
         renderResum(el);
     }
 
+    function taulaFilament() {
+        const f = FO.resumFilament(PLA, cfg());
+        if (!f.length) return '<div class="ajuda">Res a imprimir.</div>';
+        return `<table class="tt"><thead><tr><th></th><th>Material</th><th>Color</th><th class="n">Peces</th><th class="n">g</th></tr></thead><tbody>${f.map(e => `<tr><td>${swatch(e.color)}</td><td>${esc(nomMat(e.material))}</td><td style="font-family:var(--mn)">${e.color}</td><td class="n">${e.peces}</td><td class="n">${fmt(e.grams, 0)}</td></tr>`).join('')}</tbody><tfoot><tr><td></td><td colspan="2"><b>Total</b></td><td class="n">${f.reduce((a, e) => a + e.peces, 0)}</td><td class="n"><b>${fmt(f.reduce((a, e) => a + e.grams, 0), 0)}</b></td></tr></tfoot></table>`;
+    }
+
     function renderResum(el) {
-        const nSaf = PLA.reduce((a, r) => a + r.safates.length, 0);
+        const nSaf = PLA.reduce((a, r) => a + FO.imprimibles(r).length, 0);
         el.innerHTML = `<div class="ps"><div class="ps-t">Projecte</div>
             <div class="fi"><label>Nom del projecte</label><input type="text" id="pNom" value="${esc(P.nom)}"></div></div>
             <div class="ps"><div class="ps-t">Com funciona</div><div class="ajuda">
             1. Defineix l'<b>arbre de muntatge</b>: la màquina, els seus conjunts i subconjunts, i els materials de cada un (o importa'l d'un Excel, CSV o BOM de CAD).<br><br>
             2. Omple les <b>propietats</b> de cada material: mides, pes, si és sensible a l'ESD, si porta líquids, si es pot tombar o apilar…<br><br>
-            3. FOrdre calcula per a cada conjunt, en <b>ordre de muntatge</b>, les safates amb un caixetí a mida per a cada material, i una <b>caixa de guarda</b> per als subconjunts que tenen dades de peça muntada.<br><br>
+            3. FOrdre calcula per a cada conjunt, en <b>ordre de muntatge</b>, un caixetí a mida per a cada material i el munta en el <b>format</b> que triïs: safata fusionada, caixes individuals, caixes dins un contenidor general o mixt (petits fusionats + grans en caixes). Els subconjunts amb dades de peça muntada tenen <b>caixa de guarda</b>.<br><br>
+            Tria el <b>material i el color</b> d'impressió per a tot el projecte (⚙ Configuració), per a cada conjunt o per a la caixa de cada material.<br><br>
             4. Descarrega els <b>STL</b>, imprimeix les <b>etiquetes</b> i el <b>full de ruta</b>.<br><br>
             Selecciona un conjunt o un material a l'arbre (o clica una safata a la vista 3D) per veure'n el detall.</div></div>
             <div class="ps"><div class="ps-t">Resum</div><dl class="kv">
             <dt>Conjunts</dt><dd>${P.conjunts.length}</dd><dt>Materials</dt><dd>${P.materials.length}</dd>
-            <dt>Safates</dt><dd>${nSaf}</dd><dt>Etiquetes</dt><dd>${ETQ.length}</dd></dl>
-            ${FO.validaProjecte(P).map(a => `<div class="av er">⚠ ${esc(a)}</div>`).join('')}</div>`;
+            <dt>Objectes a imprimir</dt><dd>${nSaf}</dd><dt>Etiquetes</dt><dd>${ETQ.length}</dd></dl>
+            ${FO.validaProjecte(P).map(a => `<div class="av er">⚠ ${esc(a)}</div>`).join('')}</div>
+            <div class="ps"><div class="ps-t">Filament necessari</div>${taulaFilament()}
+            <div class="ajuda" style="margin-top:4px">Estimació amb un ${Math.round(cfg().factorPes * 100)} % de plàstic real (parets + farciment). Es pot ajustar a la configuració.</div></div>`;
         $('pNom').addEventListener('input', function () { P.nom = this.value; $('nomProjecte').textContent = P.nom; desaLocal(); });
     }
 
@@ -370,8 +411,17 @@
                 <div id="muntatForm" style="${c.muntat ? '' : 'display:none'};margin-top:6px">${formulari(Object.assign({ x: 50, y: 50, z: 50, pes: 0, forma: 'box', disposicio: 'auto', angleMax: 90, fragil: 0, esd: false, liquid: false, apilable: false }, m), CAMPS_MUNTAT, 'mu')}</div>
                 ${c.muntat && !c.pare ? '<div class="ajuda" style="margin-top:4px">És l\'arrel (la màquina): no necessita caixa de guarda.</div>' : ''}
             </div>
+            <div class="ps"><div class="ps-t">Format del kit i materials d'impressió</div>
+                <div class="fg">
+                    <div class="fi full"><label>Format del kit</label><select data-kk="formatKit"><option value="">Per defecte del projecte (${esc(FO.FORMATS_KIT[cfg().formatKit].nom)})</option>${Object.entries(FO.FORMATS_KIT).map(([k, f]) => `<option value="${k}"${c.formatKit === k ? ' selected' : ''}>${esc(f.nom)}</option>`).join('')}</select></div>
+                    <div class="ajuda full">${esc(FO.FORMATS_KIT[FO.formatDe(c, cfg())].desc)}</div>
+                    ${selMaterial('materialCaixa', 'Material de caixes i safates', c.materialCaixa, cfg().materialCaixa)}
+                    ${selColor('colorCaixa', 'Color de safates / fix', c.colorCaixa, cfg().colorCaixa)}
+                    ${selMaterial('materialContenidor', 'Material del contenidor', c.materialContenidor, cfg().materialContenidor)}
+                    ${selColor('colorContenidor', 'Color del contenidor', c.colorContenidor, cfg().colorContenidor)}
+                </div></div>
             ${r && r.entrades.length ? `<div class="ps"><div class="ps-t">Cal tenir muntat abans</div>${r.entrades.map(e => `<div class="nd" data-anar="${esc(e.conj.id)}"><span class="sw" style="background:${e.conj.col}"></span><span class="pas">${perConj.get(e.conj.id) ? perConj.get(e.conj.id).pas : ''}</span><span class="cd">${esc(e.conj.codi)}</span><span class="nm">${esc(e.conj.nom)}</span><span class="q">×${e.qty}</span></div>`).join('')}</div>` : ''}
-            <div class="ps"><div class="ps-t">Safates</div>
+            <div class="ps"><div class="ps-t">Safates, caixes i contenidors</div>
                 ${r && r.safates.length ? r.safates.map(s => blocSafata(s)).join('') : '<div class="ajuda">Aquest conjunt no té materials directes: només s\'hi munten subconjunts.</div>'}
                 ${r && r.fora.length ? `<div class="av er">No caben al llit de la impressora (preparar a part): ${r.fora.map(x => esc(x.mat.codi) + ' ×' + x.qty).join(', ')}</div>` : ''}
             </div>`;
@@ -388,21 +438,45 @@
             recalcula(); setTimeout(renderFitxa, 250);
         });
         if (c.muntat) enllaca($('muntatForm'), c.muntat, o => FO.normalitzaMaterial(Object.assign({}, o, { id: 'muntat', codi: c.codi, nom: c.nom, col: c.col })));
+        enllacaImpressio(el, c);
         accionsSafates(el);
         el.querySelectorAll('[data-anar]').forEach(n => n.addEventListener('click', () => selecciona({ tipus: 'conj', id: n.dataset.anar }, true)));
+    }
+
+    // Selector de material d'impressió ('' = per defecte)
+    function selMaterial(k, lab, v, defecte) {
+        return `<div class="fi"><label>${esc(lab)}</label><select data-kk="${k}"><option value="">Per defecte (${esc(defecte)})</option>${Object.entries(FO.MATERIALS_IMPRESSIO).map(([id, m]) => `<option value="${id}"${v === id ? ' selected' : ''} title="${esc(m.notes)}">${esc(m.nom)}</option>`).join('')}</select></div>`;
+    }
+    // Selector de color amb opció «automàtic»
+    function selColor(k, lab, v, defecte) {
+        return `<div class="fi"><label>${esc(lab)}</label><div class="fx" style="flex-wrap:nowrap"><label class="ck" title="Usar el color per defecte / automàtic"><input type="checkbox" data-kauto="${k}"${v ? '' : ' checked'}>auto</label><input type="color" data-kk="${k}" value="${v || defecte}"${v ? '' : ' disabled'} style="flex:1"></div></div>`;
+    }
+    function enllacaImpressio(el, obj) {
+        el.querySelectorAll('[data-kk]').forEach(inp => inp.addEventListener('change', () => { obj[inp.dataset.kk] = inp.value; recalcula(); setTimeout(renderFitxa, 260); }));
+        el.querySelectorAll('[data-kauto]').forEach(ck => ck.addEventListener('change', () => {
+            const k = ck.dataset.kauto, inp = el.querySelector(`[data-kk="${k}"]`);
+            inp.disabled = ck.checked; obj[k] = ck.checked ? '' : inp.value; recalcula();
+        }));
     }
 
     function accionsSafates(el) {
         el.querySelectorAll('[data-stl]').forEach(b => b.addEventListener('click', () => {
             const { s, r } = safataPerId(b.dataset.stl);
-            descarrega(`${String(r.pas).padStart(2, '0')}_${FO.nomFitxer(s.id)}.stl`, FO.stlBinari(FO.mallaSafata(s, cfg()), s.id), 'model/stl');
+            descarrega(nomSTL(r, s), FO.stlBinari(FO.mallaSafata(s, cfg()), s.id), 'model/stl');
+        }));
+        el.querySelectorAll('[data-stlzip]').forEach(b => b.addEventListener('click', () => {
+            const { s, r } = safataPerId(b.dataset.stlzip);
+            const f = [s].concat(s.caixes.map(c => c.obj)).map(o => ({ nom: nomSTL(r, o), dades: FO.stlBinari(FO.mallaSafata(o, cfg()), o.id) }));
+            if (s.angle) f.push({ nom: nomSTL(r, s, '_falca'), dades: FO.stlBinari(FO.mallaFalca(s), s.id + ' falca') });
+            descarrega(FO.nomFitxer(s.id) + '.zip', FO.zip(f), 'application/zip');
         }));
         el.querySelectorAll('[data-falca]').forEach(b => b.addEventListener('click', () => {
             const { s, r } = safataPerId(b.dataset.falca);
-            descarrega(`${String(r.pas).padStart(2, '0')}_${FO.nomFitxer(s.id)}_falca.stl`, FO.stlBinari(FO.mallaFalca(s), s.id + ' falca'), 'model/stl');
+            descarrega(nomSTL(r, s, '_falca'), FO.stlBinari(FO.mallaFalca(s), s.id + ' falca'), 'model/stl');
         }));
         el.querySelectorAll('[data-etq]').forEach(b => b.addEventListener('click', () => {
-            imprimeixEtiquetes(ETQ.filter(e => e.safata === b.dataset.etq));
+            const ids = idsDe(safataPerId(b.dataset.etq).s);
+            imprimeixEtiquetes(ETQ.filter(e => ids.includes(e.safata)));
         }));
     }
 
@@ -449,6 +523,16 @@
             <div style="margin-top:8px;text-align:center">${svgPlanta(s, info.caixetins, 290)}</div></div>`;
     }
 
+    // Material i color de la caixa individual d'un material
+    function blocCaixaMat(m, obj) {
+        const esq = { material: 'color del material', conjunt: 'color del conjunt', tipus: 'color per tipus', fix: 'color fix' }[cfg().esquemaColor];
+        return `<div class="ps" id="blocCaixaMat"><div class="ps-t">Caixa individual d'aquest material</div>
+            <div class="fg">${selMaterial('caixaMaterial', 'Material', m.caixaMaterial, m.esd ? cfg().materialESD + ' (ESD)' : 'del conjunt / ' + cfg().materialCaixa)}
+            ${selColor('caixaColor', 'Color', m.caixaColor, m.col)}</div>
+            <div class="ajuda" style="margin-top:4px">Automàtic = ${esc(esq)}${cfg().ajustaFilaments ? ', ajustat al filament disponible més proper' : ''}. Només s'aplica quan el material va en caixa pròpia (formats individual, contenidor o mixt).</div>
+            ${obj ? `<div class="sf-d" style="margin-top:4px">Ara: ${esc(NOM_FORMA[obj.forma])} ${esc(obj.id)} · ${swatch(obj.color)} ${esc(nomMat(obj.material))}${obj.pare ? ` · dins ${esc(obj.pare.id)}` : ''}</div>` : ''}</div>`;
+    }
+
     function fitxaItem(el) {
         const c = FO.conjunt(P, sel.conj), m = FO.material(P, sel.mat);
         const it = c && c.items.find(i => i.mat === sel.mat);
@@ -461,18 +545,21 @@
             <div class="fi"><label>Total a preparar</label><input type="text" disabled value="${it.qty * k}${k > 1 ? ` (${it.qty} × ${k})` : ''}"></div></div></div>
             ${blocCaixeti(sel.info)}
             ${blocEtiqueta(e)}
+            ${blocCaixaMat(m, sel.info && sel.info.safata)}
             <div class="ps"><div class="ps-t">Material${usos.length > 1 ? ` · s'usa a ${usos.length} conjunts` : ''}</div>${formulari(m, CAMPS_MAT, 'm')}</div>`;
         $('itQty').addEventListener('input', function () { it.qty = Math.max(1, Math.round(FO.num(this.value, 1))); recalcula(); });
         enllaca(el.querySelector('.ps:last-child'), m, o => FO.normalitzaMaterial(o));
+        enllacaImpressio(el.querySelector('#blocCaixaMat'), m);
         enllacaEtiqueta(el, e);
     }
 
     function fitxaMat(el, m) {
         if (!m) { sel = null; return renderResum(el); }
         const usos = P.conjunts.filter(x => x.items.some(i => i.mat === m.id));
-        el.innerHTML = `<div class="ps"><div class="ps-t"><span class="sw" style="width:12px;height:12px;border-radius:3px;background:${m.col}"></span> Material del catàleg</div>${formulari(m, CAMPS_MAT, 'm')}</div>
+        el.innerHTML = `<div class="ps"><div class="ps-t"><span class="sw" style="width:12px;height:12px;border-radius:3px;background:${m.col}"></span> Material del catàleg</div>${formulari(m, CAMPS_MAT, 'm')}</div>${blocCaixaMat(m, null)}
             <div class="ps"><div class="ps-t">S'usa a</div>${usos.length ? usos.map(c => `<div class="nd" data-anar="${esc(c.id)}"><span class="sw" style="background:${c.col}"></span><span class="cd">${esc(c.codi)}</span><span class="nm">${esc(c.nom)}</span><span class="q">×${c.items.find(i => i.mat === m.id).qty}</span></div>`).join('') : '<div class="ajuda">Cap conjunt. Selecciona un conjunt i fes <b>+ Existent</b> per afegir-l\'hi.</div>'}</div>`;
         enllaca(el.querySelector('.ps'), m, o => FO.normalitzaMaterial(o));
+        enllacaImpressio(el.querySelector('#blocCaixaMat'), m);
         el.querySelectorAll('[data-anar]').forEach(n => n.addEventListener('click', () => selecciona({ tipus: 'item', conj: n.dataset.anar, mat: m.id }, true)));
     }
 
@@ -490,12 +577,12 @@
     }
 
     function renderEstat() {
-        const nSaf = PLA.reduce((a, r) => a + r.safates.length, 0);
-        let vol = 0;
-        PLA.forEach(r => r.safates.forEach(s => { vol += s.W * s.D * s.H; }));
+        const objs = PLA.flatMap(r => FO.imprimibles(r));
         const pesTot = PLA.reduce((a, r) => a + r.safates.reduce((b, s) => b + s.pes, 0), 0);
+        const fil = FO.resumFilament(PLA, cfg()).reduce((a, e) => a + e.grams, 0);
         $('sb').innerHTML = `<span><b>${P.conjunts.length}</b> conjunts</span><span class="sp"></span><span><b>${P.materials.length}</b> materials</span><span class="sp"></span>
-            <span><b>${nSaf}</b> safates</span><span class="sp"></span><span><b>${ETQ.length}</b> etiquetes</span><span class="sp"></span>
+            <span><b>${objs.length}</b> peces a imprimir</span><span class="sp"></span><span><b>${ETQ.length}</b> etiquetes</span><span class="sp"></span>
+            <span>Filament ≈ <b>${fmt(fil / 1000, 2)} kg</b></span><span class="sp"></span>
             <span>Pes de les peces <b>${fmt(pesTot / 1000, 2)} kg</b></span><span class="sp"></span>
             <span>Llit ${cfg().llit.x}×${cfg().llit.y}×${cfg().llit.z} mm</span><span class="fl"></span><span>FOrdre ${FO.VERSIO}</span>`;
     }
@@ -626,19 +713,20 @@
     }
 
     function exportaSTL() {
-        if (!PLA.some(r => r.safates.length)) return hint('No hi ha safates per exportar');
+        if (!PLA.some(r => r.safates.length)) return hint('No hi ha res per exportar');
         const fitxers = [], linies = [`FOrdre ${FO.VERSIO} — ${P.nom}`, `Llit: ${cfg().llit.x} × ${cfg().llit.y} × ${cfg().llit.z} mm`, ''];
-        PLA.forEach(r => r.safates.forEach(s => {
-            const base = `${String(r.pas).padStart(2, '0')}_${FO.nomFitxer(s.id)}`;
-            fitxers.push({ nom: base + '.stl', dades: FO.stlBinari(FO.mallaSafata(s, cfg()), s.id) });
-            if (s.angle > 0) fitxers.push({ nom: base + '_falca.stl', dades: FO.stlBinari(FO.mallaFalca(s), s.id + ' falca') });
-            linies.push(`Pas ${r.pas} · ${s.id} · ${r.conj.nom} · ${s.W} × ${s.D} × ${s.H} mm${s.tipus === 'esd' ? ' · IMPRIMIR AMB FILAMENT ESD' : ''}${s.angle ? ` · falca ${s.angle}°` : ''}`);
+        PLA.forEach(r => FO.imprimibles(r).forEach(s => {
+            fitxers.push({ nom: nomSTL(r, s), dades: FO.stlBinari(FO.mallaSafata(s, cfg()), s.id) });
+            if (s.angle > 0 && !s.pare) fitxers.push({ nom: nomSTL(r, s, '_falca'), dades: FO.stlBinari(FO.mallaFalca(s), s.id + ' falca') });
+            linies.push(`Pas ${r.pas} · ${s.id} · ${NOM_FORMA[s.forma]}${s.pare ? ' (dins ' + s.pare.id + ')' : ''} · ${r.conj.nom} · ${s.W} × ${s.D} × ${s.H} mm · ${nomMat(s.material)} ${s.color}${s.angle && !s.pare ? ` · falca ${s.angle}°` : ''}`);
             s.caixetins.forEach((c, i) => linies.push(`   ${i + 1}. ${c.mat.codi} ×${c.qty}  ${c.mat.nom}`));
         }));
-        linies.push('', 'Recomanació: 2-3 perímetres, 10-15 % de farciment, sense suports.');
+        linies.push('', 'FILAMENT NECESSARI (estimació)');
+        FO.resumFilament(PLA, cfg()).forEach(e => linies.push(`   ${nomMat(e.material).padEnd(26)} ${e.color}  ${String(e.peces).padStart(3)} peces  ≈ ${Math.round(e.grams)} g`));
+        linies.push('', 'Els noms dels fitxers porten el material i el color: NN_ID_MATERIAL_COLOR.stl', 'Recomanació: 2-3 perímetres, 10-15 % de farciment, sense suports.');
         fitxers.push({ nom: 'LLEGEIX-ME.txt', dades: linies.join('\r\n') });
         fitxers.push({ nom: FO.nomFitxer(P.nom) + '.fordre.json', dades: JSON.stringify(P) });
-        descarrega(FO.nomFitxer(P.nom) + '_safates.zip', FO.zip(fitxers), 'application/zip');
+        descarrega(FO.nomFitxer(P.nom) + '_impressio.zip', FO.zip(fitxers), 'application/zip');
         hint(`${fitxers.length - 2} fitxers STL exportats`);
     }
 
@@ -654,9 +742,12 @@
             if (r.entrades.length) h += `<div class="en"><b>Cal tenir muntat:</b> ${r.entrades.map(e => `${esc(e.conj.codi)} ${esc(e.conj.nom)} ×${e.qty}`).join(' · ')}</div>`;
             if (r.conj.notes) h += `<div class="en"><b>Notes:</b> ${esc(r.conj.notes)}</div>`;
             r.safates.forEach(s => {
-                h += `<div class="saf"><div>${svgPlanta(s, null, 260)}<div style="text-align:center"><b>${esc(s.id)}</b>${s.tipus === 'esd' ? ' ⚡ESD' : s.tipus === 'muntat' ? ' ▣ guarda' : ''}</div></div>
-                    <table><tr><th class="ck">✓</th><th>#</th><th>Codi</th><th>Nom</th><th>Qt.</th><th>Disposició</th></tr>` +
-                    s.caixetins.map((c, i) => `<tr><td class="ck">☐</td><td>${i + 1}</td><td><span class="sw" style="background:${c.mat.col}"></span> ${esc(c.mat.codi)}</td><td>${esc(c.mat.nom)}${c.mat.esd ? ' ⚡' : ''}${c.mat.liquid ? ' 💧' : ''}</td><td>${c.qty}</td><td>${esc(FO.DISPOSICIONS[c.mode])}</td></tr>`).join('') + '</table></div>';
+                const files = s.forma === 'contenidor'
+                    ? s.caixes.flatMap(q => q.obj.caixetins.map(c => [q.obj, c]))
+                    : s.caixetins.map(c => [s, c]);
+                h += `<div class="saf"><div>${svgPlanta(s, null, 260)}<div style="text-align:center"><b>${esc(s.id)}</b> · ${esc(NOM_FORMA[s.forma])}${s.tipus === 'esd' ? ' ⚡ESD' : s.tipus === 'muntat' ? ' ▣ guarda' : ''}</div></div>
+                    <table><tr><th class="ck">✓</th><th>#</th><th>Codi</th><th>Nom</th><th>Qt.</th><th>Disposició</th>${s.forma === 'contenidor' ? '<th>Caixa</th>' : ''}</tr>` +
+                    files.map(([o, c], i) => `<tr><td class="ck">☐</td><td>${i + 1}</td><td><span class="sw" style="background:${c.mat.col}"></span> ${esc(c.mat.codi)}</td><td>${esc(c.mat.nom)}${c.mat.esd ? ' ⚡' : ''}${c.mat.liquid ? ' 💧' : ''}</td><td>${c.qty}</td><td>${esc(FO.DISPOSICIONS[c.mode])}</td>${s.forma === 'contenidor' ? `<td><span class="sw" style="background:${o.color}"></span> ${esc(o.bloc ? o.id : o.material)}</td>` : ''}</tr>`).join('') + '</table></div>';
             });
             if (r.fora.length) h += `<div class="en"><b>Preparar a part (no cap a la safata):</b> ${r.fora.map(c => `${esc(c.mat.codi)} ×${c.qty}`).join(', ')}</div>`;
             h += '</div>';
@@ -669,13 +760,29 @@
     const CAMPS_CFG = [
         ['Impressora 3D', [['llit.x', 'Llit X (mm)'], ['llit.y', 'Llit Y (mm)'], ['llit.z', 'Alçada màx. Z (mm)']]],
         ['Safata', [['paret', 'Paret exterior (mm)'], ['terra', 'Terra (mm)'], ['separador', 'Parets entre caixetins (mm)'], ['divisor', 'Divisors de cel·les (mm)'], ['llavi', 'Llavi antivessament (mm)'], ['inclinacio', 'Inclinació de les safates (°)']]],
+        ['Caixes i contenidor', [['paretCaixa', 'Paret de les caixes (mm)'], ['paretContenidor', 'Paret del contenidor (mm)'], ['jocCaixes', 'Joc entre caixes (mm)'], ['alcadaContenidor', 'Alçada contenidor / caixa més alta (0-1)'], ['factorPes', 'Plàstic real per estimar grams (0-1)']]],
         ['Caixetins', [['joc', 'Folgança al voltant de la peça (mm)'], ['dit', 'Espai per als dits (mm)'], ['minCaixeti', 'Amplada mínima (mm)'], ['profMax', 'Fondària màxima (mm)'], ['retencio', 'Part mínima dins de les peces dretes (0-1)'], ['granel', 'Ocupació a granel (0-1)'], ['omplert', 'Nivell d\'ompliment a granel (0-1)'], ['areaPetit', 'Àrea de caixetí petit (mm²)']]]
     ];
     function renderConfig() {
         const c = cfg();
         const val = k => k.includes('.') ? c[k.split('.')[0]][k.split('.')[1]] : c[k];
         $('cfgCos').innerHTML = CAMPS_CFG.map(([t, camps]) => `<div><div class="ps-t">${t}</div><div class="fg3">${camps.map(([k, l]) => `<div class="fi"><label>${esc(l)}</label><input type="number" step="any" data-cfg="${k}" value="${val(k)}"></div>`).join('')}</div></div>`).join('') +
-            `<div><div class="ps-t">Opcions</div>
+            `<div><div class="ps-t">Format dels kits i materials</div><div class="fg3">
+                <div class="fi"><label>Format per defecte</label><select data-cfgsel="formatKit">${Object.entries(FO.FORMATS_KIT).map(([k, f]) => `<option value="${k}"${c.formatKit === k ? ' selected' : ''}>${esc(f.nom)}</option>`).join('')}</select></div>
+                ${['materialCaixa', 'materialESD', 'materialContenidor'].map((k, i) => `<div class="fi"><label>${['Material de caixes i safates', 'Material per a peces ESD', 'Material del contenidor'][i]}</label><select data-cfgsel="${k}">${Object.entries(FO.MATERIALS_IMPRESSIO).map(([id, m]) => `<option value="${id}"${c[k] === id ? ' selected' : ''}>${esc(m.nom)}</option>`).join('')}</select></div>`).join('')}
+                <div class="fi"><label>Color de les caixes individuals</label><select data-cfgsel="esquemaColor">
+                    <option value="material"${c.esquemaColor === 'material' ? ' selected' : ''}>El del material</option>
+                    <option value="conjunt"${c.esquemaColor === 'conjunt' ? ' selected' : ''}>El del conjunt</option>
+                    <option value="tipus"${c.esquemaColor === 'tipus' ? ' selected' : ''}>Per tipus (peça, cargoleria, consumible)</option>
+                    <option value="fix"${c.esquemaColor === 'fix' ? ' selected' : ''}>Un color fix</option></select></div>
+                <div class="fi"><label>Color fix / safates</label><input type="color" data-cfgcol="colorCaixa" value="${c.colorCaixa}"></div>
+                <div class="fi"><label>Color del contenidor</label><input type="color" data-cfgcol="colorContenidor" value="${c.colorContenidor}"></div>
+            </div>
+            <div class="ajuda" style="margin-top:6px">${Object.values(FO.FORMATS_KIT).map(f => `<b>${esc(f.nom)}</b>: ${esc(f.desc)}`).join('<br>')}</div>
+            <label class="ck" style="margin-top:6px"><input type="checkbox" data-cfgck="ajustaFilaments"${c.ajustaFilaments ? ' checked' : ''}> Ajustar cada color al filament disponible més proper</label>
+            <div class="fx" id="cfgFilaments">${c.filaments.map((f, i) => `<span class="fx" style="gap:2px"><input type="color" data-fil="${i}" value="${f}" style="width:34px;height:24px;border:1px solid var(--bd);border-radius:4px;background:none"><button class="b sm" data-filx="${i}" title="Treure">×</button></span>`).join('')}<button class="b sm" id="filNou">+ Filament</button></div>
+            </div>
+            <div><div class="ps-t">Opcions</div>
             <label class="ck"><input type="checkbox" data-cfgck="esdSeparat"${c.esdSeparat ? ' checked' : ''}> Posar les peces sensibles a l'ESD en una safata a part (per imprimir amb filament antiestàtic)</label>
             <div class="fg3" style="margin-top:6px"><div class="fi"><label>Fons elevat dels caixetins</label><select data-cfgsel="fonsElevat">
                 <option value="petits"${c.fonsElevat === 'petits' ? ' selected' : ''}>Només als petits (recomanat)</option>
@@ -693,6 +800,10 @@
         }));
         $('cfgCos').querySelectorAll('[data-cfgck]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgck] = i.checked; recalcula(); }));
         $('cfgCos').querySelectorAll('[data-cfgsel]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgsel] = i.value; $('cartell').dataset.clau = ''; recalcula(); }));
+        $('cfgCos').querySelectorAll('[data-cfgcol]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgcol] = i.value; recalcula(); }));
+        $('cfgCos').querySelectorAll('[data-fil]').forEach(i => i.addEventListener('change', () => { c.filaments[+i.dataset.fil] = i.value; recalcula(); }));
+        $('cfgCos').querySelectorAll('[data-filx]').forEach(b => b.addEventListener('click', () => { c.filaments.splice(+b.dataset.filx, 1); renderConfig(); recalcula(); }));
+        $('filNou').addEventListener('click', () => { c.filaments.push('#808080'); renderConfig(); recalcula(); });
     }
     $('bConfig').onclick = () => { renderConfig(); obre('dlgConfig'); };
     $('cfgDefecte').onclick = () => {

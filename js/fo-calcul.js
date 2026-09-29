@@ -245,10 +245,98 @@
         if (H > cfg.llit.z) avisos.push(`alçada ${H} mm superior a la del llit (${cfg.llit.z} mm)`);
         if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
         return {
-            id, tipus, conj, W: r05(dist.W + 2 * cfg.paret), D: r05(dist.D + 2 * cfg.paret), H, angle,
+            id, tipus, forma: 'safata', conj, W: r05(dist.W + 2 * cfg.paret), D: r05(dist.D + 2 * cfg.paret), H, angle,
             caixetins, avisos, pes: caixetins.reduce((a, c) => a + c.pes, 0)
         };
     }
+
+    // ─── Caixa individual: un sol caixetí amb parets pròpies ───
+    function caixaIndividual(id, c, cfg, conj, tipus) {
+        const p = cfg.paretCaixa;
+        const H = r05(cfg.terra + c.prof + cfg.llavi);
+        const cc = Object.assign({}, c, { x: p, y: p, w: c.W, d: c.D, z: cfg.terra, girat: false });
+        const avisos = [];
+        if (H > cfg.llit.z) avisos.push(`alçada ${H} mm superior a la del llit (${cfg.llit.z} mm)`);
+        return {
+            id, tipus: tipus || (c.mat.esd ? 'esd' : 'kit'), forma: 'caixa', conj,
+            W: r05(c.W + 2 * p), D: r05(c.D + 2 * p), H, angle: 0, caixetins: [cc], avisos, pes: c.pes
+        };
+    }
+    // Ajusta una caixa individual a l'espai que li toca dins el contenidor
+    function redimensiona(o, W, D, cfg) {
+        const p = cfg.paretCaixa, c = o.caixetins[0];
+        o.W = r05(W); o.D = r05(D); c.w = o.W - 2 * p; c.d = o.D - 2 * p;
+    }
+
+    // ─── Contenidor general obert per dalt que agrupa caixes ───
+    function contenidors(conj, objs, cfg, prefix) {
+        const j = cfg.jocCaixes, pc = cfg.paretContenidor;
+        const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j });
+        const items = objs.map(o => ({
+            W: o.W, D: o.D, obj: o,
+            mat: { tipus: o.caixetins.length && o.caixetins.every(c => c.mat.tipus === 'consumible') ? 'consumible' : 'x' }
+        }));
+        const grups = reparteix(items, cfgC);
+        let lletra = 0;
+        const multi = grups.filter(g => g.length > 1).length > 1;
+        return grups.map(g => {
+            if (g.length === 1) return g[0].obj;  // un contenidor per a una sola caixa no cal
+            const dist = FO.distribueix(g, cfgC) || enFiles(g, Math.max(...g.map(c => Math.max(c.W, c.D))), j, Infinity);
+            const pos = posiciona(dist, cfgC);
+            const caixes = pos.map(q => {
+                const o = q.obj;
+                if (o.forma === 'caixa') {
+                    const W = q.girat ? q.d : q.w, D = q.girat ? q.w : q.d;
+                    redimensiona(o, W, D, cfg);
+                }
+                return { obj: o, x: q.x, y: q.y, girat: q.girat };
+            });
+            const hMax = Math.max(...objs.map(o => o.H));
+            const H = r05(Math.min(hMax + cfg.terra, Math.max(15, cfg.terra + hMax * cfg.alcadaContenidor)));
+            const id = conj.codi + prefix + (multi ? '-' + String.fromCharCode(65 + lletra++) : '');
+            const totsCaix = caixes.flatMap(c => c.obj.caixetins);
+            const angle = Math.min(cfg.inclinacio || 0, ...totsCaix.map(c => c.mat.angleMax));
+            const avisos = [];
+            if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
+            const cont = {
+                id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j)), D: r05(dist.D + 2 * (pc + j)), H,
+                angle, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
+            };
+            caixes.forEach(c => { c.obj.pare = cont; c.obj.pos = { x: c.x, y: c.y, girat: c.girat }; });
+            return cont;
+        });
+    }
+
+    // Material i color d'impressió de cada objecte
+    function assignaImpressio(o, conj, cfg) {
+        // els colors triats a mà es respecten; els automàtics s'ajusten al filament disponible
+        const ajusta = col => cfg.ajustaFilaments ? FO.filamentProper(col, cfg.filaments) : col;
+        if (o.forma === 'contenidor') {
+            o.material = conj.materialContenidor || cfg.materialContenidor;
+            o.color = conj.colorContenidor || cfg.colorContenidor;
+            o.caixes.forEach(c => assignaImpressio(c.obj, conj, cfg));
+            return;
+        }
+        const esd = o.caixetins.length && o.caixetins.every(c => c.mat.esd);
+        if (o.forma === 'caixa') {
+            const m = o.caixetins[0].mat;
+            o.material = m.caixaMaterial || (esd ? cfg.materialESD : conj.materialCaixa || cfg.materialCaixa);
+            const esq = cfg.esquemaColor;
+            o.color = m.caixaColor || (esq === 'fix' ? (conj.colorCaixa || cfg.colorCaixa)
+                : ajusta(esq === 'conjunt' ? conj.col : esq === 'tipus' ? (FO.COLOR_TIPUS[m.tipus] || cfg.colorCaixa) : m.col));
+        } else {
+            o.material = esd ? cfg.materialESD : conj.materialCaixa || cfg.materialCaixa;
+            o.color = conj.colorCaixa || cfg.colorCaixa;
+        }
+        if (esd && !(FO.MATERIALS_IMPRESSIO[o.material] || {}).esd) o.avisos.push('peces sensibles a l\'ESD en un material no antiestàtic');
+    }
+
+    // Tots els objectes que s'imprimeixen (contenidors, caixes, safates), en pla
+    FO.imprimibles = function (r) {
+        const out = [];
+        r.safates.forEach(s => { out.push(s); if (s.caixes) s.caixes.forEach(c => out.push(c.obj)); });
+        return out;
+    };
 
     function agrupa(conj, caix, cfg, prefix) {
         const grups = cfg.esdSeparat
@@ -267,9 +355,14 @@
         return safates;
     }
 
-    // Safates d'un conjunt:
-    //  · kit: els materials que s'hi munten directament (× vegades que es munta)
-    //  · muntat: caixa per guardar el conjunt acabat, si té dades de peça muntada
+    // Kit d'un conjunt segons el format:
+    //  · fusionat:   safates amb tots els caixetins (ESD a part)
+    //  · individual: una caixa per material
+    //  · contenidor: caixes individuals dins contenidors generals
+    //  · mixt:       petits fusionats en un bloc + grans en caixes, tot al contenidor
+    // A més, si el conjunt té dades de peça muntada, caixa de guarda pròpia.
+    FO.formatDe = (conj, cfg) => conj.formatKit || cfg.formatKit || 'fusionat';
+
     FO.safatesConjunt = function (p, conj, cfg) {
         cfg = cfg || p.config;
         const maxW = cfg.llit.x - 2 * cfg.paret, maxD = cfg.llit.y - 2 * cfg.paret;
@@ -280,7 +373,24 @@
             if (m) caix = caix.concat(FO.caixetinsMaterial(m, it.qty * k, cfg, maxW, maxD));
         });
         const fora = caix.filter(c => c.fora);
-        const safates = agrupa(conj, caix.filter(c => !c.fora), cfg, '');
+        caix = caix.filter(c => !c.fora);
+        const format = FO.formatDe(conj, cfg);
+        const usats = new Map();
+        const idCaixa = c => { const b = conj.codi + '-' + c.mat.codi, n = (usats.get(b) || 0) + 1; usats.set(b, n); return n > 1 ? b + '-' + n : b; };
+        let safates = [];
+        if (format === 'fusionat' || !caix.length) safates = agrupa(conj, caix, cfg, '');
+        else if (format === 'individual') safates = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
+        else {
+            let objs;
+            if (format === 'mixt') {
+                const petit = c => c.W * c.D <= cfg.areaPetit && !c.o.dreta; // els que van drets, sempre en caixa pròpia
+                const petits = caix.filter(petit), grans = caix.filter(c => !petit(c));
+                const blocs = petits.length > 1 ? agrupa(conj, petits, Object.assign({}, cfg, { llavi: 0 }), '-P') : [];
+                blocs.forEach(b => { b.bloc = true; });
+                objs = blocs.concat((petits.length > 1 ? grans : caix).map(c => caixaIndividual(idCaixa(c), c, cfg, conj)));
+            } else objs = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
+            safates = contenidors(conj, objs, cfg, '-C');
+        }
         // Entrades: subconjunts que ja s'han d'haver muntat abans
         const entrades = FO.fills(p, conj.id).map(f => ({ conj: f, qty: f.qty * k }));
         let muntat = [];
@@ -288,9 +398,15 @@
         if (mm && conj.pare) {
             const cm = FO.caixetinsMaterial(mm, k, cfg, maxW, maxD);
             cm.filter(c => c.fora).forEach(c => fora.push(c));
-            muntat = agrupa(conj, cm.filter(c => !c.fora), cfg, '-M');
+            const guarda = cm.filter(c => !c.fora);
+            muntat = format === 'fusionat'
+                ? agrupa(conj, guarda, cfg, '-M')
+                : guarda.map((c, i) => caixaIndividual(conj.codi + '-M' + (guarda.length > 1 ? '-' + (i + 1) : ''), c, cfg, conj, 'muntat'));
+            muntat.forEach(o => { o.tipus = 'muntat'; });
         }
-        return { conj, multiplicador: k, safates: safates.concat(muntat), fora, entrades };
+        const r = { conj, format, multiplicador: k, safates: safates.concat(muntat), fora, entrades };
+        r.safates.forEach(o => assignaImpressio(o, conj, cfg));
+        return r;
     };
 
     // Resultat complet: un pla per conjunt, en ordre de muntatge

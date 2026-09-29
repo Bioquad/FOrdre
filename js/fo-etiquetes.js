@@ -79,19 +79,22 @@
     };
 
     // ─── Llista d'etiquetes d'un pla ───
+    // Etiqueta per a cada safata / contenidor i per a cada caixetí. Una caixa
+    // individual només porta l'etiqueta del seu material.
     FO.etiquetesPla = function (pla) {
         const out = [];
-        pla.forEach(r => r.safates.forEach(s => {
-            out.push({
-                clau: s.id, tipus: 'safata', safata: s.id, conjunt: r.conj.codi, codi: s.id,
-                nom: (s.tipus === 'muntat' ? 'Guarda: ' : '') + r.conj.nom, qty: s.tipus === 'muntat' ? s.caixetins.reduce((a, c) => a + c.qty, 0) : '',
-                pas: r.pas, col: r.conj.col, col2: r.conj.col, esd: s.tipus === 'esd' || s.caixetins.some(c => c.mat.esd),
-                liquid: s.caixetins.some(c => c.mat.liquid), dreta: s.angle < 90 && s.caixetins.some(c => c.o.dreta), ample: s.W
+        pla.forEach(r => FO.imprimibles(r).forEach(s => {
+            const tots = s.forma === 'contenidor' ? s.caixes.flatMap(c => c.obj.caixetins) : s.caixetins;
+            if (s.forma !== 'caixa') out.push({
+                clau: s.id, tipus: s.forma === 'contenidor' ? 'contenidor' : 'safata', safata: s.id, conjunt: r.conj.codi, codi: s.id,
+                nom: (s.tipus === 'muntat' ? 'Guarda: ' : '') + r.conj.nom, qty: s.forma === 'contenidor' ? s.caixes.length + ' caixes' : (s.tipus === 'muntat' ? s.caixetins.reduce((a, c) => a + c.qty, 0) : ''),
+                pas: r.pas, col: r.conj.col, col2: r.conj.col, esd: tots.some(c => c.mat.esd),
+                liquid: tots.some(c => c.mat.liquid), dreta: tots.some(c => c.o.dreta), ample: s.W
             });
             s.caixetins.forEach((c, i) => out.push({
-                clau: s.id + '#' + (i + 1), tipus: 'caixeti', safata: s.id, conjunt: r.conj.codi, codi: c.mat.codi, nom: c.mat.nom,
+                clau: s.id + (s.forma === 'caixa' ? '' : '#' + (i + 1)), tipus: 'caixeti', safata: s.id, conjunt: r.conj.codi, codi: c.mat.codi, nom: c.mat.nom,
                 qty: c.qty, pas: r.pas, col: c.mat.col, col2: r.conj.col, esd: c.mat.esd, liquid: c.mat.liquid, dreta: c.o.dreta,
-                consumible: c.mat.tipus === 'consumible', ample: c.w, caixeti: c
+                consumible: c.mat.tipus === 'consumible', ample: s.forma === 'caixa' ? s.W : c.w, caixeti: c
             }));
         }));
         return out;

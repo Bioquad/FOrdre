@@ -18,6 +18,14 @@
     // Rectangles amb alçada, en ordre de pintat (l'últim mana)
     FO.regionsSafata = function (s, cfg) {
         const H = s.H, reg = [{ x0: 0, y0: 0, x1: s.W, y1: s.D, h: H }];
+        if (s.forma === 'contenidor') {
+            // caixa oberta per dalt, amb dues osques per agafar les caixes de dins
+            const pc = cfg.paretContenidor, o = Math.min(30, s.W / 3), hO = Math.max(cfg.terra + 3, H * 0.45);
+            reg.push({ x0: pc, y0: pc, x1: s.W - pc, y1: s.D - pc, h: cfg.terra });
+            reg.push({ x0: (s.W - o) / 2, y0: 0, x1: (s.W + o) / 2, y1: pc, h: hO });
+            reg.push({ x0: (s.W - o) / 2, y0: s.D - pc, x1: (s.W + o) / 2, y1: s.D, h: hO });
+            return reg;
+        }
         const cims = H - cfg.llavi; // els divisors interns no porten llavi
         s.caixetins.forEach(c => {
             reg.push({ x0: c.x, y0: c.y, x1: c.x + c.w, y1: c.y + c.d, h: c.z });
@@ -142,6 +150,27 @@
     // Volum (mm³) d'una malla tancada, per estimar el filament
     FO.volumMalla = tri => Math.abs(tri.reduce((acc, [a, b, c]) =>
         acc + (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6, 0));
+
+    // Grams de filament estimats d'un objecte imprès
+    FO.gramsFilament = function (o, cfg) {
+        const mat = FO.MATERIALS_IMPRESSIO[o.material] || FO.MATERIALS_IMPRESSIO.PLA;
+        const vol = FO.volumMalla(FO.mallaSafata(o, cfg)) / 1000;
+        let g = vol * mat.dens * cfg.factorPes;
+        if (o.angle > 0 && !o.pare) g += FO.volumMalla(FO.mallaFalca(o)) / 1000 * mat.dens * cfg.factorPes;
+        return g;
+    };
+
+    // Filament necessari agrupat per material i color: [{material, color, grams, peces}]
+    FO.resumFilament = function (pla, cfg) {
+        const m = new Map();
+        pla.forEach(r => FO.imprimibles(r).forEach(o => {
+            const k = o.material + '|' + o.color;
+            const e = m.get(k) || { material: o.material, color: o.color, grams: 0, peces: 0 };
+            e.grams += FO.gramsFilament(o, cfg); e.peces++;
+            m.set(k, e);
+        }));
+        return Array.from(m.values()).sort((a, b) => a.material.localeCompare(b.material) || b.grams - a.grams);
+    };
 
     // ─── ZIP sense compressió (store), sense dependències ───
     const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();

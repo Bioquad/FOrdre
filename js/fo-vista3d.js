@@ -172,20 +172,20 @@
                 const et = spriteText(`Pas ${r.pas} · ${r.conj.codi}${r.multiplicador > 1 ? ' ×' + r.multiplicador : ''}`, { col: r.conj.col, alt: 11 });
                 et.position.set(x + ampleCol / 2, 2, z + 22);
                 arrel.add(et);
-                r.safates.forEach(s => {
+                // Crea un objecte imprès (safata, caixa o contenidor) dins `pare`
+                const creaObjecte = (s, pare, px, py, pz, girat) => {
                     const grup = new THREE.Group();
-                    grup.position.set(x, 0, z);
-                    const tipusCol = s.tipus === 'esd' ? mescla('#2A2A2A', r.conj.col, 0.12)
-                        : s.tipus === 'muntat' ? mescla('#F4F4F8', r.conj.col, 0.55) : mescla('#E3E6EE', r.conj.col, 0.22);
-                    const mat = new THREE.MeshStandardMaterial({ color: tipusCol, roughness: 0.75, metalness: 0.02, transparent: true, opacity: 1 });
+                    grup.position.set(px, py, pz);
+                    if (girat) grup.rotation.y = Math.PI / 2;
+                    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(s.color || '#E3E6EE'), roughness: 0.72, metalness: 0.02, transparent: true, opacity: 1 });
                     const malla = new THREE.Mesh(geomDeTriangles(FO.mallaSafata(s, cfg)), mat);
                     malla.userData = { tipus: 'safata' };
                     const safGrup = new THREE.Group(); // part que s'inclina
                     safGrup.add(malla);
                     grup.add(safGrup);
                     let falca = null;
-                    if (s.angle > 0) {
-                        falca = new THREE.Mesh(geomDeTriangles(FO.mallaFalca(s)), new THREE.MeshStandardMaterial({ color: 0x607080, roughness: 0.8, transparent: true }));
+                    if (s.angle > 0 && !s.pare) {
+                        falca = new THREE.Mesh(geomDeTriangles(FO.mallaFalca(s)), new THREE.MeshStandardMaterial({ color: new THREE.Color(s.color || '#607080').multiplyScalar(0.7), roughness: 0.8, transparent: true }));
                         grup.add(falca);
                     }
                     // peces
@@ -201,7 +201,6 @@
                         pos.forEach((p, i) => {
                             let S;
                             if (cil && !o.dreta && o.w > o.d * 1.05) { e.set(0, p.rot, Math.PI / 2, 'YXZ'); S = new THREE.Vector3(o.d, o.w, o.h); }
-                            else if (cil) { e.set(0, p.rot, 0); S = new THREE.Vector3(o.w, o.h, o.d); }
                             else { e.set(0, p.rot, 0); S = new THREE.Vector3(o.w, o.h, o.d); }
                             q.setFromEuler(e);
                             M.compose(new THREE.Vector3(p.x, p.z, -p.y), q, S.multiplyScalar(0.97));
@@ -213,16 +212,29 @@
                         safGrup.add(im);
                         peces.push({ mesh: im, c, idx });
                     });
-                    // nom de la safata
-                    const nom = spriteText(s.id + (s.tipus === 'esd' ? '  ⚡ESD' : s.tipus === 'muntat' ? '  ▣ guarda' : ''), { alt: 7, fs: 36, bg: 'rgba(28,28,48,.75)' });
-                    nom.position.set(s.W / 2, s.H + 10, -s.D / 2);
-                    safGrup.add(nom);
+                    // nom (només dels objectes de primer nivell)
+                    let nom = null;
+                    if (!s.pare) {
+                        const extra = s.tipus === 'muntat' ? '  ▣ guarda' : s.forma === 'contenidor' ? '  ⧉ contenidor' : s.tipus === 'esd' ? '  ⚡ESD' : '';
+                        nom = spriteText(s.id + extra, { alt: 7, fs: 36, bg: 'rgba(28,28,48,.75)', col: s.color });
+                        nom.position.set(s.W / 2, Math.max(s.H, ...(s.caixes || []).map(c => c.obj.H + cfg.terra)) + 10, -s.D / 2);
+                        safGrup.add(nom);
+                    }
                     const reg = { s, r, grup, safGrup, malla, mat, falca, peces, nom };
-                    aplicaInclinacio(reg);
+                    if (!s.pare) aplicaInclinacio(reg);
                     malla.userData.reg = reg;
                     peces.forEach(p => { p.mesh.userData.reg = reg; });
-                    arrel.add(grup);
+                    pare.add(grup);
                     safates.push(reg);
+                    // caixes de dins d'un contenidor
+                    (s.caixes || []).forEach(c => {
+                        const o = c.obj;
+                        creaObjecte(o, safGrup, c.girat ? c.x + o.D : c.x, cfg.terra, -c.y, c.girat);
+                    });
+                    return reg;
+                };
+                r.safates.forEach(s => {
+                    creaObjecte(s, arrel, x, 0, z, false);
                     z -= s.D + SEP_SAF;
                     fond += s.D + SEP_SAF;
                 });
@@ -262,7 +274,7 @@
                 reg.mat.opacity = actiu ? 1 : 0.16;
                 reg.mat.depthWrite = actiu;
                 if (reg.falca) reg.falca.material.opacity = actiu ? 1 : 0.16;
-                reg.nom.material.opacity = actiu ? 1 : 0.25;
+                if (reg.nom) reg.nom.material.opacity = actiu ? 1 : 0.25;
                 reg.peces.forEach(p => {
                     const marcat = selCaix && selCaix.reg === reg && selCaix.idxs.includes(p.idx);
                     p.mesh.material.opacity = actiu ? 1 : 0.12;

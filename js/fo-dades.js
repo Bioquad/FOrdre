@@ -14,7 +14,7 @@
     'use strict';
     const FO = G.FO || (G.FO = {});
 
-    FO.VERSIO = '1.0.0';
+    FO.VERSIO = '1.1.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -35,7 +35,61 @@
         esdSeparat: true,  // les peces sensibles a l'ESD van a una safata pròpia
         fonsElevat: 'petits', // 'petits' | 'tots' | 'cap': on s'eleva el fons dels caixetins
         areaPetit: 4000,   // mm²: per sota, el caixetí es considera petit
-        etiqueta: 'cinta12'
+        etiqueta: 'cinta12',
+        // ─── Caixes i contenidors ───
+        formatKit: 'mixt',          // fusionat | individual | contenidor | mixt
+        paretCaixa: 1.2,            // paret de les caixes individuals
+        paretContenidor: 2.0,       // paret del contenidor general
+        jocCaixes: 0.6,             // folgança entre caixes dins el contenidor
+        alcadaContenidor: 0.6,      // alçada del contenidor respecte la caixa més alta (0-1)
+        materialCaixa: 'PLA',       // material d'impressió per defecte de caixes i safates
+        materialESD: 'PETG-ESD',    // material per a les caixes de peces sensibles a l'ESD
+        materialContenidor: 'PETG', // material del contenidor general
+        colorCaixa: '#E3E6EE',      // color fix de caixes i safates
+        colorContenidor: '#546E7A', // color del contenidor general
+        esquemaColor: 'material',   // color de les caixes individuals: material | conjunt | tipus | fix
+        ajustaFilaments: true,      // ajustar els colors automàtics al filament disponible més proper
+        filaments: ['#FFFFFF', '#212121', '#9E9E9E', '#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5', '#8E24AA', '#6D4C41'],
+        factorPes: 0.45             // fracció real de plàstic d'un sòlid imprès (parets + farciment)
+    };
+
+    // Formats del kit d'un conjunt
+    FO.FORMATS_KIT = {
+        fusionat: { nom: 'Safata fusionada', desc: 'Una sola peça amb tots els caixetins. La més ràpida d\'imprimir.' },
+        individual: { nom: 'Caixes individuals', desc: 'Una caixa per material, cadascuna del seu color i material.' },
+        contenidor: { nom: 'Caixes + contenidor', desc: 'Caixes individuals dins un contenidor obert per dalt per transportar-les juntes.' },
+        mixt: { nom: 'Mixt (petits fusionats)', desc: 'Els materials petits en un bloc de caixetins fusionats, els grans en caixes individuals, tot dins el contenidor.' }
+    };
+
+    // Materials d'impressió (densitat en g/cm³)
+    FO.MATERIALS_IMPRESSIO = {
+        PLA: { nom: 'PLA', dens: 1.24, notes: 'Rígid i fàcil. Evitar calor (> 55 °C) i dissolvents.' },
+        PETG: { nom: 'PETG', dens: 1.27, notes: 'Resistent a olis, greixos i cops. Bo per a líquids.' },
+        ABS: { nom: 'ABS', dens: 1.04, notes: 'Resisteix temperatura; cal impressora tancada.' },
+        ASA: { nom: 'ASA', dens: 1.07, notes: 'Com l\'ABS, resistent als UV.' },
+        PC: { nom: 'PC (policarbonat)', dens: 1.20, notes: 'Molt resistent i rígid.' },
+        PA: { nom: 'PA (niló)', dens: 1.14, notes: 'Resistent al desgast i a olis; absorbeix humitat.' },
+        PP: { nom: 'PP (polipropilè)', dens: 0.90, notes: 'Resistència química màxima (àcids, dissolvents).' },
+        TPU: { nom: 'TPU (flexible)', dens: 1.21, notes: 'Flexible: per a peces delicades o amortir cops.' },
+        'PETG-ESD': { nom: 'PETG-ESD (antiestàtic)', dens: 1.30, esd: true, notes: 'Dissipatiu: per a electrònica sensible.' },
+        'PLA-CF': { nom: 'PLA amb fibra de carboni', dens: 1.29, notes: 'Rígid i lleuger; lleugerament conductor.' }
+    };
+
+    // Color de la caixa per tipus de material (esquema 'tipus')
+    FO.COLOR_TIPUS = { peca: '#1E88E5', cargol: '#9E9E9E', consumible: '#FDD835', subconjunt: '#43A047' };
+
+    // Color disponible més proper (distància RGB ponderada)
+    FO.filamentProper = function (col, llista) {
+        if (!llista || !llista.length) return col;
+        const rgb = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+        const a = rgb(col);
+        let millor = llista[0], dMin = Infinity;
+        llista.forEach(c => {
+            const b = rgb(c), rm = (a[0] + b[0]) / 2;
+            const d = (2 + rm / 256) * (a[0] - b[0]) ** 2 + 4 * (a[1] - b[1]) ** 2 + (2 + (255 - rm) / 256) * (a[2] - b[2]) ** 2;
+            if (d < dMin) { dMin = d; millor = c; }
+        });
+        return millor;
     };
 
     // Tipus de material
@@ -92,6 +146,8 @@
             disposicio: FO.DISPOSICIONS[m.disposicio] ? m.disposicio : 'auto',
             origen: m.origen === 'comprat' ? 'comprat' : 'propi',
             proveidor: String(m.proveidor || ''),
+            caixaMaterial: FO.MATERIALS_IMPRESSIO[m.caixaMaterial] ? m.caixaMaterial : '',   // '' = per defecte
+            caixaColor: /^#[0-9a-f]{6}$/i.test(m.caixaColor) ? m.caixaColor : '',            // '' = segons l'esquema
             notes: String(m.notes || '')
         };
     };
@@ -114,6 +170,11 @@
             items: (Array.isArray(c.items) ? c.items : [])
                 .filter(it => it && it.mat)
                 .map(it => ({ mat: String(it.mat), qty: Math.max(1, Math.round(num(it.qty, 1))) })),
+            formatKit: FO.FORMATS_KIT[c.formatKit] ? c.formatKit : '',                            // '' = el del projecte
+            materialCaixa: FO.MATERIALS_IMPRESSIO[c.materialCaixa] ? c.materialCaixa : '',
+            colorCaixa: /^#[0-9a-f]{6}$/i.test(c.colorCaixa) ? c.colorCaixa : '',
+            materialContenidor: FO.MATERIALS_IMPRESSIO[c.materialContenidor] ? c.materialContenidor : '',
+            colorContenidor: /^#[0-9a-f]{6}$/i.test(c.colorContenidor) ? c.colorContenidor : '',
             notes: String(c.notes || '')
         };
     };
@@ -122,6 +183,9 @@
         p = p || {};
         const cfg = Object.assign({}, FO.CONFIG_DEFECTE, p.config || {});
         cfg.llit = Object.assign({}, FO.CONFIG_DEFECTE.llit, (p.config || {}).llit || {});
+        if (!FO.FORMATS_KIT[cfg.formatKit]) cfg.formatKit = FO.CONFIG_DEFECTE.formatKit;
+        ['materialCaixa', 'materialESD', 'materialContenidor'].forEach(k => { if (!FO.MATERIALS_IMPRESSIO[cfg[k]]) cfg[k] = FO.CONFIG_DEFECTE[k]; });
+        cfg.filaments = (Array.isArray(cfg.filaments) ? cfg.filaments : []).filter(c => /^#[0-9a-f]{6}$/i.test(c));
         const materials = (p.materials || []).map(FO.normalitzaMaterial);
         const conjunts = (p.conjunts || []).map(FO.normalitzaConjunt);
         const ids = new Set(conjunts.map(c => c.id));
@@ -213,7 +277,7 @@
                 M('FEM-M4', 'Femella autoblocant M4', 'cargol', 7, 7, 5, 1.1, { col: '#607D8B' }),
                 M('VOL-M4', 'Volandera DIN125 M4', 'cargol', 9, 9, 1, 0.3, { col: '#B0BEC5' }),
                 M('SEP-M3', 'Separador M3×10 niló', 'cargol', 6, 6, 10, 0.2, { col: '#ECEFF1' }),
-                M('CON-01', 'Frenafils Loctite 243 (10 ml)', 'consumible', 25, 25, 75, 18, { col: '#1565C0', forma: 'cylinder', liquid: true, angleMax: 30 }),
+                M('CON-01', 'Frenafils Loctite 243 (10 ml)', 'consumible', 25, 25, 75, 18, { col: '#1565C0', forma: 'cylinder', liquid: true, angleMax: 30, caixaMaterial: 'PETG', caixaColor: '#FDD835' }),
                 M('CON-02', 'Brides 100 mm', 'consumible', 100, 3, 1.2, 0.3, { col: '#212121' }),
                 M('CON-03', 'Etiquetes de cable', 'consumible', 60, 40, 5, 10, { col: '#FFFFFF' }),
                 M('CON-04', 'Cola epoxi bicomponent', 'consumible', 30, 20, 100, 30, { col: '#8E24AA', liquid: true, angleMax: 45 })
@@ -230,16 +294,16 @@
                     items: [{ mat: 'MT-050', qty: 1 }, { mat: '3D-021', qty: 1 }, { mat: 'CRG-M3x8', qty: 4 }, { mat: 'CON-01', qty: 1 }]
                 },
                 {
-                    id: 'ELE', codi: 'DX-1.2', nom: 'Electrònica de control', pare: 'MAQ', ordre: 2, col: '#2E7D32',
+                    id: 'ELE', codi: 'DX-1.2', nom: 'Electrònica de control', pare: 'MAQ', ordre: 2, col: '#2E7D32', formatKit: 'contenidor',
                     muntat: { x: 110, y: 80, z: 35, pes: 90, esd: true, fragil: 7, apilable: false },
                     items: [{ mat: 'PCB-100', qty: 1 }, { mat: 'PCB-101', qty: 2 }, { mat: 'SEP-M3', qty: 8 }, { mat: 'CRG-M3x8', qty: 8 }, { mat: '3D-022', qty: 6 }, { mat: 'CON-02', qty: 20 }, { mat: 'CON-03', qty: 1 }]
                 },
                 {
-                    id: 'HID', codi: 'DX-1.3', nom: 'Circuit hidràulic', pare: 'MAQ', ordre: 3, col: '#1E88E5',
+                    id: 'HID', codi: 'DX-1.3', nom: 'Circuit hidràulic', pare: 'MAQ', ordre: 3, col: '#1E88E5', materialCaixa: 'PETG', materialContenidor: 'PETG',
                     items: [{ mat: 'HID-200', qty: 4 }, { mat: 'HID-201', qty: 8 }, { mat: 'HID-210', qty: 1 }, { mat: 'CON-02', qty: 10 }]
                 },
                 {
-                    id: 'CAR', codi: 'DX-1.4', nom: 'Carcassa', pare: 'MAQ', ordre: 4, col: '#E0D6A8',
+                    formatKit: 'fusionat', id: 'CAR', codi: 'DX-1.4', nom: 'Carcassa', pare: 'MAQ', ordre: 4, col: '#E0D6A8',
                     items: [{ mat: 'FV-010', qty: 2 }, { mat: 'CRG-M3x8', qty: 12 }, { mat: 'CON-04', qty: 1 }]
                 }
             ]
