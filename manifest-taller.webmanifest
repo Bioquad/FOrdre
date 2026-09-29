@@ -34,7 +34,27 @@
     ],
     "shortcuts": [
         {
-            "name": "Disseny de kits (ordinador)",
+            "name": "📦 Magatzem",
+            "short_name": "Magatzem",
+            "url": "./muntatge.html?rol=magatzem"
+        },
+        {
+            "name": "🔧 Muntador",
+            "short_name": "Muntador",
+            "url": "./muntatge.html?rol=muntador"
+        },
+        {
+            "name": "✅ Qualitat",
+            "short_name": "Qualitat",
+            "url": "./muntatge.html?rol=qualitat"
+        },
+        {
+            "name": "📋 Responsable",
+            "short_name": "Responsable",
+            "url": "./muntatge.html?rol=responsable"
+        },
+        {
+            "name": "Configurador (ordinador)",
             "url": "./index.html"
         }
     ]

@@ -81,6 +81,7 @@ Tothom pot obrir incidències, fer fotos i consultar el registre i els resultats
 
 1. **Ordinador:** obre `https://<servidor>:8443/index.html`, prepara el projecte i prem **🏭 Taller**. Entra com a Responsable i **publica el projecte**. Des del mateix diàleg pots crear **ordres de fabricació** (una per unitat, amb número de sèrie), veure l'estat de cada pas en directe i obrir l'**informe** de l'ordre.
 2. **Mòbils i tauletes:** obre `https://<servidor>:8443/muntatge.html`, entra amb nom i PIN i tria el rol a la capçalera. L'ordre de treball es tria tocant el seu codi (p. ex. `OF-2026-001`).
+   - **Accés directe per rol:** `https://<servidor>:8443/muntatge.html?rol=magatzem` (o `muntador`, `qualitat`, `responsable`) obre l'app amb aquell rol. Són útils per desar-los com a icona a l'aparell de cada lloc de treball (la tauleta del magatzem, la de la línia de muntatge…). La pàgina d'ajuda `http://<servidor>:8080` en té els enllaços. Si la persona no té aquell rol, l'app l'avisa i fa servir el seu.
 3. El punt de color de la capçalera indica l'estat:
    - 🟢 connectat;
    - 🟠 hi ha canvis per enviar (o el projecte no és al servidor);

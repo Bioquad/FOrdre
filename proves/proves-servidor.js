@@ -74,6 +74,15 @@ const op = (t, dades) => Object.assign({ id: 'prova-' + (++n), t, ts: new Date()
         const r2 = await crida('POST', '/api/persones', { nom: 'Anna', rols: ['muntador'], pin: '1234' });
         assert(r2.codi === 400, 'la primera persona hauria de ser Responsable');
     });
+    await prova('el servidor diu la mateixa versió que les apps', async () => {
+        const v = /FO\.VERSIO = '([^']+)'/.exec(fs.readFileSync(path.join(__dirname, '..', 'js', 'fo-dades.js'), 'utf8'))[1];
+        const r = await crida('GET', '/api/estat');
+        assert(r.cos.versio === v, `servidor ${r.cos.versio} · apps ${v}`);
+    });
+    await prova('la pàgina d\'ajuda porta un accés directe per a cada rol', async () => {
+        const html = await new Promise((ok, ko) => require('http').get({ host: '127.0.0.1', port: PORT + 1, path: '/' }, res => { let t = ''; res.on('data', c => { t += c; }); res.on('end', () => ok(t)); }).on('error', ko));
+        ['magatzem', 'muntador', 'qualitat', 'responsable'].forEach(r => assert(html.includes('muntatge.html?rol=' + r), r));
+    });
     await prova('es crea el primer Responsable i el taller queda configurat', async () => {
         const r = await crida('POST', '/api/persones', { nom: 'Rosa', rols: ['responsable'], pin: '1111' });
         assert(r.codi === 200, JSON.stringify(r.cos));
