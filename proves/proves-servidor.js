@@ -184,6 +184,18 @@ const op = (t, dades) => Object.assign({ id: 'prova-' + (++n), t, ts: new Date()
         await crida('DELETE', '/api/sessio', undefined, T.marc);
         assert((await crida('GET', '/api/projectes', undefined, T.marc)).codi === 401);
     });
+    await prova('no es pot deixar el taller sense cap Responsable (quedaria obert a qualsevol)', async () => {
+        let r = await crida('POST', '/api/persones', { nom: 'Rosa', rols: ['responsable'], actiu: false }, T.rosa);
+        assert(r.codi === 400, 'donar de baixa el darrer Responsable: ' + r.codi);
+        r = await crida('POST', '/api/persones', { nom: 'Rosa', rols: ['muntador'] }, T.rosa);
+        assert(r.codi === 400, 'treure-li el rol: ' + r.codi);
+        assert((await crida('GET', '/api/estat')).cos.configurat === true);
+        assert((await crida('POST', '/api/persones', { nom: 'Intrús', rols: ['responsable'], pin: '9999' })).codi === 401, 'sense sessió no es crea ningú');
+    });
+    await prova('un projecte que no existeix no deixa fitxers brossa', async () => {
+        assert((await crida('GET', '/api/progres/no-existeix/OF-1', undefined, T.rosa)).codi === 404);
+        assert(!fs.existsSync(path.join(DADES, 'ordres', 'no-existeix.json')));
+    });
     await prova('el progrés d\'una versió anterior passa a la primera ordre', async () => {
         const dadesAntic = fs.mkdtempSync(path.join(os.tmpdir(), 'fordre-antic-'));
         fs.mkdirSync(path.join(dadesAntic, 'projectes'), { recursive: true });
