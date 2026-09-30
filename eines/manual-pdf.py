@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════
-# FOrdre — genera docs/MANUAL.html (i, amb Node + Playwright, el PDF)
-# a partir de docs/MANUAL.md. Conversor de Markdown mínim, sense
+# FOrdre — genera els manuals en HTML (i, amb Node + Playwright, en PDF)
+# a partir de docs/MANUAL.md (català), MANUAL.es.md i MANUAL.en.md. Conversor de Markdown mínim, sense
 # dependències: títols, paràgrafs, llistes (també niades), taules,
 # blocs de codi, cites, imatges, enllaços, negreta, cursiva i codi.
-# Ús:  python3 eines/manual-pdf.py
+# Ús:  python3 eines/manual-pdf.py [ca] [es] [en]   (sense res, els tres)
 # ═══════════════════════════════════════════════════════════════
 import html, os, re, subprocess, sys, unicodedata
 
@@ -110,27 +110,44 @@ hr { border: none; border-top: 1px solid #cfd4e0; margin: 18px 0 }
 li { margin: 2px 0 }
 """
 
-def main():
-    md = open(os.path.join(DOCS, 'MANUAL.md'), encoding='utf-8').read()
+# Un manual per idioma: (fitxer Markdown, idioma, títol)
+MANUALS = [('MANUAL.md', 'ca', 'Manual de FOrdre'), ('MANUAL.es.md', 'es', 'Manual de FOrdre'), ('MANUAL.en.md', 'en', 'FOrdre Manual')]
+
+def genera(nom, lang, titol):
+    fm = os.path.join(DOCS, nom)
+    if not os.path.exists(fm):
+        return
+    md = open(fm, encoding='utf-8').read()
+    # els enllaços entre manuals apunten a la versió HTML
+    md = re.sub(r'\]\((MANUAL(?:\.\w\w)?)\.md\)', r'](\1.html)', md)
     cos = converteix(md)
-    pag = f'<!doctype html><html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manual de FOrdre</title><style>{CSS}</style></head><body>{cos}</body></html>'
-    fh = os.path.join(DOCS, 'MANUAL.html')
+    base = nom[:-3]
+    pag = f'<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{titol}</title><style>{CSS}</style></head><body>{cos}</body></html>'
+    fh = os.path.join(DOCS, base + '.html')
     open(fh, 'w', encoding='utf-8').write(pag)
     print('✓', os.path.relpath(fh, ARREL))
     # PDF amb Chromium (Playwright), si hi és
+    fp = os.path.join(DOCS, base + '.pdf')
     js = f"""
     const {{ chromium }} = require(process.env.PLAYWRIGHT || 'playwright');
     (async () => {{
       const b = await chromium.launch(); const p = await b.newPage();
       await p.goto('file://{fh}'); await p.waitForTimeout(1500);
-      await p.pdf({{ path: '{os.path.join(DOCS, 'MANUAL.pdf')}', format: 'A4', printBackground: true, displayHeaderFooter: true,
+      await p.pdf({{ path: '{fp}', format: 'A4', printBackground: true, displayHeaderFooter: true,
         headerTemplate: '<div></div>',
-        footerTemplate: '<div style="font-size:8px;width:100%;text-align:center;color:#888">Manual de FOrdre · <span class="pageNumber"></span> / <span class="totalPages"></span></div>',
+        footerTemplate: '<div style="font-size:8px;width:100%;text-align:center;color:#888">{titol} · <span class="pageNumber"></span> / <span class="totalPages"></span></div>',
         margin: {{ top: '16mm', bottom: '18mm', left: '14mm', right: '14mm' }} }});
       await b.close();
     }})();"""
     r = subprocess.run(['node', '-e', js], capture_output=True, text=True)
-    print('✓ docs/MANUAL.pdf' if r.returncode == 0 else '⚠ Sense PDF (cal Node i Playwright): ' + r.stderr.strip()[:300])
+    print('✓ ' + os.path.relpath(fp, ARREL) if r.returncode == 0 else '⚠ Sense PDF (cal Node i Playwright): ' + r.stderr.strip()[:300])
+
+def main():
+    # sense arguments, els tres idiomes; amb arguments, només els indicats (ca, es, en)
+    tria = sys.argv[1:]
+    for nom, lang, titol in MANUALS:
+        if not tria or lang in tria:
+            genera(nom, lang, titol)
 
 if __name__ == '__main__':
     main()

@@ -12,7 +12,9 @@
 
 ![FOrdre: caixes i safates a mida generades a partir de la llista de materials](imatges/1-caixes-3d.png)
 
-> 📘 **[Manual complet d'instal·lació, configuració i ús](docs/MANUAL.md)** · també en [PDF per imprimir](docs/MANUAL.pdf)
+> 📘 **Manual complet d'instal·lació, configuració i ús:** [Català](docs/MANUAL.md) ([PDF](docs/MANUAL.pdf)) · [Español](docs/MANUAL.es.md) ([PDF](docs/MANUAL.es.pdf)) · [English](docs/MANUAL.en.md) ([PDF](docs/MANUAL.en.pdf))
+>
+> 🗣 **Tota la solució en català, castellà i anglès:** selector **CA / ES / EN** al configurador i a l'app del taller, o `?lang=es` / `?lang=en` a l'adreça.
 
 ## 🚀 Prova-ho en un minut
 
@@ -162,8 +164,9 @@ Cada pas passa per *pendent → preparat → en curs → muntat → verificat* (
 | `vendor/` | Llibreries de tercers (Three.js, qrcode-generator, SheetJS, jsQR) amb les seves llicències |
 | `exemples/` | Projecte d'exemple, plantilla CSV i BOM de mostra |
 | `imatges/` | Captures de la portada |
-| `docs/` | **Manual complet** (`MANUAL.md`, `MANUAL.pdf`) i les seves captures |
-| `eines/manual-pdf.py` | Genera el manual en HTML i PDF a partir de `docs/MANUAL.md` |
+| `js/fo-i18n.js`, `js/fo-idiomes.js` | Idiomes: traducció amb el català com a clau i diccionaris de castellà i anglès |
+| `docs/` | **Manual complet** en català (`MANUAL.md`), castellà (`MANUAL.es.md`) i anglès (`MANUAL.en.md`), en HTML i PDF, amb les captures de cada idioma (`imatges/`, `imatges/es/`, `imatges/en/`) |
+| `eines/manual-pdf.py` | Genera els manuals en HTML i PDF (`python3 eines/manual-pdf.py [ca] [es] [en]`) |
 | `proves/` | Proves del nucli (`node proves/proves.js`) i del servidor (`node proves/proves-servidor.js`) |
 | `eslint.config.js` | Regles de revisió del codi (`npx eslint js servidor proves sw.js`) |
 
@@ -175,13 +178,17 @@ Les llibreries de tercers van incloses a `vendor/`: no cal connexió ni cap inst
 
 ## 🇪🇸 Español
 
-**Sube la lista de materiales y FOrdre genera las cajas.** [Abrir FOrdre](https://Bioquad.github.io/FOrdre/) → **Importar llista** → mira las cajas en 3D → descarga STL y etiquetas. Pruébalo con una [lista de ejemplo](https://Bioquad.github.io/FOrdre/?llista=exemples/plantilla_fordre.csv) o una [BOM de CAD](https://Bioquad.github.io/FOrdre/?llista=exemples/bom_cad_solidworks.csv).
+**Sube la lista de materiales y FOrdre genera las cajas.** [Abrir FOrdre en castellano](https://Bioquad.github.io/FOrdre/?lang=es) → **Importar lista** → mira las cajas en 3D → descarga STL y etiquetas. Pruébalo con una [lista de ejemplo](https://Bioquad.github.io/FOrdre/?lang=es&llista=exemples/plantilla_fordre.csv) o una [BOM de CAD](https://Bioquad.github.io/FOrdre/?lang=es&llista=exemples/bom_cad_solidworks.csv).
+
+📘 **[Manual completo en castellano](docs/MANUAL.es.md)** ([PDF](docs/MANUAL.es.pdf)): instalación, configuración y uso, paso a paso, con capturas. Toda la solución (configurador, app del taller, etiquetas, hoja de ruta, informe y servidor) está disponible en **catalán, castellano e inglés**.
 
 FOrdre prepara, para cada paso de montaje de una máquina, un **kit**: bandeja fusionada, cajas individuales, cajas dentro de un contenedor general o mixto, con un compartimento a medida para cada material (nunca se mezclan), en el material y color de impresión que elijas y una etiqueta para cada uno (código, nombre, cantidad, colores, QR, código de barras, RFID/NFC). Importa listas desde Excel/CSV o BOM indentadas de CAD, separa las piezas ESD en su propia bandeja, mantiene verticales las piezas con líquidos, admite bandejas inclinadas con cuña y genera cajas de almacenaje para subconjuntos ya montados, que entran como una pieza más en el conjunto padre. Cierre con labio interior (0-5 mm), tapa a presión o tapa con imanes, código grabado en relieve, pieza de calibración, tandas de impresión en 3MF por material y color, y revisiones de la lista de materiales. Contenedores apilables con asas, nidos a medida a partir del STL de cada pieza y QR grabado en las tapas. Un **servidor de taller** sin dependencias (Raspberry Pi o PC) sincroniza en tiempo real órdenes de fabricación, progreso, stock y fotos entre todos los dispositivos, con personas, PIN y **roles**: Almacén (llenar las cajas), Montador (montar con instrucciones y pares de apriete), Calidad (verificar con lista de comprobación; quien monta no verifica) y Responsable (órdenes, asignaciones, incidencias y resultados). Cada orden genera un **informe** con la trazabilidad completa. La **app del taller para móvil y tableta** funciona sin conexión y envía los cambios y las fotos al recuperarla.
 
 ## 🇬🇧 English
 
-**Upload your bill of materials and FOrdre generates the boxes.** [Open FOrdre](https://Bioquad.github.io/FOrdre/) → **Importar llista** (import list) → see the boxes in 3D → download STL files and labels. Try it with a [sample parts list](https://Bioquad.github.io/FOrdre/?llista=exemples/plantilla_fordre.csv) or a [CAD BOM](https://Bioquad.github.io/FOrdre/?llista=exemples/bom_cad_solidworks.csv).
+**Upload your bill of materials and FOrdre generates the boxes.** [Open FOrdre in English](https://Bioquad.github.io/FOrdre/?lang=en) → **Import list** → see the boxes in 3D → download STL files and labels. Try it with a [sample parts list](https://Bioquad.github.io/FOrdre/?lang=en&llista=exemples/plantilla_fordre.csv) or a [CAD BOM](https://Bioquad.github.io/FOrdre/?lang=en&llista=exemples/bom_cad_solidworks.csv).
+
+📘 **[Full manual in English](docs/MANUAL.en.md)** ([PDF](docs/MANUAL.en.pdf)): installation, configuration and use, step by step, with screenshots. The whole solution (configurator, workshop app, labels, route sheet, report and server) is available in **Catalan, Spanish and English**.
 
 FOrdre builds an **assembly kit** for every step of a machine build: a fused tray, individual boxes, boxes inside an open-top carrier, or a mix, with a custom-sized pocket for each part (never mixed), in the print material and colour you choose and a label for each pocket (code, name, quantity, colours, QR, Code 128 barcode, RFID/NFC data). It imports Excel/CSV lists and indented CAD BOMs, puts ESD-sensitive parts in their own tray, keeps liquid-filled parts upright, supports tilted trays on a printed wedge, and creates storage boxes for finished sub-assemblies, which then become parts of their parent assembly. Closures: inner lip (0-5 mm), press-fit lid or magnetic lid; embossed codes, calibration piece, 3MF print plates by material and colour, and BOM revisions. Stackable containers with handles, custom nests from each part's STL and embossed QR codes on lids. A zero-dependency **workshop server** for a Raspberry Pi or any PC syncs production orders, progress, stock and photos in real time, with people, PINs and **roles**: Warehouse (fill the boxes), Assembler (build with instructions and torque values), Quality (checklist verification; whoever assembles cannot verify) and Manager (orders, assignments, issues and results). Each order produces a **report** with full traceability. The offline-capable **workshop app for phones and tablets** queues changes and photos and sends them when back online.
 
