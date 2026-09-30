@@ -373,6 +373,36 @@ console.log('Processos: rols, ordres i resultats');
         assert(res.mancantsOberts === 1 && res.mancants.length === 1 && /mancants/.test(FO.textEstatOrdre(Object.assign(res, { inici: 'x' }))));
         assert(/<h2>Mancants<\/h2>/.test(FO.informeHTML(m, pr, { codi: 'OF' })));
     });
+    prova('defectes: una peça que arriba malament surt de la caixa, no torna a l\'estoc i se\'n demana recanvi', () => {
+        const pr = nova(), e = m.aOmplir(r0)[0], mat = e.caixeti.mat.id;
+        fes(pr, 'estoc', { mat, delta: 10 }, 'Marc', ['magatzem']);
+        fes(pr, 'omple', { clau: e.clau, mat, qty: e.qty, cal: e.qty }, 'Marc', ['magatzem']);
+        const estoc = pr.estoc[mat];
+        assert(!fes(pr, 'defecte', { clau: e.clau, mat, conj: c0, qty: 1, origen: 'arribada', tipus: 'Trencada' }, 'Marc', ['magatzem']));
+        assert(pr.omplert[e.clau].qty === e.qty - 1 && pr.estoc[mat] === estoc, 'surt de la caixa sense tornar a l\'estoc');
+        assert(FO.esMancant(pr, e.clau) && pr.mancants[e.clau].falten === 1, 'recanvi demanat');
+        fes(pr, 'omple', { clau: e.clau, mat, qty: e.qty, cal: e.qty }, 'Marc', ['magatzem']);
+        assert(!FO.esMancant(pr, e.clau) && pr.estoc[mat] === estoc - 1, 'el recanvi surt de l\'estoc');
+    });
+    prova('defectes: una peça trencada en un pas ja verificat el torna a deixar pendent', () => {
+        const pr = nova(), e = m.aOmplir(r0)[0], mat = e.caixeti.mat.id;
+        fes(pr, 'fet', { conj: c0 }, 'Anna', ['muntador']);
+        fes(pr, 'verifica', { conj: c0, resultat: 'ok' }, 'Pau', ['qualitat']);
+        assert(!fes(pr, 'defecte', { clau: e.clau, mat, conj: c0, qty: 2, origen: 'muntatge', tipus: 'Trencada' }, 'Anna', ['muntador']));
+        assert(FO.estatPas(pr, c0, false) === 'parcial' && !pr.verificacions[c0], 'torna a estar pendent i sense verificar');
+        assert(pr.fets[c0].pendents[0].qty === 2);
+    });
+    prova('defectes: només Qualitat (o el Responsable) decideix què es fa amb la peça', () => {
+        const pr = nova(), e = m.aOmplir(r0)[0];
+        fes(pr, 'defecte', { clau: e.clau, mat: e.caixeti.mat.id, qty: 1, origen: 'arribada', tipus: 'Peça equivocada' }, 'Marc', ['magatzem']);
+        const d = pr.defectes[0];
+        assert(/rol/.test(fes(pr, 'decideix', { def: d.id, decisio: 'retorn' }, 'Anna', ['muntador'])));
+        assert(/desconeguda/.test(fes(pr, 'decideix', { def: d.id, decisio: 'llençar-ho' }, 'Pau', ['qualitat'])));
+        assert(!fes(pr, 'decideix', { def: d.id, decisio: 'retorn', nota: 'RMA-123' }, 'Pau', ['qualitat']));
+        assert(!FO.defectesPendents(pr).length && d.decisio.nota === 'RMA-123');
+        const res = FO.resumOrdre(m, pr);
+        assert(res.pecesDefectuoses === 1 && res.defectesArribada === 1 && /Peces defectuoses/.test(FO.informeHTML(m, pr, { codi: 'OF' })));
+    });
     prova('resultats: rendiment a la primera, temps i persones', () => {
         const pr = nova(), t0 = Date.parse('2026-01-01T10:00:00Z');
         const at = min => new Date(t0 + min * 60000).toISOString();

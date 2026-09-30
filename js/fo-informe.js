@@ -9,7 +9,7 @@
 //
 //  2. FO.resumOrdre(model, progres) i FO.informeHTML(...): el resultat d'una
 //     ordre: estat de cada pas i de cada caixa, temps de muntatge, rebutjos,
-//     incidències, mancants, material mogut i activitat de cada persona. L'informe és
+//     incidències, mancants, peces defectuoses, material mogut i activitat de cada persona. L'informe és
 //     una pàgina HTML autònoma, llesta per imprimir o desar en PDF.
 // ═══════════════════════════════════════════════════════════════
 (function (G) {
@@ -123,6 +123,12 @@
             // mancants: material que no havia arribat en omplir les caixes
             mancants: Object.entries(p.mancants || {}).map(([clau, x]) => Object.assign({ clau, pas: m.pasDe(m.perClau.get(clau) || {}) }, x)),
             mancantsOberts: FO.mancantsOberts(p).length, parcials: n('parcial'),
+            // peces defectuoses: quantes venien malament (proveïdor) i quantes s'han trencat al taller
+            defectes: p.defectes || [],
+            pecesDefectuoses: (p.defectes || []).reduce((a, d) => a + d.qty, 0),
+            defectesArribada: (p.defectes || []).filter(d => d.origen === 'arribada').reduce((a, d) => a + d.qty, 0),
+            defectesMuntatge: (p.defectes || []).filter(d => d.origen === 'muntatge').reduce((a, d) => a + d.qty, 0),
+            defectesPendents: FO.defectesPendents(p).length,
             inici: hores[0] || '', final: p.tancada ? p.tancada.ts : hores[hores.length - 1] || '',
             tempsMuntatge, tancada: p.tancada,
             acabada: passos.length > 0 && verificats === passos.length
@@ -176,6 +182,7 @@ ${canviat ? '<div class="av">⚠ El projecte s\'ha modificat després de crear a
  <div>Rebutjos<b>${res.rebutjos}</b></div>
  <div>Incidències obertes<b>${res.incidenciesObertes}</b></div>
  <div>Mancants oberts<b>${res.mancantsOberts} / ${res.mancants.length}</b></div>
+ <div>Peces defectuoses<b>${res.pecesDefectuoses}</b><span class="sub">${res.defectesArribada} d'origen · ${res.defectesMuntatge} en muntar</span></div>
  <div>Temps de muntatge<b>${FO.textDurada(res.tempsMuntatge)}</b></div>
  <div>Inici → final<b style="font-size:13px">${data(res.inici)}<br>${data(res.final)}</b></div>
 </div>
@@ -187,6 +194,9 @@ ${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.no
 
 ${p.historial.length ? `<h2>Rebutjos de qualitat</h2><table><tr><th>Data</th><th>Pas</th><th>Motiu</th><th>Muntador</th><th>Qualitat</th></tr>
 ${p.historial.map(h => { const r = m.perConj.get(h.conj); return `<tr><td>${data(h.ts)}</td><td>${r ? esc(r.conj.codi) : esc(h.conj)}</td><td class="ko">${esc(h.motiu)}</td><td>${esc(h.muntador)}</td><td>${esc(h.op)}</td></tr>`; }).join('')}</table>` : ''}
+
+${res.defectes.length ? `<h2>Peces defectuoses</h2><table><tr><th>Data</th><th>Material</th><th class="n">Peces</th><th>Origen</th><th>Què li passa</th><th>Pas</th><th>Decisió</th></tr>
+${res.defectes.map(d => { const mt = mat(d.mat), r = m.perConj.get(d.conj || m.pasDe(m.perClau.get(d.clau) || {})), o = FO.ORIGENS_DEFECTE[d.origen] || {}, dc = d.decisio && FO.DECISIONS_DEFECTE[d.decisio.tipus]; return `<tr><td>${data(d.ts)}<div class="sub">${esc(d.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}${mt.proveidor ? `<div class="sub">${esc(mt.proveidor)}</div>` : ''}` : esc(d.mat)}</td><td class="n">${d.qty}</td><td>${esc((o.ico || '') + ' ' + (o.nom || d.origen))}</td><td>${esc(d.tipus)}${d.descripcio ? `<div class="sub">${esc(d.descripcio)}</div>` : ''}</td><td>${r ? esc(r.conj.codi) : ''}</td><td>${dc ? `${esc(dc.ico + ' ' + dc.nom)}${d.decisio.nota ? `<div class="sub">${esc(d.decisio.nota)}</div>` : ''}<div class="sub">${data(d.decisio.ts)} · ${esc(d.decisio.op)}</div>` : '<span class="ko">Pendent</span>'}</td></tr>`; }).join('')}</table>` : ''}
 
 ${res.mancants.length ? `<h2>Mancants</h2><table><tr><th>Des de</th><th>Material</th><th>Caixetí</th><th>Pas</th><th class="n">Faltaven</th><th>Nota</th><th>Estat</th></tr>
 ${res.mancants.map(x => { const mt = mat(x.mat), r = m.perConj.get(x.pas); return `<tr><td>${data(x.ts)}<div class="sub">${esc(x.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}` : esc(x.mat)}</td><td>${esc(x.clau)}</td><td>${r ? esc(r.conj.codi) : ''}</td><td class="n">${x.inicial || x.falten}</td><td>${esc(x.nota)}</td><td>${x.resolt ? `<span class="ok">✓ Arribat</span><div class="sub">${data(x.resolt.ts)} · ${esc(x.resolt.op)}</div>` : `<span class="ko">Falten ${x.falten}</span>`}</td></tr>`; }).join('')}</table>` : ''}

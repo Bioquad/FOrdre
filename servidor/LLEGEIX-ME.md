@@ -70,12 +70,12 @@ La primera vegada que s'obre l'app amb el servidor, demana crear el **Responsabl
 
 | Rol | Pot fer |
 |---|---|
-| 📦 Magatzem | Omplir i buidar caixes, marcar mancants, estoc, tornar caixes |
+| 📦 Magatzem | Omplir i buidar caixes, marcar mancants i peces defectuoses, estoc, tornar caixes |
 | 🔧 Muntador | Agafar caixes, començar i marcar passos com a muntats (també amb mancants) i completar-los, tornar caixes |
-| ✅ Qualitat | Verificar (aprovar o rebutjar amb motiu) i resoldre incidències |
+| ✅ Qualitat | Verificar (aprovar o rebutjar amb motiu), decidir què es fa amb les peces defectuoses i resoldre incidències |
 | 📋 Responsable | Tot l'anterior, i a més publicar projectes, obrir i tancar ordres, assignar passos i gestionar persones |
 
-Tothom pot obrir incidències, fer fotos i consultar el registre i els resultats. Qui ha muntat un pas **no** el pot verificar (regla dels quatre ulls; el Responsable sí que pot). El PIN no es guarda mai: només un resum xifrat. Cinc PIN erronis seguits bloquegen l'entrada un minut.
+Tothom pot obrir incidències, fer fotos i consultar el registre i els resultats. Magatzem, Muntador i Qualitat poden registrar peces defectuoses o trencades. Qui ha muntat un pas **no** el pot verificar (regla dels quatre ulls; el Responsable sí que pot). El PIN no es guarda mai: només un resum xifrat. Cinc PIN erronis seguits bloquegen l'entrada un minut.
 
 ## Com es fa servir
 
