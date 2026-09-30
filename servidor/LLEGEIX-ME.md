@@ -1,5 +1,7 @@
 # Servidor del taller
 
+> Guia completa, amb exemples i captures: [docs/MANUAL.md](../docs/MANUAL.md) (també en [PDF](../docs/MANUAL.pdf)).
+
 El servidor fa que tots els mòbils, tauletes i ordinadors del taller comparteixin el projecte, les ordres de fabricació, el progrés, l'estoc, el registre i les fotos **en temps real**, sense necessitat d'internet. També guarda les **persones** del taller amb el seu PIN i els seus rols, i comprova que cada acció la fa qui la pot fer.
 
 - Funciona en una **Raspberry Pi** (3, 4 o 5) o en qualsevol ordinador amb **Windows, Linux o macOS**.

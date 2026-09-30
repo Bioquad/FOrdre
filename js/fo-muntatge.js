@@ -477,19 +477,22 @@
         pref.projecte = P.id; desaPref();
         // ordres guardades a l'aparell (sense servidor, o còpia de les del servidor per treballar sense connexió)
         ORDRES = llegeix(clauOrdres()) || [];
-        if (!ORDRES.length) {
+        const perDefecte = !ORDRES.length;
+        if (perDefecte) {
             ORDRES = [{ id: 'OF-1', codi: FO.codiOrdreSeguent([]), serie: '', notes: '', creada: new Date().toISOString(), creador: nomPersona() }];
             escriu(clauOrdres(), ORDRES);
         }
         srv.projecteOk = false;
-        triaOrdre();
+        // Amb servidor, l'ordre provisional no es recorda com a triada: en connectar,
+        // un aparell nou s'ha de posar a l'ordre més recent del taller, no a la primera.
+        triaOrdre(!(perDefecte && srv.url));
         carregaProgres();
         if (origen) avis('Projecte carregat: ' + P.nom);
     }
     // Ordre de treball: la darrera triada en aquest aparell, o la més recent
-    function triaOrdre() {
+    function triaOrdre(recorda) {
         ORD = ORDRES.find(o => o.id === pref.ordres[P.id]) || ORDRES[ORDRES.length - 1];
-        pref.ordres[P.id] = ORD.id; desaPref();
+        if (recorda !== false) { pref.ordres[P.id] = ORD.id; desaPref(); }
     }
     function canviaOrdre(id) {
         const o = ORDRES.find(x => x.id === id);
