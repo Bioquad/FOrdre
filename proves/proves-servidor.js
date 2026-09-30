@@ -83,6 +83,12 @@ const op = (t, dades) => Object.assign({ id: 'prova-' + (++n), t, ts: new Date()
         const html = await new Promise((ok, ko) => require('http').get({ host: '127.0.0.1', port: PORT + 1, path: '/' }, res => { let t = ''; res.on('data', c => { t += c; }); res.on('end', () => ok(t)); }).on('error', ko));
         ['magatzem', 'muntador', 'qualitat', 'responsable'].forEach(r => assert(html.includes('muntatge.html?rol=' + r), r));
     });
+    await prova('la pàgina d\'ajuda surt en l\'idioma del navegador (castellà i anglès)', async () => {
+        const ajuda = (cap, ruta) => new Promise((ok, ko) => require('http').get({ host: '127.0.0.1', port: PORT + 1, path: ruta || '/', headers: cap }, res => { let t = ''; res.on('data', c => { t += c; }); res.on('end', () => ok(t)); }).on('error', ko));
+        assert((await ajuda({ 'Accept-Language': 'es-ES,es;q=0.9' })).includes('Abrir la app del taller'), 'castellà');
+        assert((await ajuda({ 'Accept-Language': 'en-GB,en;q=0.9' })).includes('Open the workshop app'), 'anglès');
+        assert((await ajuda({ 'Accept-Language': 'en' }, '/?lang=ca')).includes('Obrir l\'app del taller'), '?lang=ca mana');
+    });
     await prova('es crea el primer Responsable i el taller queda configurat', async () => {
         const r = await crida('POST', '/api/persones', { nom: 'Rosa', rols: ['responsable'], pin: '1111' });
         assert(r.codi === 200, JSON.stringify(r.cos));

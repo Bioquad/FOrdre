@@ -31,48 +31,49 @@
 <body>
     <div class="tb">
         <div class="tb-t">F<span>O</span>rdre</div>
-        <div class="tb-n" id="nomProjecte" title="Nom del projecte (clic per canviar-lo)"></div>
-        <button class="b" id="bNou" title="Projecte nou, buit">Nou</button>
-        <button class="b" id="bObrir" title="Obrir un projecte (.json)">Obrir</button>
-        <button class="b" id="bDesar" title="Desar el projecte (.json)">Desar</button>
-        <button class="b" id="bExemple" title="Carregar el projecte d'exemple">Exemple</button>
+        <div class="tb-n" id="nomProjecte" title="Nom del projecte (clic per canviar-lo)" data-t-title></div>
+        <button class="b" id="bNou" title="Projecte nou, buit" data-t-title data-t>Nou</button>
+        <button class="b" id="bObrir" title="Obrir un projecte (.json)" data-t-title data-t>Obrir</button>
+        <button class="b" id="bDesar" title="Desar el projecte (.json)" data-t-title data-t>Desar</button>
+        <button class="b" id="bExemple" title="Carregar el projecte d'exemple" data-t-title data-t>Exemple</button>
         <span class="sp"></span>
-        <button class="b pr" id="bImportar" title="Importar una llista de peces (CSV, Excel o BOM de CAD)">Importar llista</button>
-        <button class="b" id="bPlantilla" title="Descarregar una plantilla CSV per omplir">Plantilla CSV</button>
+        <button class="b pr" id="bImportar" title="Importar una llista de peces (CSV, Excel o BOM de CAD)" data-t-title data-t>Importar llista</button>
+        <button class="b" id="bPlantilla" title="Descarregar una plantilla CSV per omplir" data-t-title data-t>Plantilla CSV</button>
         <span class="sp"></span>
-        <button class="b" id="bSTL" title="Totes les safates en STL, dins un ZIP">⬇ STL (ZIP)</button>
-        <button class="b" id="bEtiquetes" title="Imprimir totes les etiquetes">🏷 Etiquetes</button>
-        <button class="b" id="bRFID" title="CSV amb les dades de cada etiqueta per a RFID/NFC">RFID / CSV</button>
-        <button class="b" id="bFulla" title="Full de preparació imprimible">Full de ruta</button>
-        <button class="b" id="bTandes" title="Peces agrupades per material i color, col·locades al llit (3MF)">🖨 Tandes</button>
-        <button class="b pr" id="bMobil" title="Obrir el projecte a l'app del taller (mòbil o tauleta)">📱 Muntatge</button>
-        <button class="b" id="bTaller" title="Servidor del taller: publicar el projecte i veure el progrés" hidden>🏭 Taller</button>
+        <button class="b" id="bSTL" title="Totes les safates en STL, dins un ZIP" data-t-title data-t>⬇ STL (ZIP)</button>
+        <button class="b" id="bEtiquetes" title="Imprimir totes les etiquetes" data-t-title data-t>🏷 Etiquetes</button>
+        <button class="b" id="bRFID" title="CSV amb les dades de cada etiqueta per a RFID/NFC" data-t-title data-t>RFID / CSV</button>
+        <button class="b" id="bFulla" title="Full de preparació imprimible" data-t-title data-t>Full de ruta</button>
+        <button class="b" id="bTandes" title="Peces agrupades per material i color, col·locades al llit (3MF)" data-t-title data-t>🖨 Tandes</button>
+        <button class="b pr" id="bMobil" title="Obrir el projecte a l'app del taller (mòbil o tauleta)" data-t-title data-t>📱 Muntatge</button>
+        <button class="b" id="bTaller" title="Servidor del taller: publicar el projecte i veure el progrés" data-t-title hidden data-t>🏭 Taller</button>
         <span class="fl"></span>
-        <button class="b" id="bConfig" title="Impressora, gruixos, folgances i etiquetes">⚙ Configuració</button>
-        <button class="b" id="bTema" title="Tema clar / fosc">◐</button>
+        <button class="b" id="bConfig" title="Impressora, gruixos, folgances i etiquetes" data-t-title>⚙<span class="tb-txt" data-t>Configuració</span></button>
+        <span id="selIdioma"></span>
+        <button class="b" id="bTema" title="Tema clar / fosc" data-t-title>◐</button>
     </div>
 
     <div class="mn">
         <!-- Esquerra: arbre de conjunts i catàleg -->
         <div class="pn pn-l">
             <div class="tabs">
-                <div class="tab on" data-tab="arbre">Arbre de muntatge</div>
-                <div class="tab" data-tab="materials">Materials</div>
+                <div class="tab on" data-tab="arbre" data-t>Arbre de muntatge</div>
+                <div class="tab" data-tab="materials" data-t>Materials</div>
             </div>
             <div id="tabArbre" style="display:flex;flex-direction:column;flex:1;min-height:0">
                 <div class="ps" style="padding:8px">
-                    <input class="cerca" id="cerca" type="search" placeholder="Cerca per codi o nom…">
+                    <input class="cerca" id="cerca" type="search" placeholder="Cerca per codi o nom…" data-t-placeholder>
                 </div>
                 <div class="arbre" id="arbre" tabindex="0"></div>
                 <div class="arbre-acc">
-                    <button class="b sm" id="bNouConj" title="Conjunt nou a l'arrel">+ Conjunt</button>
-                    <button class="b sm" id="bNouSub" title="Subconjunt dins el conjunt seleccionat">+ Subconjunt</button>
-                    <button class="b sm" id="bNouMat" title="Material nou dins el conjunt seleccionat">+ Material</button>
-                    <button class="b sm" id="bAfegirMat" title="Afegir un material existent al conjunt">+ Existent</button>
+                    <button class="b sm" id="bNouConj" title="Conjunt nou a l'arrel" data-t-title data-t>+ Conjunt</button>
+                    <button class="b sm" id="bNouSub" title="Subconjunt dins el conjunt seleccionat" data-t-title data-t>+ Subconjunt</button>
+                    <button class="b sm" id="bNouMat" title="Material nou dins el conjunt seleccionat" data-t-title data-t>+ Material</button>
+                    <button class="b sm" id="bAfegirMat" title="Afegir un material existent al conjunt" data-t-title data-t>+ Existent</button>
                     <span class="fl"></span>
-                    <button class="b sm" id="bPujar" title="Moure amunt">▲</button>
-                    <button class="b sm" id="bBaixar" title="Moure avall">▼</button>
-                    <button class="b sm dg" id="bEliminar" title="Eliminar la selecció">✕</button>
+                    <button class="b sm" id="bPujar" title="Moure amunt" data-t-title>▲</button>
+                    <button class="b sm" id="bBaixar" title="Moure avall" data-t-title>▼</button>
+                    <button class="b sm dg" id="bEliminar" title="Eliminar la selecció" data-t-title>✕</button>
                 </div>
             </div>
             <div id="tabMaterials" style="display:none;flex:1;overflow:auto;min-height:0">
@@ -86,14 +87,14 @@
             <div class="cartell" id="cartell"></div>
             <div class="hn" id="hint"></div>
             <div class="vbar">
-                <button class="b sm" id="vTot" title="Veure totes les safates">Tot</button>
-                <button class="b sm" id="vSel" title="Enfocar la selecció">Enfoca</button>
-                <button class="b sm" id="vDalt" title="Vista de planta">Planta</button>
-                <button class="b sm on" id="vPeces" title="Mostrar les peces dins els caixetins">Peces</button>
-                <button class="b sm on" id="vFalca" title="Mostrar les safates inclinades sobre la falca">Inclinació</button>
-                <button class="b sm on" id="vTapes" title="Mostrar les tapes per sobre de cada caixa">Tapes</button>
+                <button class="b sm" id="vTot" title="Veure totes les safates" data-t-title data-t>Tot</button>
+                <button class="b sm" id="vSel" title="Enfocar la selecció" data-t-title data-t>Enfoca</button>
+                <button class="b sm" id="vDalt" title="Vista de planta" data-t-title data-t>Planta</button>
+                <button class="b sm on" id="vPeces" title="Mostrar les peces dins els caixetins" data-t-title data-t>Peces</button>
+                <button class="b sm on" id="vFalca" title="Mostrar les safates inclinades sobre la falca" data-t-title data-t>Inclinació</button>
+                <button class="b sm on" id="vTapes" title="Mostrar les tapes per sobre de cada caixa" data-t-title data-t>Tapes</button>
             </div>
-            <div class="lleg" id="lleg">
+            <div class="lleg" id="lleg" data-t>
                 Arrossega: girar · Dret o Maj+arrossega: desplaçar · Roda: zoom · Clic: seleccionar
             </div>
         </div>
@@ -107,12 +108,12 @@
     <!-- Importació -->
     <div class="ov" id="dlgImport">
         <div class="dlg">
-            <div class="dlg-h">Importar llista de peces</div>
+            <div class="dlg-h" data-t>Importar llista de peces</div>
             <div class="dlg-c">
                 <div class="fx">
-                    <span class="ajuda">Prova-ho amb una llista d'exemple:</span>
-                    <button class="b" data-exemple="exemples/plantilla_fordre.csv" title="Llista pròpia en format FOrdre / Excel">📄 Llista de peces (CSV)</button>
-                    <button class="b" data-exemple="exemples/bom_cad_solidworks.csv" title="BOM indentada exportada d'un programa de CAD">📐 BOM de CAD</button>
+                    <span class="ajuda" data-t>Prova-ho amb una llista d'exemple:</span>
+                    <button class="b" data-exemple="exemples/plantilla_fordre.csv" title="Llista pròpia en format FOrdre / Excel" data-t-title data-t>📄 Llista de peces (CSV)</button>
+                    <button class="b" data-exemple="exemples/bom_cad_solidworks.csv" title="BOM indentada exportada d'un programa de CAD" data-t-title data-t>📐 BOM de CAD</button>
                 </div>
                 <div class="fx">
                     <input type="file" id="impFitxer" accept=".csv,.txt,.tsv,.xlsx,.xls,.xlsm,.ods,.json">
@@ -120,35 +121,35 @@
                 </div>
                 <div class="fg3">
                     <div class="fi">
-                        <label>Format de la llista</label>
+                        <label data-t>Format de la llista</label>
                         <select id="impFormat">
-                            <option value="pla">FOrdre / Excel (una fila per material, columna de conjunt)</option>
-                            <option value="bom">BOM de CAD indentada (columna de nivell)</option>
+                            <option value="pla" data-t>FOrdre / Excel (una fila per material, columna de conjunt)</option>
+                            <option value="bom" data-t>BOM de CAD indentada (columna de nivell)</option>
                         </select>
                     </div>
                     <div class="fi">
-                        <label>Unitats de mida</label>
-                        <select id="impMida"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option><option value="in">polzades</option></select>
+                        <label data-t>Unitats de mida</label>
+                        <select id="impMida"><option value="mm" data-t>mm</option><option value="cm" data-t>cm</option><option value="m">m</option><option value="in" data-t>polzades</option></select>
                     </div>
                     <div class="fi">
-                        <label>Unitats de pes</label>
-                        <select id="impPes"><option value="g">g</option><option value="kg">kg</option><option value="lb">lb</option></select>
+                        <label data-t>Unitats de pes</label>
+                        <select id="impPes"><option value="g">g</option><option value="kg" data-t>kg</option><option value="lb" data-t>lb</option></select>
                     </div>
                 </div>
                 <div class="ajuda" id="impAjuda"></div>
                 <div>
-                    <div class="ps-t">Correspondència de columnes</div>
+                    <div class="ps-t" data-t>Correspondència de columnes</div>
                     <div class="mapa" id="impMapa"></div>
                 </div>
                 <div class="prev" id="impPrev"></div>
                 <div class="ajuda" id="impRes"></div>
             </div>
             <div class="dlg-f">
-                <label class="ck"><input type="radio" name="impMode" value="afegeix" checked> Afegir / actualitzar</label>
-                <label class="ck"><input type="radio" name="impMode" value="substitueix"> Substituir el projecte</label>
+                <label class="ck"><input type="radio" name="impMode" value="afegeix" checked> <span data-t>Afegir / actualitzar</span></label>
+                <label class="ck"><input type="radio" name="impMode" value="substitueix"> <span data-t>Substituir el projecte</span></label>
                 <span class="fl"></span>
-                <button class="b" data-tanca="dlgImport">Cancel·lar</button>
-                <button class="b pr" id="impOk" disabled>Importar</button>
+                <button class="b" data-tanca="dlgImport" data-t>Cancel·lar</button>
+                <button class="b pr" id="impOk" disabled data-t>Importar</button>
             </div>
         </div>
     </div>
@@ -156,12 +157,12 @@
     <!-- Configuració -->
     <div class="ov" id="dlgConfig">
         <div class="dlg">
-            <div class="dlg-h">Configuració</div>
+            <div class="dlg-h" data-t>Configuració</div>
             <div class="dlg-c" id="cfgCos"></div>
             <div class="dlg-f">
-                <button class="b" id="cfgDefecte">Valors per defecte</button>
+                <button class="b" id="cfgDefecte" data-t>Valors per defecte</button>
                 <span class="fl"></span>
-                <button class="b pr" data-tanca="dlgConfig">Fet</button>
+                <button class="b pr" data-tanca="dlgConfig" data-t>Fet</button>
             </div>
         </div>
     </div>
@@ -169,59 +170,59 @@
     <!-- Calibratge -->
     <div class="ov" id="dlgCalibratge">
         <div class="dlg" style="width:560px">
-            <div class="dlg-h">Peça de calibratge</div>
+            <div class="dlg-h" data-t>Peça de calibratge</div>
             <div class="dlg-c">
-                <div class="ajuda">1. Descarrega i imprimeix la peça amb el mateix material i la mateixa configuració que faràs servir per a les caixes.<br>
-                2. Prova d'encaixar el tac de 10 × 10 mm a cada forat. El número gravat és la folgança per costat, en centèsimes de mm.<br>
-                3. Tria el forat on el tac entra <b>fent una mica de pressió</b>: aquest serà el joc de les tapes a pressió. El joc entre caixes i al voltant de les peces s'ajusta a partir d'aquí.</div>
-                <div><button class="b pr" id="calSTL">⬇ Descarregar STL de calibratge</button></div>
+                <div class="ajuda" data-t>1. Descarrega i imprimeix la peça amb el mateix material i la mateixa configuració que faràs servir per a les caixes.<br>2. Prova d'encaixar el tac de 10 × 10 mm a cada forat. El número gravat és la folgança per costat, en centèsimes de mm.<br>3. Tria el forat on el tac entra <b>fent una mica de pressió</b>: aquest serà el joc de les tapes a pressió. El joc entre caixes i al voltant de les peces s'ajusta a partir d'aquí.</div>
+                <div><button class="b pr" id="calSTL" data-t>⬇ Descarregar STL de calibratge</button></div>
                 <div id="calJocs"></div>
             </div>
-            <div class="dlg-f"><button class="b" data-tanca="dlgCalibratge">Tancar</button><button class="b pr" id="calAplica">Aplicar</button></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgCalibratge" data-t>Tancar</button><button class="b pr" id="calAplica" data-t>Aplicar</button></div>
         </div>
     </div>
 
     <!-- Tandes d'impressió -->
     <div class="ov" id="dlgTandes">
         <div class="dlg" style="width:820px">
-            <div class="dlg-h">Tandes d'impressió</div>
+            <div class="dlg-h" data-t>Tandes d'impressió</div>
             <div class="dlg-c" id="tandesCos"></div>
-            <div class="dlg-f"><button class="b" data-tanca="dlgTandes">Tancar</button><button class="b pr" id="tandesZip">⬇ Totes (ZIP amb 3MF)</button></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgTandes" data-t>Tancar</button><button class="b pr" id="tandesZip" data-t>⬇ Totes (ZIP amb 3MF)</button></div>
         </div>
     </div>
 
     <!-- Servidor del taller -->
     <div class="ov" id="dlgTaller">
         <div class="dlg" style="width:760px">
-            <div class="dlg-h">🏭 Servidor del taller</div>
+            <div class="dlg-h" data-t>🏭 Servidor del taller</div>
             <div class="dlg-c" id="tallerCos"></div>
-            <div class="dlg-f"><button class="b" data-tanca="dlgTaller">Tancar</button><button class="b" id="tallerInforme" hidden>📄 Informe de l'ordre</button><button class="b pr" id="tallerPublica">⬆ Publicar aquest projecte</button></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgTaller" data-t>Tancar</button><button class="b" id="tallerInforme" hidden data-t>📄 Informe de l'ordre</button><button class="b pr" id="tallerPublica" data-t>⬆ Publicar aquest projecte</button></div>
         </div>
     </div>
 
     <!-- Enviar al mòbil -->
     <div class="ov" id="dlgMobil">
         <div class="dlg" style="width:620px">
-            <div class="dlg-h">📱 App del taller (mòbil i tauleta)</div>
+            <div class="dlg-h" data-t>📱 App del taller (mòbil i tauleta)</div>
             <div class="dlg-c" id="mobilCos"></div>
-            <div class="dlg-f"><button class="b" data-tanca="dlgMobil">Tancar</button></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgMobil" data-t>Tancar</button></div>
         </div>
     </div>
 
     <!-- Afegir material existent -->
     <div class="ov" id="dlgExistent">
         <div class="dlg" style="width:560px">
-            <div class="dlg-h">Afegir material existent al conjunt</div>
+            <div class="dlg-h" data-t>Afegir material existent al conjunt</div>
             <div class="dlg-c">
-                <input class="cerca" id="exCerca" type="search" placeholder="Cerca…">
+                <input class="cerca" id="exCerca" type="search" placeholder="Cerca…" data-t-placeholder>
                 <div style="max-height:50vh;overflow:auto"><table class="tt" id="exTaula"></table></div>
             </div>
-            <div class="dlg-f"><button class="b" data-tanca="dlgExistent">Tancar</button></div>
+            <div class="dlg-f"><button class="b" data-tanca="dlgExistent" data-t>Tancar</button></div>
         </div>
     </div>
 
     <input type="file" id="fObrir" accept=".json" style="display:none">
 
+    <script src="js/fo-i18n.js"></script>
+    <script src="js/fo-idiomes.js"></script>
     <script src="js/fo-dades.js"></script>
     <script src="js/fo-calcul.js"></script>
     <script src="js/fo-stl.js"></script>

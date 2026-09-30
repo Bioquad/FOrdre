@@ -15,6 +15,7 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     // ═══ 1. Model del taller ═══
@@ -65,9 +66,9 @@
         if (!ms) return '—';
         const min = Math.round(ms / 60000);
         if (min < 1) return '< 1 min';
-        if (min < 60) return min + ' min';
+        if (min < 60) return t('{n} min', { n: min });
         const h = Math.floor(min / 60);
-        return h < 24 ? `${h} h ${String(min % 60).padStart(2, '0')} min` : `${Math.floor(h / 24)} d ${h % 24} h`;
+        return h < 24 ? t('{h} h {m} min', { h, m: String(min % 60).padStart(2, '0') }) : t('{d} d {h} h', { d: Math.floor(h / 24), h: h % 24 });
     };
 
     FO.resumOrdre = function (m, p) {
@@ -137,11 +138,11 @@
 
     // Text curt de l'estat global d'una ordre (per a llistes)
     FO.textEstatOrdre = function (res) {
-        if (res.tancada) return 'Tancada';
-        if (res.acabada) return 'Llesta per tancar';
-        if (!res.inici) return 'Sense començar';
-        if (res.mancantsOberts) return `${res.verificats}/${res.total} verificats · ${res.mancantsOberts} mancants`;
-        return `${res.verificats}/${res.total} verificats`;
+        if (res.tancada) return t('Tancada');
+        if (res.acabada) return t('Llesta per tancar');
+        if (!res.inici) return t('Sense començar');
+        if (res.mancantsOberts) return t('{v}/{n} verificats · {m} mancants', { v: res.verificats, n: res.total, m: res.mancantsOberts });
+        return t('{v}/{n} verificats', { v: res.verificats, n: res.total });
     };
 
     // ═══ Informe imprimible ═══
@@ -151,15 +152,16 @@
         opcions = opcions || {};
         const P = m.P, res = FO.resumOrdre(m, p);
         p = FO.normalitzaProgres(p);
-        const data = t => t ? new Date(t).toLocaleString('ca-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+        const data = ts => ts ? new Date(ts).toLocaleString(FO.locale ? FO.locale() : 'ca-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+        const tm = x => (FO.tMissatge ? FO.tMissatge(x) : x);   // textos desats (notes, tipus): es tradueixen si són coneguts
         const mat = id => FO.material(P, id);
         const pct = x => x == null ? '—' : Math.round(x * 100) + ' %';
         const xip = e => `<span class="x" style="background:${(FO.ESTATS_PAS[e] || {}).col || '#888'}">${esc((FO.ESTATS_PAS[e] || { nom: e }).nom)}</span>`;
         const materials = Array.from(new Set(Object.keys(res.posat).concat(Object.keys(res.consumit)))).map(mat).filter(Boolean).sort((a, b) => a.codi.localeCompare(b.codi));
         const canviat = opcions.empremtaActual && ordre.empremta && opcions.empremtaActual !== ordre.empremta;
 
-        return `<!doctype html><html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Informe ${esc(ordre.codi || '')} · ${esc(P.nom)}</title>
+        return `<!doctype html><html lang="${FO.idioma ? FO.idioma() : 'ca'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${t('Informe')} ${esc(ordre.codi || '')} · ${esc(P.nom)}</title>
 <style>
  body{font-family:system-ui,'Segoe UI',sans-serif;color:#222;margin:24px auto;max-width:980px;padding:0 16px;font-size:13px;background:#fff}
  h1{font-size:22px;margin:0}h2{font-size:15px;margin:22px 0 8px;border-bottom:2px solid #333;padding-bottom:3px}
@@ -171,52 +173,52 @@
  .ok{color:#2e7d32;font-weight:600}.ko{color:#c62828;font-weight:600}.firma{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:40px}
  .firma div{border-top:1px solid #333;padding-top:4px}@media print{body{margin:0}h2{break-after:avoid}tr{break-inside:avoid}}
 </style></head><body>
-<h1>Informe de fabricació · ${esc(ordre.codi || '')}</h1>
-<div class="sub">${esc(P.nom)}${ordre.serie ? ' · Núm. de sèrie <b>' + esc(ordre.serie) + '</b>' : ''} · Ordre creada ${data(ordre.creada)}${ordre.creador ? ' per ' + esc(ordre.creador) : ''}${ordre.empremta ? ' · Versió del projecte ' + esc(ordre.empremta) : ''}</div>
+<h1>${t('Informe de fabricació')} · ${esc(ordre.codi || '')}</h1>
+<div class="sub">${esc(P.nom)}${ordre.serie ? ' · ' + t('Núm. de sèrie') + ' <b>' + esc(ordre.serie) + '</b>' : ''} · ${t('Ordre creada {data}', { data: data(ordre.creada) })}${ordre.creador ? ' ' + t('per {nom}', { nom: esc(ordre.creador) }) : ''}${ordre.empremta ? ' · ' + t('Versió del projecte') + ' ' + esc(ordre.empremta) : ''}</div>
 ${ordre.notes ? `<p>${esc(ordre.notes)}</p>` : ''}
-${canviat ? '<div class="av">⚠ El projecte s\'ha modificat després de crear aquesta ordre: els passos i les caixes poden no coincidir exactament amb els que es van fer servir.</div>' : ''}
+${canviat ? `<div class="av">⚠ ${t('El projecte s\'ha modificat després de crear aquesta ordre: els passos i les caixes poden no coincidir exactament amb els que es van fer servir.')}</div>` : ''}
 <div class="kpi">
- <div>Estat<b>${esc(FO.textEstatOrdre(res))}</b></div>
- <div>Passos verificats<b>${res.verificats} / ${res.total}</b></div>
- <div>Bé a la primera<b>${pct(res.primeraPassada)}</b></div>
- <div>Rebutjos<b>${res.rebutjos}</b></div>
- <div>Incidències obertes<b>${res.incidenciesObertes}</b></div>
- <div>Mancants oberts<b>${res.mancantsOberts} / ${res.mancants.length}</b></div>
- <div>Peces defectuoses<b>${res.pecesDefectuoses}</b><span class="sub">${res.defectesArribada} d'origen · ${res.defectesMuntatge} en muntar</span></div>
- <div>Temps de muntatge<b>${FO.textDurada(res.tempsMuntatge)}</b></div>
- <div>Inici → final<b style="font-size:13px">${data(res.inici)}<br>${data(res.final)}</b></div>
+ <div>${t('Estat')}<b>${esc(FO.textEstatOrdre(res))}</b></div>
+ <div>${t('Passos verificats')}<b>${res.verificats} / ${res.total}</b></div>
+ <div>${t('Bé a la primera')}<b>${pct(res.primeraPassada)}</b></div>
+ <div>${t('Rebutjos')}<b>${res.rebutjos}</b></div>
+ <div>${t('Incidències obertes')}<b>${res.incidenciesObertes}</b></div>
+ <div>${t('Mancants oberts')}<b>${res.mancantsOberts} / ${res.mancants.length}</b></div>
+ <div>${t('Peces defectuoses')}<b>${res.pecesDefectuoses}</b><span class="sub">${t('{a} d\'origen · {m} en muntar', { a: res.defectesArribada, m: res.defectesMuntatge })}</span></div>
+ <div>${t('Temps de muntatge')}<b>${FO.textDurada(res.tempsMuntatge)}</b></div>
+ <div>${t('Inici → final')}<b style="font-size:13px">${data(res.inici)}<br>${data(res.final)}</b></div>
 </div>
 
-<h2>Passos</h2>
-<table><tr><th>Pas</th><th>Conjunt</th><th>Estat</th><th>Muntat per</th><th class="n">Durada</th><th>Verificat per</th><th class="n">Rebutjos</th></tr>
-${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.nom)}</td><td>${xip(x.estat)}${x.pendents.length ? `<div class="sub">Falten: ${x.pendents.map(q => { const mt = mat(q.mat); return esc(mt ? mt.codi : q.mat) + ' ×' + q.qty; }).join(', ')}</div>` : ''}</td><td>${esc(x.muntador)}<div class="sub">${data(x.muntat)}</div></td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}${x.verificat ? `<div class="sub">${data(x.verificat)}</div>` : ''}</td><td class="n">${x.rebutjos.length || ''}</td></tr>`).join('')}
+<h2>${t('Passos')}</h2>
+<table><tr><th>${t('Pas')}</th><th>${t('Conjunt')}</th><th>${t('Estat')}</th><th>${t('Muntat per')}</th><th class="n">${t('Durada')}</th><th>${t('Verificat per')}</th><th class="n">${t('Rebutjos')}</th></tr>
+${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.nom)}</td><td>${xip(x.estat)}${x.pendents.length ? `<div class="sub">${t('Falten:')} ${x.pendents.map(q => { const mt = mat(q.mat); return esc(mt ? mt.codi : q.mat) + ' ×' + q.qty; }).join(', ')}</div>` : ''}</td><td>${esc(x.muntador)}<div class="sub">${data(x.muntat)}</div></td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}${x.verificat ? `<div class="sub">${data(x.verificat)}</div>` : ''}</td><td class="n">${x.rebutjos.length || ''}</td></tr>`).join('')}
 </table>
 
-${p.historial.length ? `<h2>Rebutjos de qualitat</h2><table><tr><th>Data</th><th>Pas</th><th>Motiu</th><th>Muntador</th><th>Qualitat</th></tr>
+${p.historial.length ? `<h2>${t('Rebutjos de qualitat')}</h2><table><tr><th>${t('Data')}</th><th>${t('Pas')}</th><th>${t('Motiu')}</th><th>${t('Muntador')}</th><th>${t('Qualitat')}</th></tr>
 ${p.historial.map(h => { const r = m.perConj.get(h.conj); return `<tr><td>${data(h.ts)}</td><td>${r ? esc(r.conj.codi) : esc(h.conj)}</td><td class="ko">${esc(h.motiu)}</td><td>${esc(h.muntador)}</td><td>${esc(h.op)}</td></tr>`; }).join('')}</table>` : ''}
 
-${res.defectes.length ? `<h2>Peces defectuoses</h2><table><tr><th>Data</th><th>Material</th><th class="n">Peces</th><th>Origen</th><th>Què li passa</th><th>Pas</th><th>Decisió</th></tr>
-${res.defectes.map(d => { const mt = mat(d.mat), r = m.perConj.get(d.conj || m.pasDe(m.perClau.get(d.clau) || {})), o = FO.ORIGENS_DEFECTE[d.origen] || {}, dc = d.decisio && FO.DECISIONS_DEFECTE[d.decisio.tipus]; return `<tr><td>${data(d.ts)}<div class="sub">${esc(d.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}${mt.proveidor ? `<div class="sub">${esc(mt.proveidor)}</div>` : ''}` : esc(d.mat)}</td><td class="n">${d.qty}</td><td>${esc((o.ico || '') + ' ' + (o.nom || d.origen))}</td><td>${esc(d.tipus)}${d.descripcio ? `<div class="sub">${esc(d.descripcio)}</div>` : ''}</td><td>${r ? esc(r.conj.codi) : ''}</td><td>${dc ? `${esc(dc.ico + ' ' + dc.nom)}${d.decisio.nota ? `<div class="sub">${esc(d.decisio.nota)}</div>` : ''}<div class="sub">${data(d.decisio.ts)} · ${esc(d.decisio.op)}</div>` : '<span class="ko">Pendent</span>'}</td></tr>`; }).join('')}</table>` : ''}
+${res.defectes.length ? `<h2>${t('Peces defectuoses')}</h2><table><tr><th>${t('Data')}</th><th>${t('Material')}</th><th class="n">${t('Peces')}</th><th>${t('Origen')}</th><th>${t('Què li passa')}</th><th>${t('Pas')}</th><th>${t('Decisió')}</th></tr>
+${res.defectes.map(d => { const mt = mat(d.mat), r = m.perConj.get(d.conj || m.pasDe(m.perClau.get(d.clau) || {})), o = FO.ORIGENS_DEFECTE[d.origen] || {}, dc = d.decisio && FO.DECISIONS_DEFECTE[d.decisio.tipus]; return `<tr><td>${data(d.ts)}<div class="sub">${esc(d.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}${mt.proveidor ? `<div class="sub">${esc(mt.proveidor)}</div>` : ''}` : esc(d.mat)}</td><td class="n">${d.qty}</td><td>${esc((o.ico || '') + ' ' + (o.nom || d.origen))}</td><td>${esc(tm(d.tipus))}${d.descripcio ? `<div class="sub">${esc(d.descripcio)}</div>` : ''}</td><td>${r ? esc(r.conj.codi) : ''}</td><td>${dc ? `${esc(dc.ico + ' ' + dc.nom)}${d.decisio.nota ? `<div class="sub">${esc(d.decisio.nota)}</div>` : ''}<div class="sub">${data(d.decisio.ts)} · ${esc(d.decisio.op)}</div>` : `<span class="ko">${t('Pendent')}</span>`}</td></tr>`; }).join('')}</table>` : ''}
 
-${res.mancants.length ? `<h2>Mancants</h2><table><tr><th>Des de</th><th>Material</th><th>Caixetí</th><th>Pas</th><th class="n">Faltaven</th><th>Nota</th><th>Estat</th></tr>
-${res.mancants.map(x => { const mt = mat(x.mat), r = m.perConj.get(x.pas); return `<tr><td>${data(x.ts)}<div class="sub">${esc(x.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}` : esc(x.mat)}</td><td>${esc(x.clau)}</td><td>${r ? esc(r.conj.codi) : ''}</td><td class="n">${x.inicial || x.falten}</td><td>${esc(x.nota)}</td><td>${x.resolt ? `<span class="ok">✓ Arribat</span><div class="sub">${data(x.resolt.ts)} · ${esc(x.resolt.op)}</div>` : `<span class="ko">Falten ${x.falten}</span>`}</td></tr>`; }).join('')}</table>` : ''}
+${res.mancants.length ? `<h2>${t('Mancants')}</h2><table><tr><th>${t('Des de')}</th><th>${t('Material')}</th><th>${t('Caixetí')}</th><th>${t('Pas')}</th><th class="n">${t('Faltaven')}</th><th>${t('Nota')}</th><th>${t('Estat')}</th></tr>
+${res.mancants.map(x => { const mt = mat(x.mat), r = m.perConj.get(x.pas); return `<tr><td>${data(x.ts)}<div class="sub">${esc(x.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}` : esc(x.mat)}</td><td>${esc(x.clau)}</td><td>${r ? esc(r.conj.codi) : ''}</td><td class="n">${x.inicial || x.falten}</td><td>${esc(tm(x.nota))}</td><td>${x.resolt ? `<span class="ok">✓ ${t('Arribat')}</span><div class="sub">${data(x.resolt.ts)} · ${esc(x.resolt.op)}</div>` : `<span class="ko">${t('Falten {n}', { n: x.falten })}</span>`}</td></tr>`; }).join('')}</table>` : ''}
 
-${res.incidencies.length ? `<h2>Incidències</h2><table><tr><th>Data</th><th>On</th><th>Gravetat</th><th>Descripció</th><th>Resolució</th></tr>
-${res.incidencies.map(i => { const r = m.perConj.get(i.conj); return `<tr><td>${data(i.ts)}<div class="sub">${esc(i.op)}</div></td><td>${r ? esc(r.conj.codi) : ''}${i.clau ? ' · ' + esc(i.clau) : ''}</td><td>${esc(i.gravetat)}</td><td>${esc(i.text)}</td><td>${i.resolta ? `<span class="ok">✓</span> ${esc(i.resolta.text)}<div class="sub">${data(i.resolta.ts)} · ${esc(i.resolta.op)}</div>` : '<span class="ko">Oberta</span>'}</td></tr>`; }).join('')}</table>` : ''}
+${res.incidencies.length ? `<h2>${t('Incidències')}</h2><table><tr><th>${t('Data')}</th><th>${t('On')}</th><th>${t('Gravetat')}</th><th>${t('Descripció')}</th><th>${t('Resolució')}</th></tr>
+${res.incidencies.map(i => { const r = m.perConj.get(i.conj); return `<tr><td>${data(i.ts)}<div class="sub">${esc(i.op)}</div></td><td>${r ? esc(r.conj.codi) : ''}${i.clau ? ' · ' + esc(i.clau) : ''}</td><td>${esc(t(i.gravetat))}</td><td>${esc(tm(i.text))}</td><td>${i.resolta ? `<span class="ok">✓</span> ${esc(tm(i.resolta.text))}<div class="sub">${data(i.resolta.ts)} · ${esc(i.resolta.op)}</div>` : `<span class="ko">${t('Oberta')}</span>`}</td></tr>`; }).join('')}</table>` : ''}
 
-${materials.length ? `<h2>Material</h2><table><tr><th>Codi</th><th>Material</th><th class="n">Posat a caixes</th><th class="n">Consumit</th><th class="n">Estoc ara</th></tr>
+${materials.length ? `<h2>${t('Material')}</h2><table><tr><th>${t('Codi')}</th><th>${t('Material')}</th><th class="n">${t('Posat a caixes')}</th><th class="n">${t('Consumit')}</th><th class="n">${t('Estoc ara')}</th></tr>
 ${materials.map(x => `<tr><td><b>${esc(x.codi)}</b></td><td>${esc(x.nom)}</td><td class="n">${res.posat[x.id] || ''}</td><td class="n">${res.consumit[x.id] || ''}</td><td class="n">${p.estoc[x.id] != null ? p.estoc[x.id] : ''}</td></tr>`).join('')}</table>` : ''}
 
-${res.persones.length ? `<h2>Persones</h2><table><tr><th>Persona</th><th>Rols</th><th class="n">Caixetins omplerts</th><th class="n">Passos muntats</th><th class="n">Verificats</th><th class="n">Rebutjats</th><th class="n">Accions</th></tr>
+${res.persones.length ? `<h2>${t('Persones')}</h2><table><tr><th>${t('Persona')}</th><th>${t('Rols')}</th><th class="n">${t('Caixetins omplerts')}</th><th class="n">${t('Passos muntats')}</th><th class="n">${t('Verificats')}</th><th class="n">${t('Rebutjats')}</th><th class="n">${t('Accions')}</th></tr>
 ${res.persones.map(q => `<tr><td>${esc(q.nom)}</td><td>${q.rols.map(r => esc((FO.ROLS[r] || { nom: r }).nom)).join(', ')}</td><td class="n">${q.omplerts || ''}</td><td class="n">${q.muntats || ''}</td><td class="n">${q.verificats || ''}</td><td class="n">${q.rebutjats || ''}</td><td class="n">${q.accions}</td></tr>`).join('')}</table>` : ''}
 
-<h2>Registre de traçabilitat</h2>
-<table><tr><th>Data</th><th>Persona</th><th>Rol</th><th>Acció</th></tr>
-${p.registre.slice().sort((a, b) => String(a.ts).localeCompare(b.ts)).map(x => `<tr><td style="white-space:nowrap">${data(x.ts)}</td><td>${esc(x.op)}</td><td>${esc((FO.ROLS[x.rol] || { nom: '' }).nom)}</td><td>${esc(x.text)}</td></tr>`).join('') || '<tr><td colspan="4">Encara no hi ha res.</td></tr>'}
+<h2>${t('Registre de traçabilitat')}</h2>
+<table><tr><th>${t('Data')}</th><th>${t('Persona')}</th><th>${t('Rol')}</th><th>${t('Acció')}</th></tr>
+${p.registre.slice().sort((a, b) => String(a.ts).localeCompare(b.ts)).map(x => `<tr><td style="white-space:nowrap">${data(x.ts)}</td><td>${esc(x.op)}</td><td>${esc((FO.ROLS[x.rol] || { nom: '' }).nom)}</td><td>${esc(tm(x.text))}</td></tr>`).join('') || `<tr><td colspan="4">${t('Encara no hi ha res.')}</td></tr>`}
 </table>
 
-<div class="firma"><div>Responsable${p.tancada ? ': ' + esc(p.tancada.op) + ' · ' + data(p.tancada.ts) : ''}</div><div>Qualitat</div></div>
-<p class="sub" style="margin-top:20px">Generat per FOrdre ${esc(FO.VERSIO || '')} · ${data(new Date().toISOString())}</p>
+<div class="firma"><div>${t('Responsable')}${p.tancada ? ': ' + esc(p.tancada.op) + ' · ' + data(p.tancada.ts) : ''}</div><div>${t('Qualitat')}</div></div>
+<p class="sub" style="margin-top:20px">${t('Generat per FOrdre {v}', { v: esc(FO.VERSIO || '') })} · ${data(new Date().toISOString())}</p>
 </body></html>`;
     };
 })(typeof window !== 'undefined' ? window : globalThis);

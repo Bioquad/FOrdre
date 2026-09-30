@@ -15,6 +15,7 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
     const r05 = v => Math.ceil(v * 2 - 1e-9) / 2; // arrodoneix a 0,5 mm per amunt
 
     // Una peça ha d'anar dreta si porta líquids o no tolera tombar-se del tot
@@ -102,7 +103,7 @@
         W = r05(Math.max(W, cfg.minCaixeti));
         D = r05(Math.max(D, cfg.minCaixeti));
         prof = r05(Math.max(prof, 5));
-        if (o.h > prof + 0.01 && mode !== 'granel') avisos.push(`sobresurt ${r05(o.h - prof)} mm del caixetí`);
+        if (o.h > prof + 0.01 && mode !== 'granel') avisos.push(t('sobresurt {mm} mm del caixetí', { mm: r05(o.h - prof) }));
         return { mat: m, qty, mode, W, D, prof, cel, o, avisos, pes: qty * m.pes };
     };
 
@@ -111,7 +112,7 @@
         const c = FO.calculaCaixeti(m, qty, cfg, maxW, maxD);
         const cap = (c.W <= maxW && c.D <= maxD) || (c.D <= maxW && c.W <= maxD);
         if (cap) return [c];
-        if (qty <= 1) { c.fora = true; c.avisos.push('no cap al llit de la impressora: cal preparar-la fora de safata'); return [c]; }
+        if (qty <= 1) { c.fora = true; c.avisos.push(t('no cap al llit de la impressora: cal preparar-la fora de safata')); return [c]; }
         const a = Math.ceil(qty / 2);
         return FO.caixetinsMaterial(m, a, cfg, maxW, maxD).concat(FO.caixetinsMaterial(m, qty - a, cfg, maxW, maxD));
     };
@@ -245,8 +246,8 @@
         });
         const angle = Math.min(cfg.inclinacio || 0, ...caixetins.map(c => c.mat.angleMax));
         const avisos = [];
-        if (H > cfg.llit.z) avisos.push(`alçada ${H} mm superior a la del llit (${cfg.llit.z} mm)`);
-        if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
+        if (H > cfg.llit.z) avisos.push(t('alçada {h} mm superior a la del llit ({z} mm)', { h: H, z: cfg.llit.z }));
+        if ((cfg.inclinacio || 0) > angle) avisos.push(t('inclinació limitada a {a}° per peces que no es poden tombar', { a: angle }));
         return {
             id, tipus, forma: 'safata', conj, W: r05(dist.W + 2 * cfg.paret), D: r05(dist.D + 2 * cfg.paret), H, angle,
             paret: cfg.paret, caixetins, avisos, pes: caixetins.reduce((a, c) => a + c.pes, 0)
@@ -281,7 +282,7 @@
             o.cim = Math.max(...o.caixes.map(q => (o.fons || cfg.terra) + Math.max(q.obj.H, q.obj.cim) + FO.gruixTapaDe(q.obj, cfg)));
             // apilable: prou alt perquè el peu del contenidor de dalt no toqui les caixes de dins
             if (o.apilable) o.H = r05(Math.max(o.H, o.cim + FO.PEU_APILABLE + 0.5));
-            if (o.H > cfg.llit.z) o.avisos.push(`alçada ${o.H} mm superior a la del llit (${cfg.llit.z} mm)`);
+            if (o.H > cfg.llit.z) o.avisos.push(t('alçada {h} mm superior a la del llit ({z} mm)', { h: o.H, z: cfg.llit.z }));
             return;
         }
         o.cim = Math.max(0, ...o.caixetins.map(c => c.z + altContingut(c)));
@@ -290,10 +291,10 @@
             if (tanc !== 'llavi' || cfg.llaviAmple <= 0) return;
             const L = Math.floor(Math.max(0, Math.min(cfg.llaviAmple, llaviMaxim(c, cfg))) * 10) / 10;
             c.llavi = L;
-            if (L < cfg.llaviAmple - 0.05) c.avisos.push(L > 0 ? `llavi reduït a ${L} mm perquè la peça hi passi` : 'sense llavi: la peça no hi passaria');
+            if (L < cfg.llaviAmple - 0.05) c.avisos.push(L > 0 ? t('llavi reduït a {mm} mm perquè la peça hi passi', { mm: L }) : t('sense llavi: la peça no hi passaria'));
         });
         if (tanc === 'pressio' || tanc === 'imants') {
-            if (o.cim > o.H + 0.01) o.avisos.push(`la tapa porta un marc de ${Math.ceil(o.cim - o.H + 1)} mm perquè hi ha peces que sobresurten`);
+            if (o.cim > o.H + 0.01) o.avisos.push(t('la tapa porta un marc de {mm} mm perquè hi ha peces que sobresurten', { mm: Math.ceil(o.cim - o.H + 1) }));
         }
     }
 
@@ -303,7 +304,7 @@
         const H = r05(cfg.terra + c.prof + cfg.llavi);
         const cc = Object.assign({}, c, { x: p, y: p, w: c.W, d: c.D, z: cfg.terra, girat: false });
         const avisos = [];
-        if (H > cfg.llit.z) avisos.push(`alçada ${H} mm superior a la del llit (${cfg.llit.z} mm)`);
+        if (H > cfg.llit.z) avisos.push(t('alçada {h} mm superior a la del llit ({z} mm)', { h: H, z: cfg.llit.z }));
         return {
             id, tipus: tipus || (c.mat.esd ? 'esd' : 'kit'), forma: 'caixa', conj,
             W: r05(c.W + 2 * p), D: r05(c.D + 2 * p), H, angle: 0, paret: p, caixetins: [cc], avisos, pes: c.pes
@@ -349,7 +350,7 @@
             const totsCaix = caixes.flatMap(c => c.obj.caixetins);
             const angle = Math.min(cfg.inclinacio || 0, ...totsCaix.map(c => c.mat.angleMax));
             const avisos = [];
-            if ((cfg.inclinacio || 0) > angle) avisos.push(`inclinació limitada a ${angle}° per peces que no es poden tombar`);
+            if ((cfg.inclinacio || 0) > angle) avisos.push(t('inclinació limitada a {a}° per peces que no es poden tombar', { a: angle }));
             const cont = {
                 id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j) + 2 * zona), D: r05(dist.D + 2 * (pc + j)), H,
                 angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
@@ -380,7 +381,7 @@
             o.material = esd ? cfg.materialESD : conj.materialCaixa || cfg.materialCaixa;
             o.color = conj.colorCaixa || cfg.colorCaixa;
         }
-        if (esd && !(FO.MATERIALS_IMPRESSIO[o.material] || {}).esd) o.avisos.push('peces sensibles a l\'ESD en un material no antiestàtic');
+        if (esd && !(FO.MATERIALS_IMPRESSIO[o.material] || {}).esd) o.avisos.push(t('peces sensibles a l\'ESD en un material no antiestàtic'));
     }
 
     // Tots els objectes que s'imprimeixen (contenidors, caixes, safates), en pla

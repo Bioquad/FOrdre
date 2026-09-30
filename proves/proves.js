@@ -5,7 +5,7 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-for (const f of ['fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir', 'fo-progres', 'fo-informe']) require(path.join(__dirname, '..', 'js', f + '.js'));
+for (const f of ['fo-i18n', 'fo-idiomes', 'fo-dades', 'fo-calcul', 'fo-stl', 'fo-importa', 'fo-etiquetes', 'fo-compartir', 'fo-progres', 'fo-informe']) require(path.join(__dirname, '..', 'js', f + '.js'));
 const FO = globalThis.FO;
 globalThis.qrcode = require(path.join(__dirname, '..', 'vendor', 'qrcode.js'));   // per als QR gravats
 const jsQR = require(path.join(__dirname, '..', 'vendor', 'jsQR.js'));
@@ -463,6 +463,51 @@ prova('CSV RFID amb EPC de 24 dígits hexadecimals', () => {
     const l = FO.csvEtiquetes(et).trim().split('\n');
     assert(l.length === et.length + 1);
     assert(/;[0-9A-F]{24}$/.test(l[1]), l[1]);
+});
+
+console.log('Idiomes');
+prova('diccionaris complets: cada text del codi té castellà i anglès amb els mateixos {marcadors}', () => {
+    // tots els t('…'), tc('…') i FO.t('…') amb un literal com a primer argument
+    const falten = [], mal = [];
+    const ph = s => (s.match(/\{\w+\}/g) || []).sort().join();
+    const fitxers = fs.readdirSync(path.join(__dirname, '..', 'js')).filter(f => /^fo-.*\.js$/.test(f) && !['fo-idiomes.js', 'fo-i18n.js'].includes(f)).map(f => path.join('js', f)).concat([path.join('servidor', 'fordre-servidor.js')]);
+    for (const f of fitxers) {
+        const s = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+        const re = /(?:^|[^\w.])(?:t|tc|FO\.t)\(\s*'((?:[^'\\]|\\.)*)'/g;
+        let m;
+        while ((m = re.exec(s))) {
+            const k = m[1].replace(/\\'/g, "'").replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+            if (!/\p{L}/u.test(k)) continue;
+            for (const L of ['es', 'en']) {
+                if (FO.TRAD[L][k] == null) falten.push(`${L} · ${f}: ${k}`);
+                else if (ph(FO.TRAD[L][k]) !== ph(k)) mal.push(`${L} · ${k}`);
+            }
+        }
+    }
+    assert(!falten.length, 'sense traducció:\n      ' + falten.slice(0, 10).join('\n      '));
+    assert(!mal.length, 'marcadors diferents:\n      ' + mal.slice(0, 10).join('\n      '));
+    FO.TRAD_LLISTA.forEach(([ca, es, en]) => assert(ph(es) === ph(ca) && ph(en) === ph(ca), ca));
+});
+prova('FO.t: tradueix, omple els marcadors i torna el català si no hi ha traducció', () => {
+    assert(FO.t('Pas {n}', { n: 3 }) === 'Pas 3');
+    assert(FO.t('Pas {n}', { n: 3 }, 'es') === 'Paso 3');
+    assert(FO.t('Pas {n}', { n: 3 }, 'en') === 'Step 3');
+    assert(FO.t('Text que no existeix', null, 'en') === 'Text que no existeix');
+});
+prova('FO.tMissatge: tradueix missatges del servidor i del registre ja omplerts', () => {
+    assert(FO.tMissatge('Nom o PIN incorrectes', 'en') === 'Incorrect name or PIN');
+    assert(FO.tMissatge('Cal el rol de Qualitat', 'es') === 'Hace falta el rol de Calidad');
+    assert(FO.tMissatge('Pas 2 · MOT: rebutjat · falta un cargol', 'en') === 'Step 2 · MOT: rejected · falta un cargol');
+    assert(FO.tMissatge('💥 PL-001 ×1: venia defectuosa (Trencada) · es demana recanvi', 'es') === '💥 PL-001 ×1: venía defectuosa (Rota) · se pide recambio', FO.tMissatge('💥 PL-001 ×1: venia defectuosa (Trencada) · es demana recanvi', 'es'));
+    assert(FO.tMissatge('Recanvi de 2 (Trencada)', 'en') === 'Replacement of 2 (Broken)');
+    assert(FO.tMissatge('un text lliure qualsevol', 'en') === 'un text lliure qualsevol');
+});
+prova('plantilla CSV en castellà i anglès: l\'importador en reconeix totes les columnes', () => {
+    for (const L of ['es', 'en']) {
+        const capcal = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'pes', 'tipus', 'forma', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes', 'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa'].map(c => FO.t('csv:' + c, null, L).replace(/^csv:/, ''));
+        const map = FO.detectaColumnes(capcal);
+        assert(Object.keys(map).length === capcal.length, `${L}: ${Object.keys(map).length}/${capcal.length} · ${capcal.filter((c, i) => !Object.values(map).includes(i)).join(', ')}`);
+    }
 });
 
 console.log('Compartir amb el mòbil');

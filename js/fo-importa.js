@@ -16,42 +16,43 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
     FO.CAMPS_IMPORT = {
-        conjunt: { nom: 'Conjunt (codi)', sin: ['conjunt', 'codi conjunt', 'conjunt codi', 'assembly', 'grup', 'group', 'conjunto', 'subassembly'] },
-        conjuntNom: { nom: 'Conjunt (nom)', sin: ['nom conjunt', 'nom del conjunt', 'assembly name', 'nombre conjunto', 'group name'] },
-        pare: { nom: 'Conjunt pare', sin: ['pare', 'parent', 'padre', 'conjunt pare', 'parent assembly'] },
-        nivell: { nom: 'Nivell (BOM)', sin: ['nivell', 'level', 'nivel', 'lvl', 'item', 'item no', 'item no.', 'item number', 'pos', 'posició', 'posicion', 'position', 'bom level', 'indent', 'núm', 'num', 'no.', '#'] },
-        codi: { nom: 'Codi material', sin: ['codi', 'code', 'part number', 'partnumber', 'part no', 'part no.', 'part', 'pn', 'p/n', 'referència', 'referencia', 'ref', 'reference', 'número de pieza', 'numero de pieza', 'article', 'sku', 'id', 'label'] },
-        nom: { nom: 'Nom / descripció', sin: ['nom', 'name', 'description', 'descripció', 'descripcion', 'descripción', 'denominació', 'denominacion', 'title', 'designation', 'nombre', 'component name', 'part name'] },
-        qty: { nom: 'Quantitat', sin: ['quantitat', 'qty', 'qty.', 'quantity', 'cantidad', 'qt', 'qtat', 'uds', 'units', 'unitats', 'count', 'cant', 'n'] },
-        x: { nom: 'Llarg X', sin: ['x', 'llarg', 'llargada', 'length', 'largo', 'longitud', 'l', 'dim x', 'size x', 'bounding box x'] },
-        y: { nom: 'Ample Y', sin: ['y', 'ample', 'amplada', 'width', 'ancho', 'anchura', 'w', 'dim y', 'size y', 'bounding box y'] },
-        z: { nom: 'Alt Z', sin: ['z', 'alt', 'alçada', 'alcada', 'height', 'alto', 'altura', 'h', 'gruix', 'thickness', 'espesor', 'dim z', 'size z', 'bounding box z'] },
-        pes: { nom: 'Pes', sin: ['pes', 'weight', 'peso', 'mass', 'massa', 'masa'] },
-        tipus: { nom: 'Tipus', sin: ['tipus', 'type', 'tipo', 'categoria', 'category'] },
-        forma: { nom: 'Forma', sin: ['forma', 'shape'] },
-        esd: { nom: 'Sensible ESD', sin: ['esd', 'electrostàtica', 'electrostatica', 'electrostatic', 'antiestàtic', 'antistatic'] },
-        liquid: { nom: 'Conté líquid', sin: ['liquid', 'líquid', 'líquido', 'liquido', 'fluid', 'fluids', 'fluido'] },
-        angleMax: { nom: 'Angle màxim', sin: ['angle max', 'angle màxim', 'angle maxim', 'angle', 'max tilt', 'inclinació', 'inclinacion', 'tilt'] },
-        apilable: { nom: 'Apilable', sin: ['apilable', 'stackable', 'apilar'] },
-        maxApilat: { nom: 'Màx. apilat', sin: ['max apilat', 'màx apilat', 'max stack', 'maxapilat'] },
-        fragil: { nom: 'Fragilitat 0-10', sin: ['fragil', 'fràgil', 'fragilitat', 'fragile', 'fragility', 'fragilidad'] },
-        disposicio: { nom: 'Disposició', sin: ['disposicio', 'disposició', 'disposicion', 'layout', 'arrangement'] },
-        col: { nom: 'Color', sin: ['color', 'colour', 'col'] },
-        origen: { nom: 'Origen', sin: ['origen', 'origin', 'make/buy', 'make buy', 'fabricat/comprat'] },
-        proveidor: { nom: 'Proveïdor', sin: ['proveidor', 'proveïdor', 'proveedor', 'supplier', 'vendor', 'fabricant', 'manufacturer'] },
-        notes: { nom: 'Notes', sin: ['notes', 'comments', 'comentaris', 'observacions', 'observaciones', 'remarks'] },
+        conjunt: { nom: t('Conjunt (codi)'), sin: ['conjunt', 'codi conjunt', 'conjunt codi', 'assembly', 'grup', 'group', 'conjunto', 'subassembly'] },
+        conjuntNom: { nom: t('Conjunt (nom)'), sin: ['nom conjunt', 'nom del conjunt', 'assembly name', 'nombre conjunto', 'group name'] },
+        pare: { nom: t('Conjunt pare'), sin: ['pare', 'parent', 'padre', 'conjunt pare', 'parent assembly'] },
+        nivell: { nom: t('Nivell (BOM)'), sin: ['nivell', 'level', 'nivel', 'lvl', 'item', 'item no', 'item no.', 'item number', 'pos', 'posició', 'posicion', 'position', 'bom level', 'indent', 'núm', 'num', 'no.', '#'] },
+        codi: { nom: t('Codi material'), sin: ['codigo', 'codi', 'code', 'part number', 'partnumber', 'part no', 'part no.', 'part', 'pn', 'p/n', 'referència', 'referencia', 'ref', 'reference', 'número de pieza', 'numero de pieza', 'article', 'sku', 'id', 'label'] },
+        nom: { nom: t('Nom / descripció'), sin: ['nom', 'name', 'description', 'descripció', 'descripcion', 'descripción', 'denominació', 'denominacion', 'title', 'designation', 'nombre', 'component name', 'part name'] },
+        qty: { nom: t('Quantitat'), sin: ['quantitat', 'qty', 'qty.', 'quantity', 'cantidad', 'qt', 'qtat', 'uds', 'units', 'unitats', 'count', 'cant', 'n'] },
+        x: { nom: t('Llarg X'), sin: ['x', 'llarg', 'llargada', 'length', 'largo', 'longitud', 'l', 'dim x', 'size x', 'bounding box x'] },
+        y: { nom: t('Ample Y'), sin: ['y', 'ample', 'amplada', 'width', 'ancho', 'anchura', 'w', 'dim y', 'size y', 'bounding box y'] },
+        z: { nom: t('Alt Z'), sin: ['z', 'alt', 'alçada', 'alcada', 'height', 'alto', 'altura', 'h', 'gruix', 'thickness', 'espesor', 'dim z', 'size z', 'bounding box z'] },
+        pes: { nom: t('Pes'), sin: ['pes', 'weight', 'peso', 'mass', 'massa', 'masa'] },
+        tipus: { nom: t('Tipus'), sin: ['tipus', 'type', 'tipo', 'categoria', 'category'] },
+        forma: { nom: t('Forma'), sin: ['forma', 'shape'] },
+        esd: { nom: t('Sensible ESD'), sin: ['esd', 'electrostàtica', 'electrostatica', 'electrostatic', 'antiestàtic', 'antistatic'] },
+        liquid: { nom: t('Conté líquid'), sin: ['liquid', 'líquid', 'líquido', 'liquido', 'fluid', 'fluids', 'fluido'] },
+        angleMax: { nom: t('Angle màxim'), sin: ['angulo max', 'angulo maximo', 'max angle', 'angle max', 'angle màxim', 'angle maxim', 'angle', 'max tilt', 'inclinació', 'inclinacion', 'tilt'] },
+        apilable: { nom: t('Apilable'), sin: ['apilable', 'stackable', 'apilar'] },
+        maxApilat: { nom: t('Màx. apilat'), sin: ['max apilado', 'max apilados', 'max apilat', 'màx apilat', 'max stack', 'maxapilat'] },
+        fragil: { nom: t('Fragilitat 0-10'), sin: ['fragilidad', 'fragil', 'fràgil', 'fragilitat', 'fragile', 'fragility', 'fragilidad'] },
+        disposicio: { nom: t('Disposició'), sin: ['disposicio', 'disposició', 'disposicion', 'layout', 'arrangement'] },
+        col: { nom: t('Color'), sin: ['color', 'colour', 'col'] },
+        origen: { nom: t('Origen'), sin: ['origen', 'origin', 'make/buy', 'make buy', 'fabricat/comprat'] },
+        proveidor: { nom: t('Proveïdor'), sin: ['proveidor', 'proveïdor', 'proveedor', 'supplier', 'vendor', 'fabricant', 'manufacturer'] },
+        notes: { nom: t('Notes'), sin: ['notas', 'notes', 'comments', 'comentaris', 'observacions', 'observaciones', 'remarks'] },
         // dades de muntatge (element dins el conjunt)
-        parell: { nom: 'Parell de collada (N·m)', sin: ['parell', 'parell collada', 'parell de collada', 'torque', 'par', 'par de apriete', 'nm', 'n·m', 'apriete'] },
-        nota: { nom: 'Nota de muntatge', sin: ['nota', 'nota muntatge', 'nota de muntatge', 'assembly note', 'nota montaje', 'nota de montaje', 'indicacio', 'indicació'] },
+        parell: { nom: t('Parell de collada (N·m)'), sin: ['parell', 'parell collada', 'parell de collada', 'torque', 'par', 'par de apriete', 'nm', 'n·m', 'apriete'] },
+        nota: { nom: t('Nota de muntatge'), sin: ['nota', 'nota muntatge', 'nota de muntatge', 'assembly note', 'nota montaje', 'nota de montaje', 'indicacio', 'indicació'] },
         // dades del conjunt (a la fila del conjunt o a la fila de nivell superior de la BOM)
-        instruccions: { nom: 'Instruccions (conjunt)', sin: ['instruccions', 'instrucciones', 'instructions', 'passos', 'pasos', 'steps', 'procediment', 'procedimiento'] },
-        eines: { nom: 'Eines (conjunt)', sin: ['eines', 'herramientas', 'tools', 'utillatge', 'utillaje'] },
-        tancament: { nom: 'Tancament (conjunt)', sin: ['tancament', 'cierre', 'closure', 'tapa', 'lid'] },
-        formatKit: { nom: 'Format del kit (conjunt)', sin: ['format kit', 'format del kit', 'formato kit', 'kit format', 'format'] },
-        caixaMaterial: { nom: 'Material de la caixa', sin: ['material caixa', 'material de la caixa', 'material caja', 'box material', 'filament'] },
-        caixaColor: { nom: 'Color de la caixa', sin: ['color caixa', 'color de la caixa', 'color caja', 'box color'] }
+        instruccions: { nom: t('Instruccions (conjunt)'), sin: ['instruccions', 'instrucciones', 'instructions', 'passos', 'pasos', 'steps', 'procediment', 'procedimiento'] },
+        eines: { nom: t('Eines (conjunt)'), sin: ['eines', 'herramientas', 'tools', 'utillatge', 'utillaje'] },
+        tancament: { nom: t('Tancament (conjunt)'), sin: ['tancament', 'cierre', 'closure', 'tapa', 'lid'] },
+        formatKit: { nom: t('Format del kit (conjunt)'), sin: ['format kit', 'format del kit', 'formato kit', 'kit format', 'format'] },
+        caixaMaterial: { nom: t('Material de la caixa'), sin: ['material caixa', 'material de la caixa', 'material caja', 'box material', 'filament'] },
+        caixaColor: { nom: t('Color de la caixa'), sin: ['box colour', 'color caixa', 'color de la caixa', 'color caja', 'box color'] }
     };
 
     const net = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -87,7 +88,7 @@
             const rd = new FileReader();
             rd.onerror = () => ko(rd.error);
             if (/\.(xlsx|xlsm|xls|ods)$/.test(nom)) {
-                if (!G.XLSX) return ko(new Error('No s\'ha pogut carregar el lector d\'Excel. Desa el full com a CSV.'));
+                if (!G.XLSX) return ko(new Error(t('No s\'ha pogut carregar el lector d\'Excel. Desa el full com a CSV.')));
                 rd.onload = () => {
                     try {
                         const wb = G.XLSX.read(new Uint8Array(rd.result), { type: 'array' });
@@ -123,7 +124,7 @@
         for (const passada of [0, 1]) {
             for (const [camp, def] of Object.entries(FO.CAMPS_IMPORT)) {
                 if (map[camp] !== undefined) continue;
-                const i = cap.findIndex((h, k) => !usat.has(k) && h && def.sin.some(s =>
+                const i = cap.findIndex((h, k) => !usat.has(k) && h && def.sin.map(net).some(s =>
                     passada === 0 ? h === s : (s.length > 2 && (h.startsWith(s + ' ') || h.endsWith(' ' + s)))));
                 if (i >= 0) { map[camp] = i; usat.add(i); }
             }
@@ -209,7 +210,7 @@
             if (!m.codi) return null;
             const ex = materials.get(m.codi);
             if (ex) { Object.keys(m).forEach(k => { if (ex[k] === undefined && m[k] !== undefined) ex[k] = m[k]; }); return ex; }
-            if (!teMides(m)) avisos.push(`Fila ${fila}: ${m.codi} sense mides completes (s'usen 10 mm)`);
+            if (!teMides(m)) avisos.push(t('Fila {fila}: {codi} sense mides completes (s\'usen 10 mm)', { fila, codi: m.codi }));
             const nou = Object.assign({ id: 'm:' + m.codi }, m);
             materials.set(m.codi, nou);
             return nou;
@@ -254,7 +255,7 @@
                     pila.push({ prof: d.prof, conj: c });
                 } else {
                     const mat = afegeixMaterial(d.m, d.fila);
-                    if (!pare) { avisos.push(`Fila ${d.fila}: ${d.m.codi} sense conjunt; s'ha posat a «Solts»`); afegeixItem(conjunt('SOLTS', 'Peces soltes'), mat, q, dadesItem(d.f, map)); }
+                    if (!pare) { avisos.push(t('Fila {fila}: {codi} sense conjunt; s\'ha posat a «Solts»', { fila: d.fila, codi: d.m.codi })); afegeixItem(conjunt('SOLTS', t('Peces soltes')), mat, q, dadesItem(d.f, map)); }
                     else afegeixItem(pare, mat, q, dadesItem(d.f, map));
                 }
             });
@@ -356,31 +357,32 @@
     // Text breu d'una revisió
     FO.textDiff = function (d) {
         const l = [];
-        if (d.matNous.length) l.push(`Materials nous: ${d.matNous.join(', ')}`);
-        if (d.matEliminats.length) l.push(`Materials eliminats: ${d.matEliminats.join(', ')}`);
-        d.matCanviats.forEach(c => l.push(`${c.codi}: canvia ${c.camps.join(', ')}`));
-        if (d.conjNous.length) l.push(`Conjunts nous: ${d.conjNous.join(', ')}`);
-        if (d.conjEliminats.length) l.push(`Conjunts eliminats: ${d.conjEliminats.join(', ')}`);
+        if (d.matNous.length) l.push(t('Materials nous: {llista}', { llista: d.matNous.join(', ') }));
+        if (d.matEliminats.length) l.push(t('Materials eliminats: {llista}', { llista: d.matEliminats.join(', ') }));
+        d.matCanviats.forEach(c => l.push(t('{codi}: canvia {camps}', { codi: c.codi, camps: c.camps.map(x => t(x)).join(', ') })));
+        if (d.conjNous.length) l.push(t('Conjunts nous: {llista}', { llista: d.conjNous.join(', ') }));
+        if (d.conjEliminats.length) l.push(t('Conjunts eliminats: {llista}', { llista: d.conjEliminats.join(', ') }));
         d.quantitats.forEach(q => l.push(`${q.conj} · ${q.mat}: ${q.abans} → ${q.despres}`));
-        if (d.reimprimir.length) l.push(`Cal tornar a imprimir: ${d.reimprimir.join(', ')}`);
-        if (d.nous.length) l.push(`Peces noves a imprimir: ${d.nous.join(', ')}`);
-        if (d.retirar.length) l.push(`Ja no calen: ${d.retirar.join(', ')}`);
+        if (d.reimprimir.length) l.push(t('Cal tornar a imprimir: {llista}', { llista: d.reimprimir.join(', ') }));
+        if (d.nous.length) l.push(t('Peces noves a imprimir: {llista}', { llista: d.nous.join(', ') }));
+        if (d.retirar.length) l.push(t('Ja no calen: {llista}', { llista: d.retirar.join(', ') }));
         return l;
     };
 
     // Plantilla CSV del format pla
     FO.plantillaCSV = function () {
+        // capçaleres en l'idioma triat: l'importador les reconeix en català, castellà i anglès
         const cap = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'x', 'y', 'z', 'pes', 'tipus', 'forma', 'esd', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes',
-            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa'];
+            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa'].map(c => t('csv:' + c).replace(/^csv:/, ''));
         const buit = n => Array(n).fill('');
         const f = [
-            ['MAQ', 'Màquina completa', '', '', '', '1', ...buit(13), '#4A90D9', '', '', 'fila de conjunt (sense codi de material)', '', '', 'Muntatge final | Prova de funcionament', '', '', 'mixt', '', ''],
-            ['XAS', 'Xassís', 'MAQ', 'PL-001', 'Placa base alumini', '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', 'Presentar les plaques | Muntar els escaires | Collar en creu', 'Clau Allen 3 mm, clau dinamomètrica', 'llavi', '', '', ''],
-            ['XAS', 'Xassís', 'MAQ', 'CRG-M4x10', 'Cargol DIN912 M4x10', '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', 'En creu', '', '', '', '', '', ''],
-            ['XAS', 'Xassís', 'MAQ', 'CON-01', 'Frenafils 243', '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', 'Una gota a cada cargol', '', '', '', '', 'PETG', '#FDD835'],
-            ['MOT', 'Grup motor', 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', 'conjunt muntat: mides de la peça acabada, 2 unitats', '', '', 'Encarar el motor | Collar els 4 cargols', 'Clau Allen 2,5 mm', 'pressio', 'contenidor', '', ''],
-            ['MOT', 'Grup motor', 'XAS', 'MT-050', 'Motor NEMA17', '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', ''],
-            ['ELE', 'Electrònica', 'MAQ', 'PCB-100', 'Placa de control', '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', 'Manipular per les vores', 'Polsera antiestàtica | Muntar els separadors', 'Tornavís PH1', 'imants', '', '', '']
+            ['MAQ', t('Màquina completa'), '', '', '', '1', ...buit(13), '#4A90D9', '', '', t('fila de conjunt (sense codi de material)'), '', '', t('Muntatge final | Prova de funcionament'), '', '', 'mixt', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'PL-001', t('Placa base alumini'), '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', t('Presentar les plaques | Muntar els escaires | Collar en creu'), t('Clau Allen 3 mm, clau dinamomètrica'), 'llavi', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'CRG-M4x10', t('Cargol DIN912 M4x10'), '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', t('En creu'), '', '', '', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'CON-01', t('Frenafils 243'), '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', t('Una gota a cada cargol'), '', '', '', '', 'PETG', '#FDD835'],
+            ['MOT', t('Grup motor'), 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', t('conjunt muntat: mides de la peça acabada, 2 unitats'), '', '', t('Encarar el motor | Collar els 4 cargols'), t('Clau Allen 2,5 mm'), 'pressio', 'contenidor', '', ''],
+            ['MOT', t('Grup motor'), 'XAS', 'MT-050', t('Motor NEMA17'), '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', ''],
+            ['ELE', t('Electrònica'), 'MAQ', 'PCB-100', t('Placa de control'), '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', t('Manipular per les vores'), t('Polsera antiestàtica | Muntar els separadors'), t('Tornavís PH1'), 'imants', '', '', '']
         ];
         return '﻿' + [cap].concat(f).map(r => r.join(';')).join('\n') + '\n';
     };

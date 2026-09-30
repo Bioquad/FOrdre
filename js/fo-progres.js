@@ -26,14 +26,15 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js (al servidor, sempre en català)
     const MAX_VIST = 20000, MAX_REG = 5000;
 
     // ─── Rols ───
     FO.ROLS = {
-        magatzem: { nom: 'Magatzem', ico: '📦', desc: 'Omple les caixes amb el material i porta l\'estoc.' },
-        muntador: { nom: 'Muntador', ico: '🔧', desc: 'Agafa les caixes, munta els conjunts i torna les caixes buides.' },
-        qualitat: { nom: 'Qualitat', ico: '✅', desc: 'Verifica els passos muntats: aprova o rebutja amb motiu.' },
-        responsable: { nom: 'Responsable', ico: '📋', desc: 'Organitza la feina, resol incidències, gestiona persones i ordres.' }
+        magatzem: { nom: t('Magatzem'), ico: '📦', desc: t('Omple les caixes amb el material i porta l\'estoc.') },
+        muntador: { nom: t('Muntador'), ico: '🔧', desc: t('Agafa les caixes, munta els conjunts i torna les caixes buides.') },
+        qualitat: { nom: t('Qualitat'), ico: '✅', desc: t('Verifica els passos muntats: aprova o rebutja amb motiu.') },
+        responsable: { nom: t('Responsable'), ico: '📋', desc: t('Organitza la feina, resol incidències, gestiona persones i ordres.') }
     };
 
     // Qui pot fer cada operació (el Responsable ho pot fer tot)
@@ -53,21 +54,21 @@
 
     // ─── Estats derivats ───
     FO.ESTATS_PAS = {
-        pendent: { nom: 'Pendent', col: '#8888A0' },
-        preparat: { nom: 'Preparat', col: '#E8A838' },
-        'en curs': { nom: 'En curs', col: '#4A90D9' },
-        parcial: { nom: 'Muntat amb mancants', col: '#F57C00' },
-        muntat: { nom: 'Muntat', col: '#7E57C2' },
-        rebutjat: { nom: 'Rebutjat', col: '#E53935' },
-        verificat: { nom: 'Verificat', col: '#43A047' }
+        pendent: { nom: t('Pendent'), col: '#8888A0' },
+        preparat: { nom: t('Preparat'), col: '#E8A838' },
+        'en curs': { nom: t('En curs'), col: '#4A90D9' },
+        parcial: { nom: t('Muntat amb mancants'), col: '#F57C00' },
+        muntat: { nom: t('Muntat'), col: '#7E57C2' },
+        rebutjat: { nom: t('Rebutjat'), col: '#E53935' },
+        verificat: { nom: t('Verificat'), col: '#43A047' }
     };
     FO.ESTATS_CAIXA = {
-        buida: { nom: 'Buida', col: '#8888A0' },
-        parcial: { nom: 'Omplint-se', col: '#E8A838' },
-        mancant: { nom: 'Amb mancants', col: '#F57C00' },
-        plena: { nom: 'Plena', col: '#4A90D9' },
-        'en ús': { nom: 'En ús', col: '#7E57C2' },
-        retornada: { nom: 'Retornada', col: '#43A047' }
+        buida: { nom: t('Buida'), col: '#8888A0' },
+        parcial: { nom: t('Omplint-se'), col: '#E8A838' },
+        mancant: { nom: t('Amb mancants'), col: '#F57C00' },
+        plena: { nom: t('Plena'), col: '#4A90D9' },
+        'en ús': { nom: t('En ús'), col: '#7E57C2' },
+        retornada: { nom: t('Retornada'), col: '#43A047' }
     };
 
     FO.progresBuit = () => ({
@@ -123,6 +124,7 @@
     FO.mancantsOberts = p => Object.entries(p.mancants || {}).filter(([, m]) => !m.resolt).map(([clau, m]) => Object.assign({ clau }, m));
     // Obre, actualitza o resol el mancant d'un caixetí segons quantes peces hi falten
     function actualitzaMancant(p, clau, mat, falten, ts, qui, nota) {
+        // (les notes es desen tal com arriben; la interfície les tradueix en mostrar-les)
         const ant = p.mancants[clau], obert = ant && !ant.resolt;
         if (falten > 0) {
             p.mancants[clau] = {
@@ -139,16 +141,17 @@
     // ─── Peces defectuoses ───
     // origen: 'arribada' (ja venia malament: és del proveïdor) o 'muntatge' (s'ha trencat o fet malbé al taller)
     FO.ORIGENS_DEFECTE = {
-        arribada: { nom: 'Venia defectuosa', ico: '📦' },
-        muntatge: { nom: 'Trencada en muntar', ico: '🔧' }
+        arribada: { nom: t('Venia defectuosa'), ico: '📦' },
+        muntatge: { nom: t('Trencada en muntar'), ico: '🔧' }
     };
+    // Es desen en català (fan de clau) i es mostren amb FO.t(): així el registre es llegeix en l'idioma de cadascú
     FO.TIPUS_DEFECTE = ['Trencada', 'Mal fabricada / fora de mesura', 'Danyada en el transport', 'Peça equivocada', 'Ratllada o amb cops', 'Altres'];
     // Què se'n fa (ho decideix Qualitat)
     FO.DECISIONS_DEFECTE = {
-        retorn: { nom: 'Retornar al proveïdor', ico: '↩' },
-        ferralla: { nom: 'Ferralla', ico: '🗑' },
-        reparar: { nom: 'Reparar / recuperar', ico: '🛠' },
-        acceptada: { nom: 'Acceptar tal com està', ico: '✓' }
+        retorn: { nom: t('Retornar al proveïdor'), ico: '↩' },
+        ferralla: { nom: t('Ferralla'), ico: '🗑' },
+        reparar: { nom: t('Reparar / recuperar'), ico: '🛠' },
+        acceptada: { nom: t('Acceptar tal com està'), ico: '✓' }
     };
     FO.defectesPendents = p => (p.defectes || []).filter(d => !d.decisio);
 
@@ -157,25 +160,25 @@
     // `usuari` = { nom, rols }; si no se sap (aparell sol), no es comproven permisos.
     FO.validaOp = function (p, o, usuari, opcions) {
         opcions = Object.assign({ quatreUlls: true }, opcions || {});
-        if (p.tancada && !['reobre', 'nota'].includes(o.t)) return 'L\'ordre està tancada';
-        if (usuari && !FO.potFer(usuari.rols, o.t)) return `El teu rol no permet aquesta acció (${o.t})`;
+        if (p.tancada && !['reobre', 'nota'].includes(o.t)) return t('L\'ordre està tancada');
+        if (usuari && !FO.potFer(usuari.rols, o.t)) return t('El teu rol no permet aquesta acció ({accio})', { accio: o.t });
         if (o.t === 'verifica') {
             const f = p.fets[o.conj];
-            if (!f) return 'Aquest pas encara no està muntat';
+            if (!f) return t('Aquest pas encara no està muntat');
             if (opcions.quatreUlls && usuari && f.op && f.op === usuari.nom && !usuari.rols.includes('responsable'))
-                return 'No pots verificar un pas que has muntat tu: ho ha de fer una altra persona';
-            if (o.resultat === 'ko' && !String(o.motiu || '').trim()) return 'Per rebutjar cal indicar el motiu';
-            if (o.resultat !== 'ko' && f.pendents && f.pendents.length) return 'Hi falten peces (mancants): no es pot aprovar fins que el pas estigui complet';
+                return t('No pots verificar un pas que has muntat tu: ho ha de fer una altra persona');
+            if (o.resultat === 'ko' && !String(o.motiu || '').trim()) return t('Per rebutjar cal indicar el motiu');
+            if (o.resultat !== 'ko' && f.pendents && f.pendents.length) return t('Hi falten peces (mancants): no es pot aprovar fins que el pas estigui complet');
         }
-        if (o.t === 'manca' && !(Number(o.falten) >= 0)) return 'Cal indicar quantes peces falten';
-        if (o.t === 'defecte' && (!o.clau || !(Number(o.qty) > 0))) return 'Cal indicar la peça i quantes són defectuoses';
+        if (o.t === 'manca' && !(Number(o.falten) >= 0)) return t('Cal indicar quantes peces falten');
+        if (o.t === 'defecte' && (!o.clau || !(Number(o.qty) > 0))) return t('Cal indicar la peça i quantes són defectuoses');
         if (o.t === 'decideix') {
             const d = p.defectes.find(x => x.id === o.def);
-            if (!d) return 'Aquesta peça defectuosa no existeix';
-            if (!FO.DECISIONS_DEFECTE[o.decisio]) return 'Decisió desconeguda';
+            if (!d) return t('Aquesta peça defectuosa no existeix');
+            if (!FO.DECISIONS_DEFECTE[o.decisio]) return t('Decisió desconeguda');
         }
-        if (o.t === 'completa' && !p.fets[o.conj]) return 'Aquest pas encara no està muntat';
-        if (o.t === 'omple' && !(Number(o.qty) > 0)) return 'Cal una quantitat';
+        if (o.t === 'completa' && !p.fets[o.conj]) return t('Aquest pas encara no està muntat');
+        if (o.t === 'omple' && !(Number(o.qty) > 0)) return t('Cal una quantitat');
         return '';
     };
 
@@ -247,7 +250,7 @@
                 const om = p.omplert[o.clau];
                 if (om) om.qty = Math.max(0, om.qty - q);
                 const ant = p.mancants[o.clau];
-                actualitzaMancant(p, o.clau, o.mat, (ant && !ant.resolt ? ant.falten : 0) + q, ts, qui, `Recanvi de ${q} ${q > 1 ? 'peces' : 'peça'} (${o.tipus ? o.tipus.toLowerCase() : 'defectuosa'})`);
+                actualitzaMancant(p, o.clau, o.mat, (ant && !ant.resolt ? ant.falten : 0) + q, ts, qui, `Recanvi de ${q} (${o.tipus || 'defectuosa'})`);
                 // si el pas ja estava muntat, torna a quedar pendent d'aquesta peça (i s'haurà de tornar a verificar)
                 const f = o.conj && p.fets[o.conj];
                 if (f) {

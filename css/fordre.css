@@ -20,7 +20,7 @@ button, input, select, textarea { font-family: inherit; font-size: 11px; color: 
 .tb { min-height: 42px; background: var(--p); border-bottom: 1px solid var(--bd); display: flex; align-items: center; padding: 0 10px; gap: 5px; flex-wrap: wrap; z-index: 10 }
 .tb-t { font-size: 14px; font-weight: 700; color: var(--wh); letter-spacing: .5px; margin-right: 8px; white-space: nowrap }
 .tb-t span { color: var(--ac) }
-.tb-n { font-size: 11px; color: var(--dm); margin-right: 6px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tb-n { font-size: 11px; color: var(--dm); margin-right: 6px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .sp { width: 1px; height: 20px; background: var(--bd); margin: 0 3px; flex-shrink: 0 }
 .fl { flex: 1 }
 .b { height: 28px; padding: 0 10px; border: 1px solid var(--bd); border-radius: 5px; background: var(--p2); color: var(--dm); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all .12s; white-space: nowrap; flex-shrink: 0 }
@@ -147,3 +147,8 @@ label.f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; colo
 label.f input, label.f select { height: 28px; border: 1px solid var(--bd); border-radius: 4px; background: var(--p2); color: var(--tx); padding: 0 6px }
 .b[hidden] { display: none }
 .dlg a { color: var(--ac) }
+
+/* Selector d'idioma i text del botó de configuració a la barra (en pantalles justes només queda la icona) */
+.tb-txt { margin-left: 4px }
+#selIdioma select { padding-right: 4px }
+@media (max-width: 1560px) { .tb-txt { display: none } }
