@@ -30,19 +30,25 @@
 (function (G) {
     'use strict';
     const FO = G.FO;
+    const t = FO.t;   // textos en l'idioma triat (js/fo-i18n.js)
+    // Els textos que es desen al registre van sempre en català (fan de clau) i es
+    // tradueixen en mostrar-los (FO.tMissatge): cadascú el llegeix en el seu idioma.
+    const tc = (s, v) => FO.t(s, v, 'ca');
+    const tm = s => FO.tMissatge(s);
 
     // ═══ Utilitats ═══
     const $ = id => document.getElementById(id);
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const fmt = (v, d) => (Math.round(v * Math.pow(10, d || 0)) / Math.pow(10, d || 0)).toLocaleString('ca-ES');
-    const data = t => t ? new Date(t).toLocaleString('ca-ES', { dateStyle: 'short', timeStyle: 'short' }) : '';
-    const llegeix = k => { try { const t = localStorage.getItem(k); return t ? JSON.parse(t) : null; } catch (e) { return null; } };
+    const fmt = (v, d) => (Math.round(v * Math.pow(10, d || 0)) / Math.pow(10, d || 0)).toLocaleString(FO.locale());
+    const data = ts => ts ? new Date(ts).toLocaleString(FO.locale(), { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const llegeix = k => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } };
     const escriu = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
     const xipEstat = (e, taula) => `<span class="estat" style="background:${(taula[e] || {}).col || '#888'}">${esc((taula[e] || { nom: e }).nom)}</span>`;
     const CLAU_MOBIL = 'fordre.muntatge.projecte', CLAU_PREF = 'fordre.muntatge.pref', CLAU_SESSIO = 'fordre.muntatge.sessio';
 
+    // Avís breu a peu de pantalla. Els missatges del servidor (sempre en català) es tradueixen aquí.
     function avis(msg, ms) {
-        const a = $('avis'); a.textContent = msg; a.classList.add('on');
+        const a = $('avis'); a.textContent = FO.tMissatge(msg); a.classList.add('on');
         clearTimeout(avis.t); avis.t = setTimeout(() => a.classList.remove('on'), ms || 2200);
     }
     // So i vibració: curt i agut si va bé, llarg i greu si no
@@ -98,13 +104,13 @@
     // Qui comprova les regles abans d'aplicar una operació. Al servidor, la persona amb
     // tots els seus rols (igual que ho fa el servidor); sol, el rol que s'ha triat.
     const validador = () => srv.url ? (ses ? { nom: ses.nom, rols: ses.rols } : null) : { nom: pref.nomLocal, rols: [rol()] };
-    const pot = t => { const v = validador(); return !v || FO.potFer(v.rols, t); };
+    const pot = tipus => { const v = validador(); return !v || FO.potFer(v.rols, tipus); };
 
     // ═══ Progrés i cua, desats per projecte i ordre ═══
     const clauProg = () => `fordre.muntatge.progres.${P.id}.${ORD.id}`;
     const clauCua = () => `fordre.muntatge.cua.${P.id}.${ORD.id}`;
     const clauOrdres = () => 'fordre.muntatge.ordres.' + P.id;
-    function desaProg() { if (!escriu(clauProg(), prog)) avis('No s\'ha pogut desar el progrés (memòria plena?)'); }
+    function desaProg() { if (!escriu(clauProg(), prog)) avis(t('No s\'ha pogut desar el progrés (memòria plena?)')); }
     const desaCua = () => escriu(clauCua(), cua);
     function carregaProgres() {
         let p = llegeix(clauProg());
@@ -116,10 +122,10 @@
 
     // Crea una operació, comprova que es pot fer, l'aplica i (si hi ha servidor) l'envia.
     // Retorna l'operació, o null si les regles no la permeten.
-    function fer(t, dades, text) {
+    function fer(tipus, dades, text) {
         if (!prog) return null;
         pref.comptador = (pref.comptador || 0) + 1; desaPref();
-        const op = FO.creaOp(pref.disp, pref.comptador, t, Object.assign({ text }, dades), nomPersona(), rol());
+        const op = FO.creaOp(pref.disp, pref.comptador, tipus, Object.assign({ text }, dades), nomPersona(), rol());
         const motiu = FO.validaOp(prog, op, validador());
         if (motiu) { so(false); avis(motiu, 4500); return null; }
         FO.aplicaOp(prog, op);
@@ -197,7 +203,7 @@
                     if (tok && (!ses || tok !== ses.token)) {
                         // sessió antiga ja tancada: aquests canvis ja no es poden signar
                         cua = cua.filter(x => x.tok !== tok); desaCua();
-                        avis(`S'han descartat ${grup.length} canvis d'una sessió que ja no és vàlida`, 5000);
+                        avis(t('S\'han descartat {n} canvis d\'una sessió que ja no és vàlida', { n: grup.length }), 5000);
                         continua = cua.length > 0;
                         return;
                     }
@@ -209,7 +215,7 @@
             srv.estat = 'connectat'; srv.fora = false;
             const enviades = new Set(grup.map(x => x.op.id));
             cua = cua.filter(x => !enviades.has(x.op.id));   // aplicades o rebutjades: ja no s'envien més
-            if (r.rebutjades && r.rebutjades.length) { so(false); avis('El servidor no ho ha acceptat: ' + r.rebutjades[0].motiu, 6000); }
+            if (r.rebutjades && r.rebutjades.length) { so(false); avis(t('El servidor no ho ha acceptat: ') + FO.tMissatge(r.rebutjades[0].motiu), 6000); }
             nouEstat(r.estat);
             continua = cua.length > 0;
             pujaFotosPendents();
@@ -235,7 +241,7 @@
         const es = new EventSource(srv.url + rutaOrdre('/flux') + paramsAuth());
         es.addEventListener('estat', ev => { srv.estat = 'connectat'; srv.fora = false; try { nouEstat(JSON.parse(ev.data)); } catch (e) { /* */ } pintaEstatSrv(); });
         es.addEventListener('projecte', () => {
-            avis('El projecte s\'ha actualitzat des de l\'ordinador. Toca ⟳ per carregar-lo.', 5000);
+            avis(t('El projecte s\'ha actualitzat des de l\'ordinador. Toca ⟳ per carregar-lo.'), 5000);
             srv.projecteNou = true; pintaEstatSrv();
         });
         es.addEventListener('ordres', ev => { try { ORDRES = JSON.parse(ev.data); escriu(clauOrdres(), ORDRES); } catch (e) { /* */ } });
@@ -256,12 +262,12 @@
         try {
             if (!srv.projectes.some(x => x.id === P.id)) {
                 if (!ses.rols.includes('responsable')) {
-                    avis('Aquest projecte no és al servidor del taller: demana al Responsable que el publiqui. Mentrestant treballes només en aquest aparell.', 7000);
+                    avis(t('Aquest projecte no és al servidor del taller: demana al Responsable que el publiqui. Mentrestant treballes només en aquest aparell.'), 7000);
                     return;
                 }
                 await api('/api/projectes/' + encodeURIComponent(P.id), { method: 'PUT', body: JSON.stringify(P) });
                 await carregaProjectesSrv();
-                avis('Projecte publicat al servidor del taller');
+                avis(t('Projecte publicat al servidor del taller'));
             }
             ORDRES = await api('/api/ordres/' + encodeURIComponent(P.id));
             escriu(clauOrdres(), ORDRES);
@@ -283,11 +289,11 @@
     function pintaEstatSrv() {
         const b = $('bSrv'); if (!b) return;
         const n = cua.length;
-        const [col, tit] = !srv.url ? ['var(--dm)', 'Sense servidor: el progrés només es desa en aquest aparell']
-            : !srv.projecteOk ? ['var(--wr)', 'Aquest projecte no es comparteix pel servidor del taller']
-            : srv.estat === 'connectat' ? [n ? 'var(--wr)' : 'var(--ok)', n ? `Connectat · ${n} canvis per enviar` : 'Connectat al servidor del taller']
-            : srv.estat === 'clau' ? ['var(--er)', 'Cal la clau del taller (menú ⋮)']
-            : ['var(--er)', `Sense connexió amb el servidor${n ? ` · ${n} canvis en cua` : ''}`];
+        const [col, tit] = !srv.url ? ['var(--dm)', t('Sense servidor: el progrés només es desa en aquest aparell')]
+            : !srv.projecteOk ? ['var(--wr)', t('Aquest projecte no es comparteix pel servidor del taller')]
+            : srv.estat === 'connectat' ? [n ? 'var(--wr)' : 'var(--ok)', n ? t('Connectat · {n} canvis per enviar', { n }) : t('Connectat al servidor del taller')]
+            : srv.estat === 'clau' ? ['var(--er)', t('Cal la clau del taller (menú ⋮)')]
+            : ['var(--er)', t('Sense connexió amb el servidor') + (n ? ' · ' + t('{n} canvis en cua', { n }) : '')];
         b.style.color = col; b.title = tit;
         b.textContent = srv.projecteNou ? '⟳' : '●';
     }
@@ -312,13 +318,13 @@
         ses = { token: d.token, nom: d.nom, rols: d.rols, servidor: srv.url };
         escriu(CLAU_SESSIO, ses);
         if (!rolsDisponibles().includes(pref.rol)) { pref.rol = ses.rols[0]; desaPref(); }
-        avis('Hola, ' + ses.nom);   // abans d'entrar, perquè no tapi cap avís de l'arrencada
+        avis(t('Hola, {nom}', { nom: ses.nom }));   // abans d'entrar, perquè no tapi cap avís de l'arrencada
         await continuaInici();
     }
     async function surt() {
         if (ses && cua.some(x => x.tok === ses.token)) await sincronitza();
         const queden = ses ? cua.filter(x => x.tok === ses.token).length : 0;
-        if (queden && !confirm(`Hi ha ${queden} canvis teus sense enviar (no hi ha connexió). S'enviaran sols quan torni. Canviar de persona igualment?`)) return;
+        if (queden && !confirm(t('Hi ha {n} canvis teus sense enviar (no hi ha connexió). S\'enviaran sols quan torni. Canviar de persona igualment?', { n: queden }))) return;
         // si encara queden canvis seus a la cua, la sessió es manté al servidor perquè es puguin signar
         if (!queden) api('/api/sessio', { method: 'DELETE' }).catch(() => { });
         $('menu').hidden = true;
@@ -327,17 +333,19 @@
     // Primer ús: el servidor encara no té cap Responsable
     function vistaPrimerUs() {
         pantallaSessio = true; mostraNav(false); pintaCap();
-        $('vista').innerHTML = `<div class="targeta"><h2>Benvinguda al taller</h2>
-            <p class="ajuda">És la primera vegada que es fa servir aquest servidor. Crea el <b>Responsable</b>: és qui dona d'alta la resta de persones, publica els projectes i obre les ordres de fabricació.</p>
-            <label class="camp">Nom<input id="puNom" autocomplete="name"></label>
-            <label class="camp">PIN (de 4 a 8 xifres)<input id="puPin" type="password" inputmode="numeric" autocomplete="new-password"></label>
-            <label class="camp">Repeteix el PIN<input id="puPin2" type="password" inputmode="numeric" autocomplete="new-password"></label>
-            <button class="bt pr" id="puCrea">Crear el Responsable i entrar</button></div>`;
+        $('vista').innerHTML = `<div class="targeta"><h2>${t('Benvinguda al taller')}</h2>
+            <p class="ajuda">${t('És la primera vegada que es fa servir aquest servidor. Crea el <b>Responsable</b>: és qui dona d\'alta la resta de persones, publica els projectes i obre les ordres de fabricació.')}</p>
+            <label class="camp">${t('Idioma')}${FO.selectorIdioma('')}</label>
+            <label class="camp">${t('Nom')}<input id="puNom" autocomplete="name"></label>
+            <label class="camp">${t('PIN (de 4 a 8 xifres)')}<input id="puPin" type="password" inputmode="numeric" autocomplete="new-password"></label>
+            <label class="camp">${t('Repeteix el PIN')}<input id="puPin2" type="password" inputmode="numeric" autocomplete="new-password"></label>
+            <button class="bt pr" id="puCrea">${t('Crear el Responsable i entrar')}</button></div>`;
+        FO.activaSelectorsIdioma($('vista'));
         $('puCrea').onclick = async () => {
             const nom = $('puNom').value.trim(), pin = $('puPin').value.trim();
-            if (!nom) return avis('Escriu el nom');
-            if (!/^\d{4,8}$/.test(pin)) return avis('El PIN ha de tenir de 4 a 8 xifres');
-            if (pin !== $('puPin2').value.trim()) return avis('Els dos PIN no coincideixen');
+            if (!nom) return avis(t('Escriu el nom'));
+            if (!/^\d{4,8}$/.test(pin)) return avis(t('El PIN ha de tenir de 4 a 8 xifres'));
+            if (pin !== $('puPin2').value.trim()) return avis(t('Els dos PIN no coincideixen'));
             try {
                 await api('/api/persones', { method: 'POST', body: JSON.stringify({ nom, rols: ['responsable'], pin }) });
                 srv.info.configurat = true;
@@ -352,13 +360,15 @@
         try { persones = await api('/api/persones'); } catch (e) { /* sense connexió */ }
         let tria = null, pin = '';
         const pinta = () => {
-            $('vista').innerHTML = !tria ? `<h2>Qui ets?</h2>
+            $('vista').innerHTML = !tria ? `<h2>${t('Qui ets?')}</h2>
                 ${persones.map((x, i) => `<button class="bt gran" data-i="${i}"><i>${FO.ROLS[x.rols[0]] ? FO.ROLS[x.rols[0]].ico : '👤'}</i><span>${esc(x.nom)}<small>${x.rols.map(r => esc(FO.ROLS[r] ? FO.ROLS[r].nom : r)).join(' · ')}</small></span></button>`).join('')
-                    || '<p class="ajuda">No es pot obtenir la llista de persones. Comprova la connexió amb el servidor del taller.</p>'}`
-                : `<h2>${esc(tria.nom)}</h2><p class="ajuda">Escriu el teu PIN</p>
+                    || `<p class="ajuda">${t('No es pot obtenir la llista de persones. Comprova la connexió amb el servidor del taller.')}</p>`}
+                <div class="idioma-peu">${FO.selectorIdioma('')}</div>`
+                : `<h2>${esc(tria.nom)}</h2><p class="ajuda">${t('Escriu el teu PIN')}</p>
                 <input class="pin" id="enPin" type="password" inputmode="numeric" autocomplete="current-password" value="${esc(pin)}">
                 <div class="teclat">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button data-k="${k}">${k}</button>`).join('')}</div>
-                <button class="bt" id="enAltre">‹ No soc ${esc(tria.nom)}</button>`;
+                <button class="bt" id="enAltre">‹ ${t('No soc {nom}', { nom: esc(tria.nom) })}</button>`;
+            FO.activaSelectorsIdioma($('vista'));
             $('vista').querySelectorAll('[data-i]').forEach(b => b.onclick = () => { tria = persones[+b.dataset.i]; pin = ''; pinta(); });
             if (!tria) return;
             const envia = async () => {
@@ -389,8 +399,8 @@
             r.onerror = () => ko(r.error);
         });
         const tx = (mode, fn) => obre().then(d => new Promise((ok, ko) => {
-            const t = d.transaction('fotos', mode), s = t.objectStore('fotos'), res = fn(s);
-            t.oncomplete = () => ok(res && res.result); t.onerror = () => ko(t.error);
+            const tr = d.transaction('fotos', mode), s = tr.objectStore('fotos'), res = fn(s);
+            tr.oncomplete = () => ok(res && res.result); tr.onerror = () => ko(tr.error);
         }));
         return {
             afegeix: f => tx('readwrite', s => s.add(f)),
@@ -412,37 +422,37 @@
                 const r = await api(rutaFotos(), { method: 'POST', body: JSON.stringify({ conj: f.pendent.conj, dades: f.dades }), headers: f.pendent.tok ? { 'X-FOrdre-Token': f.pendent.tok } : {} });
                 // l'operació la signa qui va fer la foto, amb la seva sessió
                 pref.comptador++; desaPref();
-                const op = FO.creaOp(pref.disp, pref.comptador, 'foto', { conj: f.pendent.conj, fitxer: r.fitxer, text: `Foto al pas ${codiConj(f.pendent.conj)}` }, f.op, f.rol);
+                const op = FO.creaOp(pref.disp, pref.comptador, 'foto', { conj: f.pendent.conj, fitxer: r.fitxer, text: tc('Foto al pas {codi}', { codi: codiConj(f.pendent.conj) }) }, f.op, f.rol);
                 FO.aplicaOp(prog, op); cua.push({ tok: f.pendent.tok, op }); desaCua(); desaProg();
                 await idb.esborra(f.id);
                 n++;
             }
         } catch (e) { /* es tornarà a provar a la sincronització següent */ }
         pujantFotos = false;
-        if (n) { avis(`${n} ${n === 1 ? 'foto pujada' : 'fotos pujades'} al taller`); sincronitza(); }
+        if (n) { avis(n === 1 ? t('1 foto pujada al taller') : t('{n} fotos pujades al taller', { n })); sincronitza(); }
     }
     async function pintaFotos(conj) {
         const cont = $('pFotos'); if (!cont) return;
         const remotes = enXarxa() ? (prog.fotos[conj] || []).map(f => `<img src="${esc(srv.url + rutaFotos() + '/' + encodeURIComponent(f.fitxer) + paramsAuth())}" alt="" title="${esc(data(f.ts) + (f.op ? ' · ' + f.op : ''))}">`).join('') : '';
         try {
             const locals = await idb.del(clauFotos(conj));
-            cont.innerHTML = remotes + locals.map(f => `<img src="${f.dades}" alt="" data-id="${f.id}" title="${esc(data(f.ts) + (f.pendent ? ' · pendent de pujar' : ''))}"${f.pendent ? ' class="pendent"' : ''}>`).join('');
+            cont.innerHTML = remotes + locals.map(f => `<img src="${f.dades}" alt="" data-id="${f.id}" title="${esc(data(f.ts) + (f.pendent ? ' · ' + t('pendent de pujar') : ''))}"${f.pendent ? ' class="pendent"' : ''}>`).join('');
             cont.querySelectorAll('img[data-id]').forEach(im => im.addEventListener('click', async () => {
-                if (confirm('Esborrar aquesta foto d\'aquest aparell?')) { await idb.esborra(+im.dataset.id); pintaFotos(conj); }
+                if (confirm(t('Esborrar aquesta foto d\'aquest aparell?'))) { await idb.esborra(+im.dataset.id); pintaFotos(conj); }
             }));
-        } catch (e) { cont.innerHTML = remotes || '<p class="ajuda">Aquest navegador no permet guardar fotos.</p>'; }
+        } catch (e) { cont.innerHTML = remotes || `<p class="ajuda">${t('Aquest navegador no permet guardar fotos.')}</p>`; }
     }
     $('fFoto').addEventListener('change', async function () {
         const f = this.files[0], conj = this.dataset.pas || pasActual; this.value = '';
         if (!f || !prog) return;
-        if (!pot('foto')) return avis('El teu rol no permet afegir fotos');
+        if (!pot('foto')) return avis(t('El teu rol no permet afegir fotos'));
         try {
             const dades = await redueix(f, 1280);
             let pujada = false;
             if (enXarxa() && srv.estat === 'connectat') {
                 try {
                     const r = await api(rutaFotos(), { method: 'POST', body: JSON.stringify({ conj, dades }) });
-                    pujada = !!fer('foto', { conj, fitxer: r.fitxer }, `Foto al pas ${codiConj(conj)}`);
+                    pujada = !!fer('foto', { conj, fitxer: r.fitxer }, tc('Foto al pas {codi}', { codi: codiConj(conj) }));
                 } catch (e) { /* sense connexió: es guarda al mòbil i es pujarà després */ }
             }
             if (!pujada) {
@@ -452,8 +462,8 @@
                 });
             }
             pintaFotos(conj);
-            avis(pujada ? 'Foto desada al taller' : enXarxa() ? 'Foto desada: es pujarà quan hi hagi connexió' : 'Foto desada en aquest aparell');
-        } catch (e) { avis('No s\'ha pogut desar la foto'); }
+            avis(pujada ? t('Foto desada al taller') : enXarxa() ? t('Foto desada: es pujarà quan hi hagi connexió') : t('Foto desada en aquest aparell'));
+        } catch (e) { avis(t('No s\'ha pogut desar la foto')); }
     });
     // Redueix una foto a `mx` píxels de costat (JPEG) perquè ocupi poc
     function redueix(f, mx) {
@@ -487,7 +497,7 @@
         // un aparell nou s'ha de posar a l'ordre més recent del taller, no a la primera.
         triaOrdre(!(perDefecte && srv.url));
         carregaProgres();
-        if (origen) avis('Projecte carregat: ' + P.nom);
+        if (origen) avis(t('Projecte carregat: {nom}', { nom: P.nom }));
     }
     // Ordre de treball: la darrera triada en aquest aparell, o la més recent
     function triaOrdre(recorda) {
@@ -501,7 +511,7 @@
         ORD = o; pref.ordres[P.id] = o.id; desaPref();
         carregaProgres();
         if (enXarxa()) { sincronitza(); escolta(); }
-        avis('Ordre ' + o.codi);
+        avis(t('Ordre {codi}', { codi: o.codi }));
     }
     async function novaOrdre(dades) {
         if (enXarxa()) {
@@ -524,11 +534,11 @@
                 usaProjecte(JSON.parse(await FO.descomprimeix(h.slice(3))), 'enllaç');
                 history.replaceState(null, '', location.pathname + location.search + '#/');
                 return;
-            } catch (e) { avis('L\'enllaç del projecte no és vàlid'); }
+            } catch (e) { avis(t('L\'enllaç del projecte no és vàlid')); }
         }
         const q = new URLSearchParams(location.search).get('f');
         if (q) {
-            try { const r = await fetch(q); usaProjecte(await r.json(), 'fitxer'); return; } catch (e) { avis('No s\'ha pogut descarregar ' + q); }
+            try { const r = await fetch(q); usaProjecte(await r.json(), 'fitxer'); return; } catch (e) { avis(t('No s\'ha pogut descarregar {f}', { f: q })); }
         }
         const m = llegeix(CLAU_MOBIL) || llegeix(FO.CLAU_PROJECTE);
         if (srv.url && ses && !srv.fora) {
@@ -563,7 +573,7 @@
         if (P && !srv.url && !pref.rol) obreTriaRol();
         // amb el servidor, només es pot fer servir un rol que la persona tingui
         if (rolDemanat && srv.url && ses && !rolsDisponibles().includes(rolDemanat))
-            avis(`No tens el rol de ${FO.ROLS[rolDemanat].nom}: treballes com a ${FO.ROLS[rol()].nom}`, 5000);
+            avis(t('No tens el rol de {rol}: treballes com a {actual}', { rol: FO.ROLS[rolDemanat].nom, actual: FO.ROLS[rol()].nom }), 5000);
         ruta();
     }
 
@@ -580,12 +590,12 @@
     function pintaNav(actual) {
         // comptadors a les pestanyes: incidències i mancants oberts
         const compta = { incidencies: prog ? prog.incidencies.filter(i => !i.resolta).length : 0, mancants: prog ? FO.mancantsOberts(prog).length : 0, defectes: prog ? FO.defectesPendents(prog).length : 0 };
-        $('peu').innerHTML = NAV[rol()].map(([r, ico, nom]) => `<button data-ruta="${r}" class="${r === actual || PARE[actual] === r ? 'on' : ''}"><i>${ico}</i>${nom}${compta[r] ? ` (${compta[r]})` : ''}</button>`).join('');
+        $('peu').innerHTML = NAV[rol()].map(([r, ico, nom]) => `<button data-ruta="${r}" class="${r === actual || PARE[actual] === r ? 'on' : ''}"><i>${ico}</i>${t(nom)}${compta[r] ? ` (${compta[r]})` : ''}</button>`).join('');
         $('peu').querySelectorAll('button').forEach(b => b.onclick = () => { location.hash = '#/' + b.dataset.ruta; });
         mostraNav(true);
     }
     function pintaCap() {
-        $('nomProj').textContent = P ? P.nom : 'Taller';
+        $('nomProj').textContent = P ? P.nom : t('Taller');
         const bo = $('bOrdre'), br = $('bRol');
         bo.hidden = !P || !ORD || pantallaSessio;
         if (ORD) { bo.textContent = ORD.codi + (prog && prog.tancada ? ' 🔒' : ''); bo.classList.toggle('tancada', !!(prog && prog.tancada)); }
@@ -620,7 +630,7 @@
     // Tria del rol (i, sense servidor, del nom que surt al registre)
     function obreTriaRol() {
         const l = rolsDisponibles();
-        $('llistaRols').innerHTML = (!srv.url ? `<label class="camp">El teu nom (surt al registre)<input id="trNom" value="${esc(pref.nomLocal)}" autocomplete="name"></label>` : `<p class="ajuda">${esc(nomPersona())}</p>`) +
+        $('llistaRols').innerHTML = (!srv.url ? `<label class="camp">${t('El teu nom (surt al registre)')}<input id="trNom" value="${esc(pref.nomLocal)}" autocomplete="name"></label>` : `<p class="ajuda">${esc(nomPersona())}</p>`) +
             l.map(r => `<button class="bt gran${r === rol() ? ' pr' : ''}" data-rol="${r}"><i>${FO.ROLS[r].ico}</i><span>${FO.ROLS[r].nom}<small>${esc(FO.ROLS[r].desc)}</small></span></button>`).join('');
         if ($('trNom')) $('trNom').oninput = function () { pref.nomLocal = this.value.trim(); desaPref(); };
         $('llistaRols').querySelectorAll('[data-rol]').forEach(b => b.onclick = () => {
@@ -639,14 +649,16 @@
     const tancaFull = () => { $('fullForm').hidden = true; };
 
     // Avís comú a totes les pantalles quan l'ordre està tancada
-    const bannerTancada = () => prog.tancada ? `<div class="banner er">🔒 L'ordre <b>${esc(ORD.codi)}</b> està tancada (${esc(data(prog.tancada.ts))}${prog.tancada.op ? ' · ' + esc(prog.tancada.op) : ''}). Només es pot consultar.</div>` : '';
+    const bannerTancada = () => prog.tancada ? `<div class="banner er">🔒 ${t('L\'ordre <b>{codi}</b> està tancada ({quan}). Només es pot consultar.', { codi: esc(ORD.codi), quan: esc(data(prog.tancada.ts)) + (prog.tancada.op ? ' · ' + esc(prog.tancada.op) : '') })}</div>` : '';
 
     function vistaBuida() {
         const llista = srv.projectes || [];
         $('vista').innerHTML = `<div class="buit"><h2>FOrdre Taller</h2>
-            <p>${llista.length ? 'Tria un projecte del taller' : 'Encara no hi ha cap projecte. El Responsable el prepara a l\'app de l\'ordinador i el publica al servidor (botó <b>🏭 Taller</b>), o bé obre\'l aquí:'}</p>
-            ${llista.map(x => `<button class="bt gran" data-psrv="${esc(x.id)}"><i>🏭</i><span>${esc(x.nom)}<small>${x.ordres.length} ${x.ordres.length === 1 ? 'ordre' : 'ordres'}</small></span></button>`).join('')}
-            <div class="grup"><button class="bt pr" data-acc="fitxer">📂 Obrir fitxer</button><button class="bt" data-acc="exemple">🧪 Projecte d'exemple</button></div></div>`;
+            <p>${llista.length ? t('Tria un projecte del taller') : t('Encara no hi ha cap projecte. El Responsable el prepara a l\'app de l\'ordinador i el publica al servidor (botó <b>🏭 Taller</b>), o bé obre\'l aquí:')}</p>
+            ${llista.map(x => `<button class="bt gran" data-psrv="${esc(x.id)}"><i>🏭</i><span>${esc(x.nom)}<small>${x.ordres.length === 1 ? t('1 ordre') : t('{n} ordres', { n: x.ordres.length })}</small></span></button>`).join('')}
+            <div class="grup"><button class="bt pr" data-acc="fitxer">📂 ${t('Obrir fitxer')}</button><button class="bt" data-acc="exemple">🧪 ${t('Projecte d\'exemple')}</button></div>
+            <div class="idioma-peu">${FO.selectorIdioma('')}</div></div>`;
+        FO.activaSelectorsIdioma($('vista'));
         $('vista').querySelector('[data-acc=fitxer]').onclick = () => $('fProjecte').click();
         $('vista').querySelector('[data-acc=exemple]').onclick = () => obreProjecte(FO.exemple(), 'exemple');
         $('vista').querySelectorAll('[data-psrv]').forEach(b => b.onclick = () => recarregaDelServidor(b.dataset.psrv).catch(e => avis(e.message)));
@@ -663,7 +675,7 @@
     // ═══════════════════════════════════════════════════════════
     // 📦 MAGATZEM · Omplir les caixes, estoc i compra
     // ═══════════════════════════════════════════════════════════
-    const icones = m => (m.esd ? ' <span class="xip esd">⚡ ESD</span>' : '') + (m.liquid ? ' <span class="xip liq">💧</span>' : '') + (m.angleMax < 90 ? ' <span class="xip">⬆ vertical</span>' : '');
+    const icones = m => (m.esd ? ' <span class="xip esd">⚡ ESD</span>' : '') + (m.liquid ? ' <span class="xip liq">💧</span>' : '') + (m.angleMax < 90 ? ` <span class="xip">⬆ ${t('vertical')}</span>` : '');
     // Caixes que omple el magatzem (les de guarda s'omplen muntant)
     const caixesKit = () => M.caixes.filter(c => !c.guarda && c.claus.length);
     const estatCaixa = c => FO.estatCaixa(prog, c.id, c.claus);
@@ -672,19 +684,19 @@
     VISTES.omplir = function (filtre) {
         const totes = caixesKit(), plenes = totes.filter(c => ['plena', 'en ús', 'retornada'].includes(estatCaixa(c))).length;
         const perOmplir = filtre !== 'totes';
-        $('vista').innerHTML = `${bannerTancada()}<div class="kpi"><div>Caixes plenes<b>${plenes} / ${totes.length}</b></div><div>Mancants oberts<b>${FO.mancantsOberts(prog).length}</b></div><div>Ordre<b style="font-size:16px">${esc(ORD.codi)}</b></div></div>
-            <button class="bt pr" id="oEsc">⌖ Escanejar etiquetes per omplir</button>
-            <div class="fx" style="margin:4px 0 8px"><button class="bt${perOmplir ? ' pr' : ''}" data-f="">Per omplir</button><button class="bt${perOmplir ? '' : ' pr'}" data-f="totes">Totes</button></div>
+        $('vista').innerHTML = `${bannerTancada()}<div class="kpi"><div>${t('Caixes plenes')}<b>${plenes} / ${totes.length}</b></div><div>${t('Mancants oberts')}<b>${FO.mancantsOberts(prog).length}</b></div><div>${t('Ordre')}<b style="font-size:16px">${esc(ORD.codi)}</b></div></div>
+            <button class="bt pr" id="oEsc">⌖ ${t('Escanejar etiquetes per omplir')}</button>
+            <div class="fx" style="margin:4px 0 8px"><button class="bt${perOmplir ? ' pr' : ''}" data-f="">${t('Per omplir')}</button><button class="bt${perOmplir ? '' : ' pr'}" data-f="totes">${t('Totes')}</button></div>
             ${M.PLA.map(r => {
                 const cx = totes.filter(c => c.r === r && (!perOmplir || ['buida', 'parcial', 'mancant'].includes(estatCaixa(c))));
                 if (!cx.length) return '';
-                return `<h3>Pas ${r.pas} · ${esc(r.conj.codi)} ${esc(r.conj.nom)}</h3>` + cx.map(c => {
+                return `<h3>${t('Pas {n}', { n: r.pas })} · ${esc(r.conj.codi)} ${esc(r.conj.nom)}</h3>` + cx.map(c => {
                     const n = c.claus.filter(k => prog.omplert[k]).length;
                     return `<div class="targeta pas" data-caixa="${esc(c.id)}" style="border-left-color:${c.o.color}">
-                        <div class="info"><div class="nom">${esc(c.id)}</div><div class="sub">${c.o.forma === 'contenidor' ? 'Contenidor · ' + c.o.caixes.length + ' caixes' : c.o.forma === 'caixa' ? 'Caixa individual' : 'Safata'} · ${n}/${c.claus.length} caixetins</div>
+                        <div class="info"><div class="nom">${esc(c.id)}</div><div class="sub">${c.o.forma === 'contenidor' ? t('Contenidor') + ' · ' + t('{n} caixes', { n: c.o.caixes.length }) : c.o.forma === 'caixa' ? t('Caixa individual') : t('Safata')} · ${t('{n}/{t} caixetins', { n, t: c.claus.length })}</div>
                         <div class="barra"><div style="width:${n / c.claus.length * 100}%"></div></div></div>${xipEstat(estatCaixa(c), FO.ESTATS_CAIXA)}</div>`;
                 }).join('');
-            }).join('') || '<div class="buit">✓ Totes les caixes d\'aquesta ordre estan plenes.</div>'}`;
+            }).join('') || `<div class="buit">✓ ${t('Totes les caixes d\'aquesta ordre estan plenes.')}</div>`}`;
         $('oEsc').onclick = () => obreEscaner();
         $('vista').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { location.hash = '#/omplir' + (b.dataset.f ? '/' + b.dataset.f : ''); });
         $('vista').querySelectorAll('[data-caixa]').forEach(n => n.onclick = () => { location.hash = '#/caixa/' + encodeURIComponent(n.dataset.caixa); });
@@ -698,22 +710,22 @@
             const e = M.perClau.get(k), m = e.caixeti.mat, om = prog.omplert[k], estoc = prog.estoc[m.id], mc = FO.esMancant(prog, k) && prog.mancants[k];
             return `<div class="fila${om && !mc ? ' fet' : ''}${mc ? ' mancant' : ''}" data-clau="${esc(k)}"><div class="chk">${mc ? '!' : '✓'}</div><span class="sw" style="background:${m.col}"></span>
                 <div class="txt"><div class="cd">${esc(m.codi)}${icones(m)}</div><div class="nm">${esc(m.nom)}</div>${c.o.forma === 'contenidor' ? `<div class="ajuda">${esc(e.safata)}</div>` : ''}
-                ${om ? `<div class="ajuda">Omplert ${esc(data(om.ts))}${om.op ? ' · ' + esc(om.op) : ''}${om.qty !== e.qty ? ` · <b>${om.qty}</b> de ${e.qty}` : ''}</div>` : ''}
-                ${mc ? `<div class="nota">❗ Falten ${mc.falten}${mc.nota ? ' · ' + esc(mc.nota) : ''} · toca quan arribi</div>` : ''}</div>
-                <div class="q">×${e.qty}${estoc != null ? `<small class="${estoc < e.qty && !om ? 'falta' : ''}">estoc ${estoc}</small>` : ''}</div>
-                ${!prog.tancada ? `<button class="bt-falta" data-problema="${esc(k)}" title="Problema: no ha arribat, o ha arribat defectuosa" aria-label="Problema amb aquest caixetí">⚠</button>` : ''}</div>`;
+                ${om ? `<div class="ajuda">${t('Omplert')} ${esc(data(om.ts))}${om.op ? ' · ' + esc(om.op) : ''}${om.qty !== e.qty ? ` · ${t('<b>{n}</b> de {t}', { n: om.qty, t: e.qty })}` : ''}</div>` : ''}
+                ${mc ? `<div class="nota">❗ ${t('Falten {n}', { n: mc.falten })}${mc.nota ? ' · ' + esc(tm(mc.nota)) : ''} · ${t('toca quan arribi')}</div>` : ''}</div>
+                <div class="q">×${e.qty}${estoc != null ? `<small class="${estoc < e.qty && !om ? 'falta' : ''}">${t('estoc')} ${estoc}</small>` : ''}</div>
+                ${!prog.tancada ? `<button class="bt-falta" data-problema="${esc(k)}" title="${t('Problema: no ha arribat, o ha arribat defectuosa')}" aria-label="${t('Problema amb aquest caixetí')}">⚠</button>` : ''}</div>`;
         }).join('');
-        $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.o.color}"><div class="sub">Pas ${c.r.pas} · ${esc(c.r.conj.codi)} ${esc(c.r.conj.nom)}</div><h2>${esc(c.id)}</h2><div class="sub">${xipEstat(est, FO.ESTATS_CAIXA)}</div></div>
-            <p class="ajuda">Toca cada caixetí quan hi hagis posat el material, o escaneja'n l'etiqueta. Si no ha arribat o ha arribat malament, prem <b>⚠</b>: va a la llista de mancants i el muntatge pot continuar amb la resta.</p>
-            <div class="fx"><button class="bt pr" id="cEsc">⌖ Escanejar</button><button class="bt" id="cTot">Omplir-ho tot</button></div>
+        $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.o.color}"><div class="sub">${t('Pas {n}', { n: c.r.pas })} · ${esc(c.r.conj.codi)} ${esc(c.r.conj.nom)}</div><h2>${esc(c.id)}</h2><div class="sub">${xipEstat(est, FO.ESTATS_CAIXA)}</div></div>
+            <p class="ajuda">${t('Toca cada caixetí quan hi hagis posat el material, o escaneja\'n l\'etiqueta. Si no ha arribat o ha arribat malament, prem <b>⚠</b>: va a la llista de mancants i el muntatge pot continuar amb la resta.')}</p>
+            <div class="fx"><button class="bt pr" id="cEsc">⌖ ${t('Escanejar')}</button><button class="bt" id="cTot">${t('Omplir-ho tot')}</button></div>
             <div class="objecte">${files}</div>
-            <div class="fx"><button class="bt" id="cRet"${est === 'retornada' ? ' disabled' : ''}>↩ Caixa retornada al magatzem</button><button class="bt" id="cInc">⚠ Incidència</button></div>`;
+            <div class="fx"><button class="bt" id="cRet"${est === 'retornada' ? ' disabled' : ''}>↩ ${t('Caixa retornada al magatzem')}</button><button class="bt" id="cInc">⚠ ${t('Incidència')}</button></div>`;
         $('vista').querySelectorAll('[data-clau]').forEach(f => f.onclick = () => { commutaOmplert(f.dataset.clau); VISTES.caixa(id); });
         $('vista').querySelectorAll('[data-problema]').forEach(b => b.onclick = ev => { ev.stopPropagation(); triaProblema(b.dataset.problema, () => VISTES.caixa(id)); });
         $('cEsc').onclick = () => obreEscaner();
         // «Omplir-ho tot» no toca els mancants: aquells caixetins esperen el material
         $('cTot').onclick = () => { c.claus.filter(k => !prog.omplert[k] && !FO.esMancant(prog, k)).forEach(k => omple(k, M.perClau.get(k).qty, true)); VISTES.caixa(id); };
-        $('cRet').onclick = () => { if (fer('retorna', { obj: c.id }, `${c.id}: caixa retornada al magatzem`)) VISTES.caixa(id); };
+        $('cRet').onclick = () => { if (fer('retorna', { obj: c.id }, tc('{caixa}: caixa retornada al magatzem', { caixa: c.id }))) VISTES.caixa(id); };
         $('cInc').onclick = () => { obreIncidencia(c.r.conj.id, c.id); };
     };
     // Omple un caixetí. Si l'estoc no n'hi ha prou, pregunta quants se n'hi posen.
@@ -722,14 +734,17 @@
         // Només es pregunta si es porta l'estoc i no n'hi ha prou. Amb 0 o menys (estoc no registrat,
         // o que ja ha quedat en negatiu) no es pregunta: qui omple la caixa té el material a la mà.
         if (!silenci && estoc > 0 && estoc < qty) {
-            const r = prompt(`A l'estoc només n'hi ha ${estoc} de ${m.codi}. Quants n'has posat a la caixa?`, String(Math.max(0, estoc)));
+            const r = prompt(t('A l\'estoc només n\'hi ha {n} de {mat}. Quants n\'has posat a la caixa?', { n: estoc, mat: m.codi }), String(Math.max(0, estoc)));
             if (r === null) return null;
             qty = Math.round(FO.num(r, 0));
             if (qty <= 0) return null;
         }
         // `cal`: el que hi ha d'anar; si se n'hi posa menys, la diferència queda com a mancant
         const eraMancant = FO.esMancant(prog, clau);
-        const text = `${m.codi} ×${qty}: ${eraMancant && qty >= e.qty ? 'ha arribat el que faltava, ' : ''}omplert a ${e.safata}${qty < e.qty ? ` (en falten ${e.qty - qty}: mancant)` : ''}`;
+        const v = { mat: m.codi, q: qty, caixa: e.safata, n: e.qty - qty };
+        const text = qty < e.qty ? tc('{mat} ×{q}: omplert a {caixa} (en falten {n}: mancant)', v)
+            : eraMancant ? tc('{mat} ×{q}: ha arribat el que faltava, omplert a {caixa}', v)
+            : tc('{mat} ×{q}: omplert a {caixa}', v);
         return fer('omple', { clau, mat: m.id, qty, cal: e.qty }, text);
     }
     // Tocar un caixetí: omplir-lo; si ja és ple, buidar-lo; si té un mancant, és que el material ha arribat
@@ -737,17 +752,17 @@
         const e = M.perClau.get(clau);
         if (FO.esMancant(prog, clau)) {
             const mc = prog.mancants[clau];
-            if (confirm(`Ha arribat ${e.codi}? Es completarà el caixetí fins a ${e.qty} (hi faltaven ${mc.falten}).`)) omple(clau, e.qty);
-        } else if (prog.omplert[clau]) { if (confirm(`Buidar ${e.codi} de ${e.safata}? El material torna a l'estoc.`)) fer('buida', { clau }, `${e.codi}: buidat de ${e.safata}`); }
+            if (confirm(t('Ha arribat {mat}? Es completarà el caixetí fins a {q} (hi faltaven {n}).', { mat: e.codi, q: e.qty, n: mc.falten }))) omple(clau, e.qty);
+        } else if (prog.omplert[clau]) { if (confirm(t('Buidar {mat} de {caixa}? El material torna a l\'estoc.', { mat: e.codi, caixa: e.safata }))) fer('buida', { clau }, tc('{mat}: buidat de {caixa}', { mat: e.codi, caixa: e.safata })); }
         else omple(clau, e.qty);
     }
     // «Problema» en un caixetí: no ha arribat (mancant) o ha arribat defectuós
     function triaProblema(clau, despres) {
         const e = M.perClau.get(clau), om = prog.omplert[clau], complet = om && om.qty >= e.qty && !FO.esMancant(prog, clau);
-        const cos = obreFull(`<h2>${esc(e.codi)} · ${esc(e.nom)}</h2><p class="ajuda">${esc(e.safata)} · en calen ${e.qty}</p>
-            <button class="bt gran" id="prFalta"${complet ? ' disabled' : ''}><i>❗</i><span>No ha arribat, o no n'hi ha prou<small>Va a la llista de mancants. El muntatge continua amb la resta.</small></span></button>
-            <button class="bt gran" id="prDefecte"><i>💥</i><span>Ha arribat defectuosa<small>No es pot muntar: es registra per retornar-la i se'n demana recanvi.</small></span></button>
-            <button class="bt" id="prTanca">Cancel·lar</button>`);
+        const cos = obreFull(`<h2>${esc(e.codi)} · ${esc(e.nom)}</h2><p class="ajuda">${esc(e.safata)} · ${t('en calen {n}', { n: e.qty })}</p>
+            <button class="bt gran" id="prFalta"${complet ? ' disabled' : ''}><i>❗</i><span>${t('No ha arribat, o no n\'hi ha prou')}<small>${t('Va a la llista de mancants. El muntatge continua amb la resta.')}</small></span></button>
+            <button class="bt gran" id="prDefecte"><i>💥</i><span>${t('Ha arribat defectuosa')}<small>${t('No es pot muntar: es registra per retornar-la i se\'n demana recanvi.')}</small></span></button>
+            <button class="bt" id="prTanca">${t('Cancel·lar')}</button>`);
         cos.querySelector('#prTanca').onclick = tancaFull;
         cos.querySelector('#prFalta').onclick = () => { tancaFull(); marcaMancant(clau); despres(); };
         cos.querySelector('#prDefecte').onclick = () => formDefecte({ claus: [clau], origen: 'arribada', despres });
@@ -755,41 +770,42 @@
     // Formulari de peça defectuosa o trencada. `claus`: caixetins on pot ser (si n'hi ha més d'un, es tria)
     function formDefecte(opc) {
         const claus = opc.claus.filter(k => M.perClau.get(k));
-        if (!claus.length) return avis('Aquest pas no té caixetins propis');
-        const cos = obreFull(`<h2>💥 Peça defectuosa o trencada</h2>
-            <label class="camp">Peça<select id="dfClau">${claus.map(k => { const e = M.perClau.get(k); return `<option value="${esc(k)}">${esc(e.codi)} · ${esc(e.nom)} (${esc(e.safata)})</option>`; }).join('')}</select></label>
-            <label class="camp">Quantes peces<input id="dfQty" type="number" inputmode="numeric" min="1" value="1"></label>
-            <div class="camp">Què ha passat
+        if (!claus.length) return avis(t('Aquest pas no té caixetins propis'));
+        const cos = obreFull(`<h2>💥 ${t('Peça defectuosa o trencada')}</h2>
+            <label class="camp">${t('Peça')}<select id="dfClau">${claus.map(k => { const e = M.perClau.get(k); return `<option value="${esc(k)}">${esc(e.codi)} · ${esc(e.nom)} (${esc(e.safata)})</option>`; }).join('')}</select></label>
+            <label class="camp">${t('Quantes peces')}<input id="dfQty" type="number" inputmode="numeric" min="1" value="1"></label>
+            <div class="camp">${t('Què ha passat')}
                 ${Object.entries(FO.ORIGENS_DEFECTE).map(([k, o]) => `<label class="ck"><input type="radio" name="dfOrigen" value="${k}"${k === opc.origen ? ' checked' : ''}> ${o.ico} ${esc(o.nom)}</label>`).join('')}</div>
-            <label class="camp">Què li passa<select id="dfTipus">${FO.TIPUS_DEFECTE.map(t => `<option>${esc(t)}</option>`).join('')}</select></label>
-            <label class="camp">Descripció (opcional)<textarea id="dfDesc" placeholder="Rosca passada, esquerda al lateral, forats desplaçats…"></textarea></label>
-            <p class="ajuda">Se'n demanarà recanvi automàticament (llista de mancants) i Qualitat decidirà què es fa amb la peça dolenta.</p>
-            <div class="fx"><button class="bt pr" id="dfDesa">Registrar i demanar recanvi</button><button class="bt" id="dfTanca">Cancel·lar</button></div>`);
+            <label class="camp">${t('Què li passa')}<select id="dfTipus">${FO.TIPUS_DEFECTE.map(x => `<option value="${esc(x)}">${esc(t(x))}</option>`).join('')}</select></label>
+            <label class="camp">${t('Descripció (opcional)')}<textarea id="dfDesc" placeholder="${t('Rosca passada, esquerda al lateral, forats desplaçats…')}"></textarea></label>
+            <p class="ajuda">${t('Se\'n demanarà recanvi automàticament (llista de mancants) i Qualitat decidirà què es fa amb la peça dolenta.')}</p>
+            <div class="fx"><button class="bt pr" id="dfDesa">${t('Registrar i demanar recanvi')}</button><button class="bt" id="dfTanca">${t('Cancel·lar')}</button></div>`);
         cos.querySelector('#dfTanca').onclick = tancaFull;
         cos.querySelector('#dfDesa').onclick = () => {
             const clau = cos.querySelector('#dfClau').value, e = M.perClau.get(clau);
             const qty = Math.round(FO.num(cos.querySelector('#dfQty').value, 0));
-            if (!(qty >= 1 && qty <= e.qty)) return avis(`Han de ser entre 1 i ${e.qty} peces`);
+            if (!(qty >= 1 && qty <= e.qty)) return avis(t('Han de ser entre 1 i {n} peces', { n: e.qty }));
             const origen = cos.querySelector('input[name=dfOrigen]:checked').value, tipus = cos.querySelector('#dfTipus').value, descripcio = cos.querySelector('#dfDesc').value.trim();
             const conj = M.pasDe(e) || '', m = e.caixeti.mat;
             if (!fer('defecte', { clau, mat: m.id, conj, qty, origen, tipus, descripcio },
-                `💥 ${m.codi} ×${qty}: ${FO.ORIGENS_DEFECTE[origen].nom.toLowerCase()} (${tipus}${descripcio ? ': ' + descripcio : ''}) · es demana recanvi`)) return;
+                tc(descripcio ? '💥 {mat} ×{q}: {origen} ({tipus}: {desc}) · es demana recanvi' : '💥 {mat} ×{q}: {origen} ({tipus}) · es demana recanvi',
+                    { mat: m.codi, q: qty, origen: { arribada: 'venia defectuosa', muntatge: 'trencada en muntar' }[origen], tipus, desc: descripcio }))) return;
             tancaFull(); so(true);
-            avis('Registrada. S\'ha demanat recanvi (llista de mancants) i el muntatge pot continuar amb la resta.', 4500);
+            avis(t('Registrada. S\'ha demanat recanvi (llista de mancants) i el muntatge pot continuar amb la resta.'), 4500);
             if (opc.despres) opc.despres(); else ruta();
         };
     }
     // «Falta»: el material no ha arribat o no n'hi ha prou. S'hi posa el que hi ha i la resta queda com a mancant.
     function marcaMancant(clau) {
         const e = M.perClau.get(clau), m = e.caixeti.mat, ja = prog.omplert[clau] ? prog.omplert[clau].qty : 0;
-        const r = prompt(`${m.codi} · ${m.nom}\nEn calen ${e.qty}. Quants n'has pogut posar a la caixa? (0 si no n'ha arribat cap)`, String(ja));
+        const r = prompt(`${m.codi} · ${m.nom}\n` + t('En calen {n}. Quants n\'has pogut posar a la caixa? (0 si no n\'ha arribat cap)', { n: e.qty }), String(ja));
         if (r === null) return;
         const posats = Math.max(0, Math.min(e.qty, Math.round(FO.num(r, 0))));
         if (posats >= e.qty) { omple(clau, e.qty, true); return; }
-        const nota = prompt('Nota per a la llista de mancants (proveïdor, data prevista…). Opcional:', '') || '';
+        const nota = prompt(t('Nota per a la llista de mancants (proveïdor, data prevista…). Opcional:'), '') || '';
         if (posats > ja) omple(clau, posats, true);
-        fer('manca', { clau, mat: m.id, falten: e.qty - posats, nota }, `❗ Mancant: ${m.codi} · falten ${e.qty - posats} de ${e.qty} a ${e.safata}${nota ? ' · ' + nota : ''}`);
-        avis('Afegit a la llista de mancants. El muntatge pot continuar amb la resta.', 3500);
+        fer('manca', { clau, mat: m.id, falten: e.qty - posats, nota }, tc(nota ? '❗ Mancant: {mat} · falten {n} de {q} a {caixa} · {nota}' : '❗ Mancant: {mat} · falten {n} de {q} a {caixa}', { mat: m.codi, n: e.qty - posats, q: e.qty, caixa: e.safata, nota }));
+        avis(t('Afegit a la llista de mancants. El muntatge pot continuar amb la resta.'), 3500);
     }
 
     // ─── Estoc ───
@@ -810,25 +826,25 @@
         const nec = necessari(), editable = pot('estoc') && !prog.tancada;
         const nomesFalta = filtre === 'falta';
         const mats = P.materials.slice().sort((a, b) => a.codi.localeCompare(b.codi)).filter(m => !nomesFalta || (nec.get(m.id) || 0) > (prog.estoc[m.id] || 0));
-        $('vista').innerHTML = `${bannerTancada()}<h2>Estoc</h2><p class="ajuda">«Cal» és el que encara falta posar a les caixes dels passos pendents. Quan omples una caixa, el material surt de l'estoc.</p>
-            <div class="fx" style="margin:8px 0"><button class="bt${nomesFalta ? '' : ' pr'}" data-f="">Tots</button><button class="bt${nomesFalta ? ' pr' : ''}" data-f="falta">Només el que falta</button></div>
-            <input class="cerca" id="eCerca" type="search" placeholder="Cerca…">
-            <div class="targeta" style="padding:4px 8px"><table class="taula"><tr><th>Material</th><th class="n">Cal</th><th class="n">Tinc</th></tr>
+        $('vista').innerHTML = `${bannerTancada()}<h2>${t('Estoc')}</h2><p class="ajuda">${t('«Cal» és el que encara falta posar a les caixes dels passos pendents. Quan omples una caixa, el material surt de l\'estoc.')}</p>
+            <div class="fx" style="margin:8px 0"><button class="bt${nomesFalta ? '' : ' pr'}" data-f="">${t('Tots')}</button><button class="bt${nomesFalta ? ' pr' : ''}" data-f="falta">${t('Només el que falta')}</button></div>
+            <input class="cerca" id="eCerca" type="search" placeholder="${t('Cerca…')}">
+            <div class="targeta" style="padding:4px 8px"><table class="taula"><tr><th>${t('Material')}</th><th class="n">${t('Cal')}</th><th class="n">${t('Tinc')}</th></tr>
             ${mats.map(m => {
-                const n = nec.get(m.id) || 0, t = prog.estoc[m.id] || 0;
+                const n = nec.get(m.id) || 0, tinc = prog.estoc[m.id] || 0;
                 return `<tr data-cerca="${esc((m.codi + ' ' + m.nom).toLowerCase())}"><td><span class="sw" style="background:${m.col}"></span> <b>${esc(m.codi)}</b><div class="ajuda">${esc(m.nom)}</div></td>
-                    <td class="n ${t < n ? 'falta' : ''}">${n}</td>
-                    <td>${editable ? `<div class="num-in"><button data-m="${esc(m.id)}" data-d="-1">−</button><input type="number" inputmode="numeric" data-mi="${esc(m.id)}" value="${t}"><button data-m="${esc(m.id)}" data-d="1">+</button></div>` : `<div class="n">${t}</div>`}</td></tr>`;
+                    <td class="n ${tinc < n ? 'falta' : ''}">${n}</td>
+                    <td>${editable ? `<div class="num-in"><button data-m="${esc(m.id)}" data-d="-1">−</button><input type="number" inputmode="numeric" data-mi="${esc(m.id)}" value="${tinc}"><button data-m="${esc(m.id)}" data-d="1">+</button></div>` : `<div class="n">${tinc}</div>`}</td></tr>`;
             }).join('')}</table></div>`;
         const v = $('vista');
         v.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { location.hash = '#/estoc' + (b.dataset.f ? '/' + b.dataset.f : ''); });
         v.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
             const m = FO.material(P, b.dataset.m), d = +b.dataset.d;
-            fer('estoc', { mat: b.dataset.m, delta: d }, `Estoc ${m ? m.codi : b.dataset.m}: ${d > 0 ? '+' : ''}${d}`); VISTES.estoc(filtre);
+            fer('estoc', { mat: b.dataset.m, delta: d }, tc('Estoc {mat}: {d}', { mat: m ? m.codi : b.dataset.m, d: (d > 0 ? '+' : '') + d })); VISTES.estoc(filtre);
         });
         v.querySelectorAll('[data-mi]').forEach(i => i.onchange = () => {
             const id = i.dataset.mi, m = FO.material(P, id), a = prog.estoc[id] || 0, nou = Math.round(FO.num(i.value, 0));
-            if (a !== nou) fer('estocFix', { mat: id, valor: nou }, `Estoc ${m ? m.codi : id}: ${a} → ${nou} (recompte)`);
+            if (a !== nou) fer('estocFix', { mat: id, valor: nou }, tc('Estoc {mat}: {a} → {b} (recompte)', { mat: m ? m.codi : id, a, b: nou }));
             VISTES.estoc(filtre);
         });
         $('eCerca').oninput = function () { const f = this.value.toLowerCase(); v.querySelectorAll('tr[data-cerca]').forEach(tr => { tr.style.display = tr.dataset.cerca.includes(f) ? '' : 'none'; }); };
@@ -841,7 +857,7 @@
         P.materials.forEach(m => {
             const falta = (nec.get(m.id) || 0) - Math.max(0, prog.estoc[m.id] || 0);
             if (falta <= 0) return;
-            const g = m.origen === 'propi' ? 'Fabricació pròpia' : (m.proveidor || 'Sense proveïdor');
+            const g = m.origen === 'propi' ? t('Fabricació pròpia') : (m.proveidor || t('Sense proveïdor'));
             if (!grups.has(g)) grups.set(g, []);
             grups.get(g).push({ m, falta, urgent: urgents.has(m.id) });
         });
@@ -850,20 +866,26 @@
     }
     VISTES.compra = function () {
         const grups = llistaCompra();
-        $('vista').innerHTML = `<h2>Llista de compra</h2><p class="ajuda">El que falta per omplir les caixes i acabar els passos pendents, descomptant l'estoc, agrupat per proveïdor.</p>
-            ${grups.size ? Array.from(grups).map(([g, l]) => `<h3>${esc(g)}</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${l.map(x => `<tr><td><span class="sw" style="background:${x.m.col}"></span> <b>${esc(x.m.codi)}</b>${x.urgent ? ' <span class="xip er">❗ mancant</span>' : ''}<div class="ajuda">${esc(x.m.nom)}</div></td><td class="n falta">${x.falta}</td></tr>`).join('')}</table></div>`).join('')
-                + `<div class="fx"><button class="bt" id="cCopia">Copiar</button>${navigator.share ? '<button class="bt" id="cComparteix">Compartir…</button>' : ''}<button class="bt" id="cCSV">⬇ CSV</button></div>`
-                : '<div class="buit">✓ No falta res.</div>'}`;
+        $('vista').innerHTML = `<h2>${t('Llista de compra')}</h2><p class="ajuda">${t('El que falta per omplir les caixes i acabar els passos pendents, descomptant l\'estoc, agrupat per proveïdor.')}</p>
+            ${grups.size ? Array.from(grups).map(([g, l]) => `<h3>${esc(g)}</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${l.map(x => `<tr><td><span class="sw" style="background:${x.m.col}"></span> <b>${esc(x.m.codi)}</b>${x.urgent ? ` <span class="xip er">❗ ${t('mancant')}</span>` : ''}<div class="ajuda">${esc(x.m.nom)}</div></td><td class="n falta">${x.falta}</td></tr>`).join('')}</table></div>`).join('')
+                + botonsCompartir('c')
+                : `<div class="buit">✓ ${t('No falta res.')}</div>`}`;
         if (!grups.size) return;
-        let t = `Llista de compra · ${P.nom} · ${ORD.codi} · ${new Date().toLocaleDateString('ca-ES')}\n`;
-        grups.forEach((l, g) => { t += `\n${g}\n` + l.map(x => `  ${x.falta} × ${x.m.codi}  ${x.m.nom}${x.urgent ? '  (URGENT: mancant)' : ''}`).join('\n') + '\n'; });
-        $('cCopia').onclick = async () => { try { await navigator.clipboard.writeText(t); avis('Copiat'); } catch (e) { prompt('Copia:', t); } };
-        if ($('cComparteix')) $('cComparteix').onclick = () => navigator.share({ title: 'Llista de compra', text: t }).catch(() => { });
+        let txt = `${t('Llista de compra')} · ${P.nom} · ${ORD.codi} · ${new Date().toLocaleDateString(FO.locale())}\n`;
+        grups.forEach((l, g) => { txt += `\n${g}\n` + l.map(x => `  ${x.falta} × ${x.m.codi}  ${x.m.nom}${x.urgent ? '  (' + t('URGENT: mancant') + ')' : ''}`).join('\n') + '\n'; });
+        activaCompartir('c', t('Llista de compra'), txt);
         $('cCSV').onclick = () => {
             const files = []; grups.forEach((l, g) => l.forEach(x => files.push([g, x.m.codi, x.m.nom, x.falta, x.urgent ? 'si' : ''])));
             baixa('compra.csv', csv('proveidor;codi;nom;quantitat;urgent', files), 'text/csv');
         };
     };
+
+    // Botons Copiar / Compartir / CSV d'una llista (prefix dels id: c, m, d)
+    const botonsCompartir = p => `<div class="fx"><button class="bt" id="${p}Copia">${t('Copiar')}</button>${navigator.share ? `<button class="bt" id="${p}Comparteix">${t('Compartir…')}</button>` : ''}<button class="bt" id="${p}CSV">⬇ CSV</button></div>`;
+    function activaCompartir(p, titol, txt) {
+        $(p + 'Copia').onclick = async () => { try { await navigator.clipboard.writeText(txt); avis(t('Copiat')); } catch (e) { prompt(t('Copia:'), txt); } };
+        if ($(p + 'Comparteix')) $(p + 'Comparteix').onclick = () => navigator.share({ title: titol, text: txt }).catch(() => { });
+    }
 
     // ─── Llista de mancants ───
     // El material que no ha arribat en omplir les caixes, agrupat per material, per enviar-lo a compres.
@@ -881,29 +903,27 @@
         return Array.from(perMat.values()).sort((a, b) => String(a.des).localeCompare(b.des));
     }
     function textMancants(l) {
-        return `Llista de mancants · ${P.nom} · ${ORD.codi}${ORD.serie ? ' · ' + ORD.serie : ''} · ${new Date().toLocaleDateString('ca-ES')}\n\n` +
-            l.map(g => `${g.falten} × ${g.m.codi}  ${g.m.nom}${g.m.proveidor ? '  [' + g.m.proveidor + ']' : ''}\n    per a: ${g.llocs.map(y => (y.pas ? 'pas ' + y.pas.pas + ' ' + y.pas.conj.codi : '') + ' (' + y.x.falten + ')').join(', ')}${g.notes.size ? '\n    nota: ' + Array.from(g.notes).join(' · ') : ''}`).join('\n') + '\n';
+        return `${t('Llista de mancants')} · ${P.nom} · ${ORD.codi}${ORD.serie ? ' · ' + ORD.serie : ''} · ${new Date().toLocaleDateString(FO.locale())}\n\n` +
+            l.map(g => `${g.falten} × ${g.m.codi}  ${g.m.nom}${g.m.proveidor ? '  [' + g.m.proveidor + ']' : ''}\n    ${t('per a:')} ${g.llocs.map(y => (y.pas ? t('pas {n}', { n: y.pas.pas }) + ' ' + y.pas.conj.codi : '') + ' (' + y.x.falten + ')').join(', ')}${g.notes.size ? '\n    ' + t('nota:') + ' ' + Array.from(g.notes).map(tm).join(' · ') : ''}`).join('\n') + '\n';
     }
     VISTES.mancants = function () {
         const l = llistaMancants();
         const resolts = Object.entries(prog.mancants).filter(([, x]) => x.resolt).sort((a, b) => String(b[1].resolt.ts).localeCompare(a[1].resolt.ts)).slice(0, 15);
         const nDef = prog.defectes.length, nPend = FO.defectesPendents(prog).length;
-        $('vista').innerHTML = `${bannerTancada()}<h2>Mancants · ${esc(ORD.codi)}</h2>
-            ${nDef ? `<button class="bt gran" id="mDefectes"><i>💥</i><span>Peces defectuoses: ${prog.defectes.reduce((a, d) => a + d.qty, 0)}<small>${nPend ? nPend + ' pendents de decisió de Qualitat' : 'totes decidides'} · devolucions al proveïdor</small></span></button>` : ''}
-            <p class="ajuda">Material que no ha arribat. <b>El muntatge no s'atura:</b> els passos es munten amb la resta i queden «muntats amb mancants»; quan arriba el material, el magatzem l'omple i el muntador ho completa.</p>
-            ${l.length ? l.map(g => `<div class="targeta"><div class="fx"><span class="sw" style="background:${g.m.col}"></span><b style="flex:1">${esc(g.m.codi)} <span style="font-weight:400">${esc(g.m.nom)}</span></b><span class="xip er">falten ${g.falten}</span></div>
-                <div class="ajuda">Des del ${esc(data(g.des))}${g.m.proveidor ? ' · ' + esc(g.m.proveidor) : ''}${g.notes.size ? ' · ' + esc(Array.from(g.notes).join(' · ')) : ''}</div>
-                ${g.llocs.map(y => `<div class="fx" style="margin-top:6px"><span style="flex:1;font-size:14px">${y.pas ? `Pas ${y.pas.pas} · ${esc(y.pas.conj.codi)} ${esc(y.pas.conj.nom)}` : ''} · <b>${esc(y.x.clau)}</b> · ${y.x.falten} de ${y.e ? y.e.qty : '?'}</span>
-                    ${y.caixa && pot('omple') ? `<button class="bt" style="width:auto;min-height:36px;margin:0" data-caixa="${esc(y.caixa.id)}">Ha arribat ›</button>` : ''}</div>`).join('')}</div>`).join('')
-                + `<div class="fx"><button class="bt" id="mCopia">Copiar</button>${navigator.share ? '<button class="bt" id="mComparteix">Compartir…</button>' : ''}<button class="bt" id="mCSV">⬇ CSV</button></div>`
-                : '<div class="buit">✓ No hi ha cap mancant obert.</div>'}
-            ${resolts.length ? `<h3>Arribats</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${resolts.map(([clau, x]) => { const m = FO.material(P, x.mat); return `<tr><td><b>${esc(m ? m.codi : x.mat)}</b> · ${esc(clau)}<div class="ajuda">faltaven ${x.inicial || ''} · arribat ${esc(data(x.resolt.ts))}${x.resolt.op ? ' · ' + esc(x.resolt.op) : ''}</div></td></tr>`; }).join('')}</table></div>` : ''}`;
+        $('vista').innerHTML = `${bannerTancada()}<h2>${t('Mancants')} · ${esc(ORD.codi)}</h2>
+            ${nDef ? `<button class="bt gran" id="mDefectes"><i>💥</i><span>${t('Peces defectuoses: {n}', { n: prog.defectes.reduce((a, d) => a + d.qty, 0) })}<small>${nPend ? t('{n} pendents de decisió de Qualitat', { n: nPend }) : t('totes decidides')} · ${t('devolucions al proveïdor')}</small></span></button>` : ''}
+            <p class="ajuda">${t('Material que no ha arribat. <b>El muntatge no s\'atura:</b> els passos es munten amb la resta i queden «muntats amb mancants»; quan arriba el material, el magatzem l\'omple i el muntador ho completa.')}</p>
+            ${l.length ? l.map(g => `<div class="targeta"><div class="fx"><span class="sw" style="background:${g.m.col}"></span><b style="flex:1">${esc(g.m.codi)} <span style="font-weight:400">${esc(g.m.nom)}</span></b><span class="xip er">${t('falten {n}', { n: g.falten })}</span></div>
+                <div class="ajuda">${t('Des del {data}', { data: esc(data(g.des)) })}${g.m.proveidor ? ' · ' + esc(g.m.proveidor) : ''}${g.notes.size ? ' · ' + esc(Array.from(g.notes).map(tm).join(' · ')) : ''}</div>
+                ${g.llocs.map(y => `<div class="fx" style="margin-top:6px"><span style="flex:1;font-size:14px">${y.pas ? `${t('Pas {n}', { n: y.pas.pas })} · ${esc(y.pas.conj.codi)} ${esc(y.pas.conj.nom)}` : ''} · <b>${esc(y.x.clau)}</b> · ${t('{n} de {t}', { n: y.x.falten, t: y.e ? y.e.qty : '?' })}</span>
+                    ${y.caixa && pot('omple') ? `<button class="bt" style="width:auto;min-height:36px;margin:0" data-caixa="${esc(y.caixa.id)}">${t('Ha arribat')} ›</button>` : ''}</div>`).join('')}</div>`).join('')
+                + botonsCompartir('m')
+                : `<div class="buit">✓ ${t('No hi ha cap mancant obert.')}</div>`}
+            ${resolts.length ? `<h3>${t('Arribats')}</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${resolts.map(([clau, x]) => { const m = FO.material(P, x.mat); return `<tr><td><b>${esc(m ? m.codi : x.mat)}</b> · ${esc(clau)}<div class="ajuda">${t('faltaven {n}', { n: x.inicial || '' })} · ${t('arribat {data}', { data: esc(data(x.resolt.ts)) })}${x.resolt.op ? ' · ' + esc(x.resolt.op) : ''}</div></td></tr>`; }).join('')}</table></div>` : ''}`;
         $('vista').querySelectorAll('[data-caixa]').forEach(b => b.onclick = () => { location.hash = '#/caixa/' + encodeURIComponent(b.dataset.caixa); });
         if ($('mDefectes')) $('mDefectes').onclick = () => { location.hash = '#/defectes'; };
         if (!l.length) return;
-        const t = textMancants(l);
-        $('mCopia').onclick = async () => { try { await navigator.clipboard.writeText(t); avis('Copiat'); } catch (e) { prompt('Copia:', t); } };
-        if ($('mComparteix')) $('mComparteix').onclick = () => navigator.share({ title: 'Llista de mancants', text: t }).catch(() => { });
+        activaCompartir('m', t('Llista de mancants'), textMancants(l));
         $('mCSV').onclick = () => {
             const files = [];
             l.forEach(g => g.llocs.forEach(y => files.push([g.m.codi, g.m.nom, g.m.proveidor || '', y.x.falten, y.x.clau, y.pas ? y.pas.conj.codi : '', y.x.ts, y.x.nota || ''])));
@@ -918,7 +938,7 @@
         const grups = new Map();
         prog.defectes.filter(d => d.decisio ? d.decisio.tipus === 'retorn' : d.origen === 'arribada').forEach(d => {
             const m = FO.material(P, d.mat) || { codi: d.mat, nom: '', proveidor: '' };
-            const g = m.proveidor || 'Sense proveïdor';
+            const g = m.proveidor || t('Sense proveïdor');
             if (!grups.has(g)) grups.set(g, []);
             grups.get(g).push({ d, m });
         });
@@ -931,31 +951,31 @@
             const m = FO.material(P, d.mat), o = FO.ORIGENS_DEFECTE[d.origen], dc = d.decisio && FO.DECISIONS_DEFECTE[d.decisio.tipus];
             const r = M.perConj.get(d.conj);
             return `<div class="targeta"${d.decisio ? ' style="opacity:.75"' : ''}><div class="fx"><span class="sw" style="background:${m ? m.col : '#888'}"></span><b style="flex:1">${esc(m ? m.codi : d.mat)} <span style="font-weight:400">${esc(m ? m.nom : '')}</span></b><span class="xip er">×${d.qty}</span></div>
-                <div style="margin:6px 0">${o.ico} ${esc(o.nom)} · <b>${esc(d.tipus)}</b>${d.descripcio ? ' — ' + esc(d.descripcio) : ''}</div>
-                <div class="ajuda">${esc(data(d.ts))}${d.op ? ' · ' + esc(d.op) : ''}${r ? ` · pas ${r.pas} ${esc(r.conj.codi)}` : ''}${m && m.proveidor ? ' · ' + esc(m.proveidor) : ''}</div>
+                <div style="margin:6px 0">${o.ico} ${esc(o.nom)} · <b>${esc(tm(d.tipus))}</b>${d.descripcio ? ' — ' + esc(d.descripcio) : ''}</div>
+                <div class="ajuda">${esc(data(d.ts))}${d.op ? ' · ' + esc(d.op) : ''}${r ? ` · ${t('pas {n}', { n: r.pas })} ${esc(r.conj.codi)}` : ''}${m && m.proveidor ? ' · ' + esc(m.proveidor) : ''}</div>
                 ${dc ? `<div class="ajuda" style="margin-top:4px">${dc.ico} <b>${esc(dc.nom)}</b>${d.decisio.nota ? ' · ' + esc(d.decisio.nota) : ''} · ${esc(d.decisio.op)} · ${esc(data(d.decisio.ts))}</div>`
                     : decideix ? `<div class="fx" style="margin-top:6px">${Object.entries(FO.DECISIONS_DEFECTE).map(([k, x]) => `<button class="bt" style="min-width:120px" data-def="${esc(d.id)}" data-dec="${k}">${x.ico} ${esc(x.nom)}</button>`).join('')}</div>`
-                    : '<div class="ajuda" style="margin-top:4px">⏳ Pendent de la decisió de Qualitat</div>'}</div>`;
+                    : `<div class="ajuda" style="margin-top:4px">⏳ ${t('Pendent de la decisió de Qualitat')}</div>`}</div>`;
         };
-        $('vista').innerHTML = `${bannerTancada()}<h2>Peces defectuoses · ${esc(ORD.codi)}</h2>
-            <p class="ajuda">Peces que han arribat malament o que s'han trencat en muntar. De cadascuna ja s'ha demanat recanvi (llista de mancants); Qualitat decideix què es fa amb la peça dolenta.</p>
-            ${l.length ? l.map(fitxa).join('') : '<div class="buit">✓ Cap peça defectuosa.</div>'}
-            ${dev.size ? `<h3>Devolucions al proveïdor</h3>${Array.from(dev).map(([g, x]) => `<div class="targeta"><b>${esc(g)}</b>${x.map(y => `<div class="ajuda">${y.d.qty} × ${esc(y.m.codi)} ${esc(y.m.nom)} · ${esc(y.d.tipus)}${y.d.decisio ? '' : ' (pendent de decidir)'}</div>`).join('')}</div>`).join('')}
-                <div class="fx"><button class="bt" id="dCopia">Copiar</button>${navigator.share ? '<button class="bt" id="dComparteix">Compartir…</button>' : ''}<button class="bt" id="dCSV">⬇ CSV de totes</button></div>` : l.length ? '<div class="fx"><button class="bt" id="dCSV">⬇ CSV de totes</button></div>' : ''}`;
+        $('vista').innerHTML = `${bannerTancada()}<h2>${t('Peces defectuoses')} · ${esc(ORD.codi)}</h2>
+            <p class="ajuda">${t('Peces que han arribat malament o que s\'han trencat en muntar. De cadascuna ja s\'ha demanat recanvi (llista de mancants); Qualitat decideix què es fa amb la peça dolenta.')}</p>
+            ${l.length ? l.map(fitxa).join('') : `<div class="buit">✓ ${t('Cap peça defectuosa.')}</div>`}
+            ${dev.size ? `<h3>${t('Devolucions al proveïdor')}</h3>${Array.from(dev).map(([g, x]) => `<div class="targeta"><b>${esc(g)}</b>${x.map(y => `<div class="ajuda">${y.d.qty} × ${esc(y.m.codi)} ${esc(y.m.nom)} · ${esc(tm(y.d.tipus))}${y.d.decisio ? '' : ' (' + t('pendent de decidir') + ')'}</div>`).join('')}</div>`).join('')}
+                <div class="fx"><button class="bt" id="dCopia">${t('Copiar')}</button>${navigator.share ? `<button class="bt" id="dComparteix">${t('Compartir…')}</button>` : ''}<button class="bt" id="dCSV">⬇ ${t('CSV de totes')}</button></div>` : l.length ? `<div class="fx"><button class="bt" id="dCSV">⬇ ${t('CSV de totes')}</button></div>` : ''}`;
         $('vista').querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {
             const d = prog.defectes.find(x => x.id === b.dataset.def), m = FO.material(P, d.mat), dc = FO.DECISIONS_DEFECTE[b.dataset.dec];
-            const nota = prompt(`${dc.nom}: ${d.qty} × ${m ? m.codi : d.mat}\nNota (opcional: núm. de devolució, qui ho repara…):`, '');
+            const nota = prompt(`${dc.nom}: ${d.qty} × ${m ? m.codi : d.mat}\n` + t('Nota (opcional: núm. de devolució, qui ho repara…):'), '');
             if (nota === null) return;
-            if (fer('decideix', { def: d.id, decisio: b.dataset.dec, nota: nota.trim() }, `💥 ${m ? m.codi : d.mat} ×${d.qty}: ${dc.nom.toLowerCase()}${nota.trim() ? ' · ' + nota.trim() : ''}`)) VISTES.defectes();
+            const decCa = { retorn: 'retornar al proveïdor', ferralla: 'ferralla', reparar: 'reparar / recuperar', acceptada: 'acceptar tal com està' }[b.dataset.dec];
+            if (fer('decideix', { def: d.id, decisio: b.dataset.dec, nota: nota.trim() }, tc(nota.trim() ? '💥 {mat} ×{q}: {decisio} · {nota}' : '💥 {mat} ×{q}: {decisio}', { mat: m ? m.codi : d.mat, q: d.qty, decisio: decCa, nota: nota.trim() }))) VISTES.defectes();
         });
         if (dev.size) {
-            let t = `Devolucions al proveïdor · ${P.nom} · ${ORD.codi} · ${new Date().toLocaleDateString('ca-ES')}\n`;
-            dev.forEach((x, g) => { t += `\n${g}\n` + x.map(y => `  ${y.d.qty} × ${y.m.codi}  ${y.m.nom} · ${y.d.tipus}${y.d.descripcio ? ': ' + y.d.descripcio : ''}`).join('\n') + '\n'; });
-            $('dCopia').onclick = async () => { try { await navigator.clipboard.writeText(t); avis('Copiat'); } catch (e) { prompt('Copia:', t); } };
-            if ($('dComparteix')) $('dComparteix').onclick = () => navigator.share({ title: 'Devolucions al proveïdor', text: t }).catch(() => { });
+            let txt = `${t('Devolucions al proveïdor')} · ${P.nom} · ${ORD.codi} · ${new Date().toLocaleDateString(FO.locale())}\n`;
+            dev.forEach((x, g) => { txt += `\n${g}\n` + x.map(y => `  ${y.d.qty} × ${y.m.codi}  ${y.m.nom} · ${tm(y.d.tipus)}${y.d.descripcio ? ': ' + y.d.descripcio : ''}`).join('\n') + '\n'; });
+            activaCompartir('d', t('Devolucions al proveïdor'), txt);
         }
         if ($('dCSV')) $('dCSV').onclick = () => baixa(`defectes_${ORD.codi}.csv`, csv('data;codi;nom;proveidor;peces;origen;tipus;descripcio;pas;decisio;nota_decisio',
-            prog.defectes.map(d => { const m = FO.material(P, d.mat) || {}; return [d.ts, m.codi || d.mat, m.nom || '', m.proveidor || '', d.qty, FO.ORIGENS_DEFECTE[d.origen].nom, d.tipus, d.descripcio, codiConj(d.conj), d.decisio ? FO.DECISIONS_DEFECTE[d.decisio.tipus].nom : '', d.decisio ? d.decisio.nota : '']; })), 'text/csv');
+            prog.defectes.map(d => { const m = FO.material(P, d.mat) || {}; return [d.ts, m.codi || d.mat, m.nom || '', m.proveidor || '', d.qty, FO.ORIGENS_DEFECTE[d.origen].nom, tm(d.tipus), d.descripcio, codiConj(d.conj), d.decisio ? FO.DECISIONS_DEFECTE[d.decisio.tipus].nom : '', d.decisio ? d.decisio.nota : '']; })), 'text/csv');
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -970,15 +990,15 @@
         // següent pas: primer els assignats a mi, després qualsevol amb els subconjunts fets
         const disponibles = M.PLA.filter(r => !prog.fets[r.conj.id] && r.entrades.every(e => prog.fets[e.conj.id]));
         const seguent = disponibles.find(perAMi) || disponibles.find(r => !prog.assignacions[r.conj.id]) || disponibles[0];
-        $('vista').innerHTML = `${bannerTancada()}<div class="targeta"><div class="fx"><b style="flex:1">${esc(P.nom)} · ${esc(ORD.codi)}</b><span class="xip ${fets === M.PLA.length ? 'ok' : ''}">${fets} / ${M.PLA.length} muntats</span></div>
+        $('vista').innerHTML = `${bannerTancada()}<div class="targeta"><div class="fx"><b style="flex:1">${esc(P.nom)} · ${esc(ORD.codi)}</b><span class="xip ${fets === M.PLA.length ? 'ok' : ''}">${t('{n} / {t} muntats', { n: fets, t: M.PLA.length })}</span></div>
             <div class="barra"><div style="width:${M.PLA.length ? fets / M.PLA.length * 100 : 0}%"></div></div>
-            ${seguent ? `<button class="bt pr" style="margin-top:10px" data-anar="${esc(seguent.conj.id)}">Continuar: pas ${seguent.pas} · ${esc(seguent.conj.nom)}</button>` : fets === M.PLA.length && M.PLA.length ? '<p class="ajuda" style="margin-top:8px">🎉 Tots els passos estan muntats.</p>' : ''}</div>
+            ${seguent ? `<button class="bt pr" style="margin-top:10px" data-anar="${esc(seguent.conj.id)}">${t('Continuar: pas {n}', { n: seguent.pas })} · ${esc(seguent.conj.nom)}</button>` : fets === M.PLA.length && M.PLA.length ? `<p class="ajuda" style="margin-top:8px">🎉 ${t('Tots els passos estan muntats.')}</p>` : ''}</div>
             ${M.PLA.map(r => {
                 const e = estatDe(r), falten = r.entrades.filter(x => !prog.fets[x.conj.id]), qui = prog.assignacions[r.conj.id];
                 const llista = M.aAgafar(r), n = llista.filter(x => prog.agafat[x.clau]).length;
                 return `<div class="targeta pas${prog.fets[r.conj.id] ? ' fet' : ''}${falten.length ? ' bloquejat' : ''}" data-anar="${esc(r.conj.id)}" style="border-left-color:${r.conj.col}">
                     <div class="num">${prog.fets[r.conj.id] ? '✓' : r.pas}</div>
-                    <div class="info"><div class="nom">${esc(r.conj.nom)}</div><div class="sub">${esc(r.conj.codi)}${r.multiplicador > 1 ? ` · ×${r.multiplicador}` : ''}${qui ? ` · 👤 ${esc(qui)}${qui === nomPersona() ? ' (tu)' : ''}` : ''}${falten.length ? ` · falta ${falten.map(f => esc(f.conj.codi)).join(', ')}` : ''}</div>
+                    <div class="info"><div class="nom">${esc(r.conj.nom)}</div><div class="sub">${esc(r.conj.codi)}${r.multiplicador > 1 ? ` · ×${r.multiplicador}` : ''}${qui ? ` · 👤 ${esc(qui)}${qui === nomPersona() ? ' (' + t('tu') + ')' : ''}` : ''}${falten.length ? ` · ${t('falta')} ${falten.map(f => esc(f.conj.codi)).join(', ')}` : ''}</div>
                     ${llista.length && !prog.fets[r.conj.id] && n ? `<div class="barra"><div style="width:${n / llista.length * 100}%"></div></div>` : ''}</div>${xipEstat(e, FO.ESTATS_PAS)}</div>`;
             }).join('')}`;
         $('vista').querySelectorAll('[data-anar]').forEach(n => n.onclick = () => { location.hash = '#/pas/' + encodeURIComponent(n.dataset.anar); });
@@ -991,23 +1011,23 @@
             <div class="chk">${mc ? '!' : '✓'}</div><span class="sw" style="background:${m.col}"></span>
             <div class="txt"><div class="cd">${esc(m.codi)}${it && it.parell ? `<span class="parell">${fmt(it.parell, 1)} N·m</span>` : ''}${icones(m)}</div>
             <div class="nm">${esc(m.nom)}</div>${it && it.nota ? `<div class="nota">▸ ${esc(it.nota)}</div>` : ''}
-            ${mc ? `<div class="nota">❗ No ha arribat: en falten ${prog.mancants[e.clau].falten}. Munta la resta.</div>` : ''}</div>
+            ${mc ? `<div class="nota">❗ ${t('No ha arribat: en falten {n}. Munta la resta.', { n: prog.mancants[e.clau].falten })}</div>` : ''}</div>
             <div class="q">×${c.qty}</div></div>`;
     }
     // Bloc d'una caixa (o contenidor amb les seves caixes) amb els caixetins a agafar
     function blocObjecte(o, conjId, llista) {
         const etq = obj => llista.filter(e => e.safata === obj.id);
         const cap = (obj, tipus) => `<span class="sw" style="background:${obj.color}"></span><span class="fl">${esc(obj.id)}</span><span class="xip">${esc(tipus)}</span>`;
-        const nomF = { safata: 'Safata', caixa: 'Caixa', contenidor: 'Contenidor' };
+        const nomF = { safata: t('Safata'), caixa: t('Caixa'), contenidor: t('Contenidor') };
         if (o.forma === 'contenidor') {
             const fills = o.caixes.map(q => q.obj).filter(b => etq(b).length);
             if (!fills.length) return '';
-            return `<div class="objecte"><div class="t">${cap(o, 'Contenidor · ' + o.caixes.length + ' caixes')}</div>` +
-                fills.map(b => `<div class="subcaixa"><span class="sw" style="background:${b.color}"></span>${esc(b.id)}${b.bloc ? ' · bloc de petits' : ''}</div>` + etq(b).map(e => filaCaixeti(e, conjId)).join('')).join('') + '</div>';
+            return `<div class="objecte"><div class="t">${cap(o, t('Contenidor') + ' · ' + t('{n} caixes', { n: o.caixes.length }))}</div>` +
+                fills.map(b => `<div class="subcaixa"><span class="sw" style="background:${b.color}"></span>${esc(b.id)}${b.bloc ? ' · ' + t('bloc de petits') : ''}</div>` + etq(b).map(e => filaCaixeti(e, conjId)).join('')).join('') + '</div>';
         }
         const files = etq(o);
         if (!files.length) return '';
-        return `<div class="objecte"><div class="t">${cap(o, o.tipus === 'muntat' ? 'Guarda' : nomF[o.forma] || '')}</div>${files.map(e => filaCaixeti(e, conjId)).join('')}</div>`;
+        return `<div class="objecte"><div class="t">${cap(o, o.tipus === 'muntat' ? t('Guarda') : nomF[o.forma] || '')}</div>${files.map(e => filaCaixeti(e, conjId)).join('')}</div>`;
     }
 
     VISTES.pas = function (id) {
@@ -1025,57 +1045,57 @@
         const arribats = pend.filter(x => !FO.esMancant(prog, x.clau));        // … i què ja ha arribat
         const subParcials = r.entrades.filter(e => prog.fets[e.conj.id] && (prog.fets[e.conj.id].pendents || []).length);
         const nomPend = x => { const e = M.perClau.get(x.clau); return esc(e ? e.codi : x.mat) + ' ×' + x.qty; };
-        const instr = c.instruccions.split(/\r?\n/).map(t => t.trim()).filter(Boolean);
+        const instr = c.instruccions.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
         const fetsI = prog.instr[c.id] || [];
         const parells = c.items.filter(i => i.parell > 0).map(i => ({ i, m: FO.material(P, i.mat) })).filter(x => x.m);
         const guarda = r.safates.filter(o => o.tipus === 'muntat');
         const propies = r.safates.filter(o => o.tipus !== 'muntat');
         const perTornar = propies.filter(o => !prog.retornat[o.id]);
         const qui = prog.assignacions[c.id];
-        $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">Pas ${r.pas} de ${M.PLA.length}${r.multiplicador > 1 ? ` · muntar-ne ${r.multiplicador}` : ''}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}${qui ? ' · 👤 ' + esc(qui) : ''}</div></div>
-            ${v && v.resultat === 'ko' && !f ? `<div class="banner er">✗ <b>Rebutjat per Qualitat</b> (${esc(v.op)}, ${esc(data(v.ts))}): ${esc(v.motiu)}<br><small>Corregeix-ho i torna a marcar el pas com a muntat.</small></div>` : ''}
-            ${pend.length ? `<div class="banner er">❗ <b>Muntat amb mancants.</b> Queden per posar: ${pend.map(nomPend).join(', ')}.
-                ${arribats.length ? `<br>✓ Ja han arribat: ${arribats.map(nomPend).join(', ')}. Posa-les i prem «Completar».` : '<br><small>Quan arribin, el magatzem les posarà a la caixa i aquí es podrà completar.</small>'}</div>` : ''}
-            ${subParcials.length && !f ? `<div class="banner in">ℹ ${subParcials.map(e => esc(e.conj.codi)).join(', ')} ${subParcials.length === 1 ? 'està muntat' : 'estan muntats'} amb mancants: pots continuar aquest pas; les peces que falten es posaran després.</div>` : ''}
-            ${mancantsPas.length && !f ? `<div class="banner wr">❗ <b>Falten peces que no han arribat:</b> ${mancantsPas.map(e => esc(e.codi) + ' ×' + prog.mancants[e.clau].falten).join(', ')}.<br><small>Pots muntar la resta: el pas quedarà «muntat amb mancants», no aturarà el conjunt següent i el completaràs quan arribin.</small></div>` : ''}
-            ${f && !v && !pend.length ? `<div class="banner in">Muntat ${esc(data(f.ts))}${f.op ? ' per ' + esc(f.op) : ''} · <b>pendent de verificar</b> per Qualitat.</div>` : ''}
-            ${f && v && v.resultat === 'ok' ? `<div class="banner ok">✓ Verificat per ${esc(v.op)} · ${esc(data(v.ts))}</div>` : ''}
-            ${falten.length && !f ? `<div class="banner er"><b>Abans cal muntar:</b> ${falten.map(x => `<a href="#/pas/${encodeURIComponent(x.conj.id)}">${esc(x.conj.codi)} ${esc(x.conj.nom)}</a>`).join(', ')}</div>` : ''}
-            ${senseOmplir.length && !f ? `<div class="banner wr">📦 El magatzem encara no ha omplert ${senseOmplir.length} caixetí(ns) d'aquest pas: ${senseOmplir.slice(0, 6).map(e => esc(e.codi)).join(', ')}${senseOmplir.length > 6 ? '…' : ''}</div>` : ''}
+        $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">${t('Pas {n} de {t}', { n: r.pas, t: M.PLA.length })}${r.multiplicador > 1 ? ` · ${t('muntar-ne {n}', { n: r.multiplicador })}` : ''}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}${qui ? ' · 👤 ' + esc(qui) : ''}</div></div>
+            ${v && v.resultat === 'ko' && !f ? `<div class="banner er">✗ <b>${t('Rebutjat per Qualitat')}</b> (${esc(v.op)}, ${esc(data(v.ts))}): ${esc(tm(v.motiu))}<br><small>${t('Corregeix-ho i torna a marcar el pas com a muntat.')}</small></div>` : ''}
+            ${pend.length ? `<div class="banner er">❗ <b>${t('Muntat amb mancants.')}</b> ${t('Queden per posar:')} ${pend.map(nomPend).join(', ')}.
+                ${arribats.length ? `<br>✓ ${t('Ja han arribat:')} ${arribats.map(nomPend).join(', ')}. ${t('Posa-les i prem «Completar».')}` : `<br><small>${t('Quan arribin, el magatzem les posarà a la caixa i aquí es podrà completar.')}</small>`}</div>` : ''}
+            ${subParcials.length && !f ? `<div class="banner in">ℹ ${t(subParcials.length === 1 ? '{llista} està muntat amb mancants: pots continuar aquest pas; les peces que falten es posaran després.' : '{llista} estan muntats amb mancants: pots continuar aquest pas; les peces que falten es posaran després.', { llista: subParcials.map(e => esc(e.conj.codi)).join(', ') })}</div>` : ''}
+            ${mancantsPas.length && !f ? `<div class="banner wr">❗ <b>${t('Falten peces que no han arribat:')}</b> ${mancantsPas.map(e => esc(e.codi) + ' ×' + prog.mancants[e.clau].falten).join(', ')}.<br><small>${t('Pots muntar la resta: el pas quedarà «muntat amb mancants», no aturarà el conjunt següent i el completaràs quan arribin.')}</small></div>` : ''}
+            ${f && !v && !pend.length ? `<div class="banner in">${t('Muntat')} ${esc(data(f.ts))}${f.op ? ' · ' + esc(f.op) : ''} · <b>${t('pendent de verificar')}</b> (${t('Qualitat')}).</div>` : ''}
+            ${f && v && v.resultat === 'ok' ? `<div class="banner ok">✓ ${t('Verificat per {nom}', { nom: esc(v.op) })} · ${esc(data(v.ts))}</div>` : ''}
+            ${falten.length && !f ? `<div class="banner er"><b>${t('Abans cal muntar:')}</b> ${falten.map(x => `<a href="#/pas/${encodeURIComponent(x.conj.id)}">${esc(x.conj.codi)} ${esc(x.conj.nom)}</a>`).join(', ')}</div>` : ''}
+            ${senseOmplir.length && !f ? `<div class="banner wr">📦 ${t('El magatzem encara no ha omplert {n} caixetí(ns) d\'aquest pas:', { n: senseOmplir.length })} ${senseOmplir.slice(0, 6).map(e => esc(e.codi)).join(', ')}${senseOmplir.length > 6 ? '…' : ''}</div>` : ''}
             <div class="dues"><div>
-            <h3>1 · Preparació: agafa les caixes (${agafats}/${llista.length}${nMancantsAgafar ? ` · ❗ ${nMancantsAgafar} no ha${nMancantsAgafar > 1 ? 'n' : ''} arribat` : ''})</h3>
-            <div class="fx"><button class="bt pr" id="pEsc">⌖ Escanejar etiquetes</button><button class="bt" id="pTots">${agafats === llista.length && llista.length ? 'Desmarcar tot' : 'Marcar-ho tot'}</button></div>
-            ${M.objectesPas(r).map(o => blocObjecte(o, c.id, M.aAgafar(r))).join('') || '<p class="ajuda">Aquest pas no té caixes pròpies.</p>'}
-            ${r.fora.length ? `<div class="targeta"><b>Preparar a part</b> (no cap a cap caixa): ${r.fora.map(x => esc(x.mat.codi) + ' ×' + x.qty).join(', ')}</div>` : ''}
+            <h3>1 · ${t('Preparació: agafa les caixes')} (${agafats}/${llista.length}${nMancantsAgafar ? ` · ❗ ${t('{n} no ha(n) arribat', { n: nMancantsAgafar })}` : ''})</h3>
+            <div class="fx"><button class="bt pr" id="pEsc">⌖ ${t('Escanejar etiquetes')}</button><button class="bt" id="pTots">${agafats === llista.length && llista.length ? t('Desmarcar tot') : t('Marcar-ho tot')}</button></div>
+            ${M.objectesPas(r).map(o => blocObjecte(o, c.id, M.aAgafar(r))).join('') || `<p class="ajuda">${t('Aquest pas no té caixes pròpies.')}</p>`}
+            ${r.fora.length ? `<div class="targeta"><b>${t('Preparar a part')}</b> (${t('no cap a cap caixa')}): ${r.fora.map(x => esc(x.mat.codi) + ' ×' + x.qty).join(', ')}</div>` : ''}
             </div><div>
-            <h3>2 · Muntatge</h3>
-            ${!ini && !f ? `<button class="bt pr" id="pInicia"${falten.length ? ' disabled' : ''}>▶ Començar el pas</button>` : ini && !f ? `<p class="ajuda">Començat ${esc(data(ini.ts))}${ini.op ? ' per ' + esc(ini.op) : ''}</p>` : ''}
-            ${c.eines ? `<div class="targeta"><b>🔧 Eines:</b> ${esc(c.eines)}</div>` : ''}
-            ${c.imatge ? `<img class="imatge" src="${esc(c.imatge)}" alt="Resultat esperat">` : ''}
-            ${instr.length ? `<div class="objecte">${instr.map((t, i) => `<div class="fila${fetsI[i] ? ' fet' : ''}" data-instr="${i}"><div class="chk">✓</div><div class="txt"><div class="nm"><b>${i + 1}.</b> ${esc(t)}</div></div></div>`).join('')}</div>` : '<p class="ajuda">Sense instruccions: es poden afegir a la fitxa del conjunt a l\'app de l\'ordinador.</p>'}
-            ${parells.length ? `<h3>Parells de collada</h3><div class="targeta"><table class="taula"><tr><th>Element</th><th class="n">N·m</th></tr>${parells.map(x => `<tr><td><b>${esc(x.m.codi)}</b> ${esc(x.m.nom)}${x.i.nota ? `<div class="ajuda">${esc(x.i.nota)}</div>` : ''}</td><td class="n"><b>${fmt(x.i.parell, 1)}</b></td></tr>`).join('')}</table></div>` : ''}
-            ${c.notes ? `<div class="targeta"><b>Notes:</b> ${esc(c.notes)}</div>` : ''}
-            <h3>Fotos</h3><div class="fx"><button class="bt" id="pFoto">📷 Fer una foto</button><button class="bt" id="pInc">⚠ Incidència</button></div>
-            ${M.aOmplir(r).length && !prog.tancada ? '<button class="bt" id="pDefecte">💥 Peça trencada o defectuosa</button>' : ''}<div class="fotos" id="pFotos"></div>
-            <h3>3 · Final</h3>
-            ${guarda.length ? `<div class="targeta">Guarda ${r.multiplicador > 1 ? 'les ' + r.multiplicador + ' unitats' : 'el conjunt'} a: <b>${guarda.map(o => esc(o.id)).join(', ')}</b></div>` : ''}
-            ${pend.length ? `<button class="bt ok" id="pCompleta"${arribats.length ? '' : ' disabled'}>✓ Completar: he posat les peces que han arribat${arribats.length ? ` (${arribats.length})` : ''}</button>
-                <button class="bt" id="pCompletaTot">Completar-ho tot (he trobat les peces)</button>` : ''}
-            ${f ? (v && v.resultat === 'ok' ? '' : '<button class="bt" id="pDesfer">Desfer «muntat»</button>') : `<button class="bt ok" id="pFet"${falten.length ? ' disabled' : ''}>${mancantsPas.length ? `✓ Muntar sense les peces que falten (${mancantsPas.length})` : '✓ Marcar el pas com a muntat'}</button>`}
-            ${f && perTornar.length ? `<button class="bt" id="pTorna">↩ Tornar les caixes buides al magatzem (${perTornar.length})</button>` : ''}
+            <h3>2 · ${t('Muntatge')}</h3>
+            ${!ini && !f ? `<button class="bt pr" id="pInicia"${falten.length ? ' disabled' : ''}>▶ ${t('Començar el pas')}</button>` : ini && !f ? `<p class="ajuda">${t('Començat')} ${esc(data(ini.ts))}${ini.op ? ' · ' + esc(ini.op) : ''}</p>` : ''}
+            ${c.eines ? `<div class="targeta"><b>🔧 ${t('Eines:')}</b> ${esc(c.eines)}</div>` : ''}
+            ${c.imatge ? `<img class="imatge" src="${esc(c.imatge)}" alt="${t('Resultat esperat')}">` : ''}
+            ${instr.length ? `<div class="objecte">${instr.map((x, i) => `<div class="fila${fetsI[i] ? ' fet' : ''}" data-instr="${i}"><div class="chk">✓</div><div class="txt"><div class="nm"><b>${i + 1}.</b> ${esc(x)}</div></div></div>`).join('')}</div>` : `<p class="ajuda">${t('Sense instruccions: es poden afegir a la fitxa del conjunt a l\'app de l\'ordinador.')}</p>`}
+            ${parells.length ? `<h3>${t('Parells de collada')}</h3><div class="targeta"><table class="taula"><tr><th>${t('Element')}</th><th class="n">N·m</th></tr>${parells.map(x => `<tr><td><b>${esc(x.m.codi)}</b> ${esc(x.m.nom)}${x.i.nota ? `<div class="ajuda">${esc(x.i.nota)}</div>` : ''}</td><td class="n"><b>${fmt(x.i.parell, 1)}</b></td></tr>`).join('')}</table></div>` : ''}
+            ${c.notes ? `<div class="targeta"><b>${t('Notes:')}</b> ${esc(c.notes)}</div>` : ''}
+            <h3>${t('Fotos')}</h3><div class="fx"><button class="bt" id="pFoto">📷 ${t('Fer una foto')}</button><button class="bt" id="pInc">⚠ ${t('Incidència')}</button></div>
+            ${M.aOmplir(r).length && !prog.tancada ? `<button class="bt" id="pDefecte">💥 ${t('Peça trencada o defectuosa')}</button>` : ''}<div class="fotos" id="pFotos"></div>
+            <h3>3 · ${t('Final')}</h3>
+            ${guarda.length ? `<div class="targeta">${r.multiplicador > 1 ? t('Guarda les {n} unitats a:', { n: r.multiplicador }) : t('Guarda el conjunt a:')} <b>${guarda.map(o => esc(o.id)).join(', ')}</b></div>` : ''}
+            ${pend.length ? `<button class="bt ok" id="pCompleta"${arribats.length ? '' : ' disabled'}>✓ ${t('Completar: he posat les peces que han arribat')}${arribats.length ? ` (${arribats.length})` : ''}</button>
+                <button class="bt" id="pCompletaTot">${t('Completar-ho tot (he trobat les peces)')}</button>` : ''}
+            ${f ? (v && v.resultat === 'ok' ? '' : `<button class="bt" id="pDesfer">${t('Desfer «muntat»')}</button>`) : `<button class="bt ok" id="pFet"${falten.length ? ' disabled' : ''}>${mancantsPas.length ? `✓ ${t('Muntar sense les peces que falten ({n})', { n: mancantsPas.length })}` : `✓ ${t('Marcar el pas com a muntat')}`}</button>`}
+            ${f && perTornar.length ? `<button class="bt" id="pTorna">↩ ${t('Tornar les caixes buides al magatzem ({n})', { n: perTornar.length })}</button>` : ''}
             </div></div>`;
         const vi = $('vista');
         vi.querySelectorAll('[data-clau]').forEach(n => n.onclick = () => { commutaAgafat(n.dataset.clau); VISTES.pas(id); });
         vi.querySelectorAll('[data-instr]').forEach(n => n.onclick = () => {
             const i = +n.dataset.instr, val = !((prog.instr[c.id] || [])[i]);
             iniciaSiCal(r);
-            if (fer('instr', { conj: c.id, i, v: val }, `${c.codi}: instrucció ${i + 1} ${val ? 'feta' : 'desmarcada'}`)) n.classList.toggle('fet', val);
+            if (fer('instr', { conj: c.id, i, v: val }, tc(val ? '{conj}: instrucció {n} feta' : '{conj}: instrucció {n} desmarcada', { conj: c.codi, n: i + 1 }))) n.classList.toggle('fet', val);
         });
         $('pEsc').onclick = () => obreEscaner();
         $('pTots').onclick = () => {
             const tots = agafats === llista.length;
             if (!tots) iniciaSiCal(r);
-            llista.forEach((x, i) => { if (!!prog.agafat[x.clau] !== !tots) fer('agafa', { clau: x.clau, v: !tots }, i ? '' : `${c.codi}: ${tots ? 'desmarcat tot' : 'tot agafat'}`); });
+            llista.forEach((x, i) => { if (!!prog.agafat[x.clau] !== !tots) fer('agafa', { clau: x.clau, v: !tots }, i ? '' : tc(tots ? '{conj}: desmarcat tot' : '{conj}: tot agafat', { conj: c.codi })); });
             VISTES.pas(id);
         };
         if ($('pInicia')) $('pInicia').onclick = () => { iniciaSiCal(r); VISTES.pas(id); };
@@ -1083,33 +1103,33 @@
         $('pInc').onclick = () => { obreIncidencia(c.id); };
         if ($('pDefecte')) $('pDefecte').onclick = () => formDefecte({ claus: M.aOmplir(r).map(e => e.clau), origen: 'muntatge', despres: () => VISTES.pas(id) });
         if ($('pFet')) $('pFet').onclick = () => marcaFet(r, agafats, llista.length, mancantsPas);
-        const completa = (claus, text) => { if (fer('completa', { conj: c.id, claus }, text)) { so(true); avis(claus ? 'Peces posades' : 'Pas complet ✓ · ara el verificarà Qualitat'); VISTES.pas(id); } };
+        const completa = (claus, text) => { if (fer('completa', { conj: c.id, claus }, text)) { so(true); avis(claus ? t('Peces posades') : t('Pas complet ✓ · ara el verificarà Qualitat')); VISTES.pas(id); } };
         if ($('pCompleta')) $('pCompleta').onclick = () => {
             const claus = arribats.map(x => x.clau), tot = claus.length === pend.length;
-            completa(tot ? null : claus, `Pas ${r.pas} · ${c.codi}: posades les peces que faltaven (${arribats.map(x => { const e = M.perClau.get(x.clau); return (e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ')})${tot ? ' · pas complet' : ''}`);
+            completa(tot ? null : claus, tc(tot ? 'Pas {n} · {conj}: posades les peces que faltaven ({llista}) · pas complet' : 'Pas {n} · {conj}: posades les peces que faltaven ({llista})', { n: r.pas, conj: c.codi, llista: arribats.map(x => { const e = M.perClau.get(x.clau); return (e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ') }));
         };
         if ($('pCompletaTot')) $('pCompletaTot').onclick = () => {
-            if (confirm('Marcar el pas com a complet? Fes-ho només si ja hi has posat totes les peces que faltaven.')) completa(null, `Pas ${r.pas} · ${c.codi}: completat (peces trobades)`);
+            if (confirm(t('Marcar el pas com a complet? Fes-ho només si ja hi has posat totes les peces que faltaven.'))) completa(null, tc('Pas {n} · {conj}: completat (peces trobades)', { n: r.pas, conj: c.codi }));
         };
-        if ($('pDesfer')) $('pDesfer').onclick = () => { if (fer('desfet', { conj: c.id }, `Pas ${r.pas} · ${c.codi}: desfet`)) VISTES.pas(id); };
-        if ($('pTorna')) $('pTorna').onclick = () => { perTornar.forEach(o => fer('retorna', { obj: o.id }, `${o.id}: caixa tornada al magatzem`)); avis('Caixes tornades'); VISTES.pas(id); };
+        if ($('pDesfer')) $('pDesfer').onclick = () => { if (fer('desfet', { conj: c.id }, tc('Pas {n} · {conj}: desfet', { n: r.pas, conj: c.codi }))) VISTES.pas(id); };
+        if ($('pTorna')) $('pTorna').onclick = () => { perTornar.forEach(o => fer('retorna', { obj: o.id }, tc('{caixa}: caixa tornada al magatzem', { caixa: o.id }))); avis(t('Caixes tornades')); VISTES.pas(id); };
         pintaFotos(c.id);
     };
     // El primer cop que es toca un pas, es marca l'inici (per mesurar el temps de muntatge)
     function iniciaSiCal(r) {
-        if (!prog.inicis[r.conj.id] && !prog.fets[r.conj.id] && pot('inicia')) fer('inicia', { conj: r.conj.id }, `Pas ${r.pas} · ${r.conj.codi}: començat`);
+        if (!prog.inicis[r.conj.id] && !prog.fets[r.conj.id] && pot('inicia')) fer('inicia', { conj: r.conj.id }, tc('Pas {n} · {conj}: començat', { n: r.pas, conj: r.conj.codi }));
     }
     function commutaAgafat(clau) {
         const e = M.perClau.get(clau), v = !prog.agafat[clau], pas = M.pasDe(e);
         if (v && pas) iniciaSiCal(M.perConj.get(pas));
-        fer('agafa', { clau, v }, v ? `${e.codi} ×${e.qty}: agafat (${e.safata})` : `${e.codi}: desmarcat`);
+        fer('agafa', { clau, v }, v ? tc('{mat} ×{q}: agafat ({caixa})', { mat: e.codi, q: e.qty, caixa: e.safata }) : tc('{mat}: desmarcat', { mat: e.codi }));
     }
     function marcaFet(r, agafats, total, mancantsPas) {
         mancantsPas = mancantsPas || [];
         // amb mancants: es munta la resta i el pas queda «muntat amb mancants», sense aturar el conjunt següent
         const pendents = mancantsPas.map(e => ({ clau: e.clau, mat: e.caixeti.mat.id, qty: prog.mancants[e.clau].falten }));
-        if (pendents.length && !confirm(`Falten ${pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ')}.\nMuntar el pas sense aquestes peces? Quedarà «muntat amb mancants» i el completaràs quan arribin.`)) return;
-        else if (!pendents.length && agafats < total && !confirm(`Només hi ha ${agafats} de ${total} caixetins marcats com a agafats. Marcar igualment el pas com a muntat?`)) return;
+        if (pendents.length && !confirm(t('Falten {llista}.', { llista: pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ') }) + '\n' + t('Muntar el pas sense aquestes peces? Quedarà «muntat amb mancants» i el completaràs quan arribin.'))) return;
+        else if (!pendents.length && agafats < total && !confirm(t('Només hi ha {n} de {t} caixetins marcats com a agafats. Marcar igualment el pas com a muntat?', { n: agafats, t: total }))) return;
         // Consum d'estoc: només el material que NO ha passat pel magatzem (el de les caixes ja va sortir en omplir-les)
         const consum = {};
         if (pref.consumAuto) r.conj.items.forEach(it => {
@@ -1119,9 +1139,10 @@
             if (q > 0) consum[it.mat] = q;
         });
         iniciaSiCal(r);
-        const text = `Pas ${r.pas} · ${r.conj.codi} ${r.conj.nom} muntat${r.multiplicador > 1 ? ' (×' + r.multiplicador + ')' : ''}${pendents.length ? ' amb mancants: falten ' + pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ') : ''}`;
+        const vt = { n: r.pas, conj: r.conj.codi + ' ' + r.conj.nom + (r.multiplicador > 1 ? ' (×' + r.multiplicador + ')' : ''), llista: pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ') };
+        const text = pendents.length ? tc('Pas {n} · {conj} muntat amb mancants: falten {llista}', vt) : tc('Pas {n} · {conj} muntat', vt);
         if (!fer('fet', { conj: r.conj.id, consum, pendents }, text)) return;
-        so(true); avis(pendents.length ? 'Muntat amb mancants: el conjunt següent ja pot continuar' : 'Pas muntat ✓ · ara el verificarà Qualitat', 3500);
+        so(true); avis(pendents.length ? t('Muntat amb mancants: el conjunt següent ja pot continuar') : t('Pas muntat ✓ · ara el verificarà Qualitat'), 3500);
         VISTES.pas(r.conj.id);
     }
 
@@ -1133,25 +1154,25 @@
             const f = prog.fets[r.conj.id], v = prog.verificacions[r.conj.id];
             const meu = f && f.op && f.op === nomPersona();
             return `<div class="targeta pas" data-anar="${esc(r.conj.id)}" style="border-left-color:${r.conj.col}"><div class="num">${r.pas}</div>
-                <div class="info"><div class="nom">${esc(r.conj.nom)}</div><div class="sub">${esc(r.conj.codi)}${f ? ` · muntat per ${esc(f.op || '?')} ${esc(data(f.ts))}` : ''}${v && v.resultat === 'ko' ? ` · ${esc(v.motiu)}` : ''}${meu ? ' · ⚠ l\'has muntat tu' : ''}</div></div>
+                <div class="info"><div class="nom">${esc(r.conj.nom)}</div><div class="sub">${esc(r.conj.codi)}${f ? ` · ${t('muntat per {nom}', { nom: esc(f.op || '?') })} ${esc(data(f.ts))}` : ''}${v && v.resultat === 'ko' ? ` · ${esc(tm(v.motiu))}` : ''}${meu ? ' · ⚠ ' + t('l\'has muntat tu') : ''}</div></div>
                 ${xipEstat(estatDe(r), FO.ESTATS_PAS)}</div>`;
         }).join('') : `<p class="ajuda">${buit}</p>`);
         const est = r => estatDe(r);
         $('vista').innerHTML = bannerTancada() +
-            grup('Per verificar', M.PLA.filter(r => est(r) === 'muntat'), 'Cap pas espera verificació.') +
-            grup('Muntats amb mancants (encara no es poden aprovar)', M.PLA.filter(r => est(r) === 'parcial'), 'Cap.') +
-            grup('Rebutjats, pendents de refer', M.PLA.filter(r => est(r) === 'rebutjat'), 'Cap.') +
-            grup('Verificats', M.PLA.filter(r => est(r) === 'verificat'), 'Encara cap.');
+            grup(t('Per verificar'), M.PLA.filter(r => est(r) === 'muntat'), t('Cap pas espera verificació.')) +
+            grup(t('Muntats amb mancants (encara no es poden aprovar)'), M.PLA.filter(r => est(r) === 'parcial'), t('Cap.')) +
+            grup(t('Rebutjats, pendents de refer'), M.PLA.filter(r => est(r) === 'rebutjat'), t('Cap.')) +
+            grup(t('Verificats'), M.PLA.filter(r => est(r) === 'verificat'), t('Encara cap.'));
         $('vista').querySelectorAll('[data-anar]').forEach(n => n.onclick = () => { location.hash = '#/verif/' + encodeURIComponent(n.dataset.anar); });
     };
     // Llista de comprovació d'un pas: cada instrucció, cada parell de collada i dues comprovacions generals
     function comprovacions(r) {
         const c = r.conj, l = [];
-        c.instruccions.split(/\r?\n/).map(t => t.trim()).filter(Boolean).forEach((t, i) => l.push(`Instrucció ${i + 1}: ${t}`));
-        c.items.filter(i => i.parell > 0).forEach(i => { const m = FO.material(P, i.mat); if (m) l.push(`Parell de ${m.codi} ${m.nom}: ${fmt(i.parell, 1)} N·m`); });
+        c.instruccions.split(/\r?\n/).map(x => x.trim()).filter(Boolean).forEach((x, i) => l.push(t('Instrucció {n}: {text}', { n: i + 1, text: x })));
+        c.items.filter(i => i.parell > 0).forEach(i => { const m = FO.material(P, i.mat); if (m) l.push(t('Parell de {mat}: {nm} N·m', { mat: m.codi + ' ' + m.nom, nm: fmt(i.parell, 1) })); });
         const n = c.items.reduce((a, i) => a + i.qty * r.multiplicador, 0);
-        l.push(`Hi són totes les peces (${n} elements${r.entrades.length ? ' i ' + r.entrades.length + ' subconjunts' : ''})`);
-        l.push('Sense danys, restes ni peces soltes; zona neta');
+        l.push(r.entrades.length ? t('Hi són totes les peces ({n} elements i {s} subconjunts)', { n, s: r.entrades.length }) : t('Hi són totes les peces ({n} elements)', { n }));
+        l.push(t('Sense danys, restes ni peces soltes; zona neta'));
         return l;
     }
     VISTES.verif = function (id) {
@@ -1162,21 +1183,21 @@
         const meu = f && f.op && f.op === nomPersona() && !esResponsable();
         const pend = f && f.pendents ? f.pendents : [];   // muntat amb mancants: no es pot aprovar
         const rebutjos = prog.historial.filter(h => h.conj === id);
-        $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">Verificació · pas ${r.pas}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}</div></div>
-            ${!f ? `<div class="banner wr">Aquest pas encara no està muntat${v && v.resultat === 'ko' ? ` (rebutjat: ${esc(v.motiu)})` : ''}.</div>` : `<div class="targeta">Muntat per <b>${esc(f.op || '?')}</b> · ${esc(data(f.ts))}${ini ? ` · durada ${FO.textDurada(new Date(f.ts) - new Date(ini.ts))}` : ''}</div>`}
-            ${meu ? '<div class="banner er">⚠ Aquest pas l\'has muntat tu: l\'ha de verificar una altra persona (regla dels quatre ulls).</div>' : ''}
-            ${v && v.resultat === 'ok' && f ? `<div class="banner ok">✓ Verificat per ${esc(v.op)} · ${esc(data(v.ts))}</div>` : ''}
-            ${rebutjos.length ? `<div class="targeta"><b>Rebutjos anteriors:</b>${rebutjos.map(h => `<div class="ajuda">${esc(data(h.ts))} · ${esc(h.op)}: ${esc(h.motiu)}</div>`).join('')}</div>` : ''}
-            ${c.imatge ? `<img class="imatge" src="${esc(c.imatge)}" alt="Resultat esperat">` : ''}
-            <h3>Llista de comprovació (${marcats.size}/${llista.length})</h3>
-            <div class="objecte">${llista.map((t, i) => `<div class="fila${marcats.has(i) ? ' fet' : ''}" data-chk="${i}"><div class="chk">✓</div><div class="txt"><div class="nm">${esc(t)}</div></div></div>`).join('')}</div>
-            <h3>Fotos</h3><div class="fx"><button class="bt" id="vFoto">📷 Fer una foto</button><button class="bt" id="vInc">⚠ Incidència</button></div>
-            ${M.aOmplir(r).length && !prog.tancada ? '<button class="bt" id="vDefecte">💥 Peça defectuosa</button>' : ''}<div class="fotos" id="pFotos"></div>
-            ${f && !(v && v.resultat === 'ok') ? `<h3>Resultat</h3>
-            ${pend.length ? `<div class="banner er">❗ Muntat amb mancants: hi falten ${pend.map(x => { const e = M.perClau.get(x.clau); return esc(e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ')}. Es podrà aprovar quan el muntador ho completi.</div>` : ''}
-            <button class="bt ok" id="vOk"${marcats.size < llista.length || meu || pend.length ? ' disabled' : ''}>✓ Aprovar${pend.length ? ' (hi falten peces)' : marcats.size < llista.length ? ` (falten ${llista.length - marcats.size} comprovacions)` : ''}</button>
-            <label class="camp">Motiu del rebuig<textarea id="vMotiu" placeholder="Què s'ha de corregir?"></textarea></label>
-            <button class="bt perill" id="vKo"${meu ? ' disabled' : ''}>✗ Rebutjar i tornar-lo al muntador</button>` : ''}`;
+        $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">${t('Verificació')} · ${t('pas {n}', { n: r.pas })}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}</div></div>
+            ${!f ? `<div class="banner wr">${t('Aquest pas encara no està muntat')}${v && v.resultat === 'ko' ? ` (${t('rebutjat:')} ${esc(tm(v.motiu))})` : ''}.</div>` : `<div class="targeta">${t('Muntat per <b>{nom}</b>', { nom: esc(f.op || '?') })} · ${esc(data(f.ts))}${ini ? ` · ${t('durada')} ${FO.textDurada(new Date(f.ts) - new Date(ini.ts))}` : ''}</div>`}
+            ${meu ? `<div class="banner er">⚠ ${t('Aquest pas l\'has muntat tu: l\'ha de verificar una altra persona (regla dels quatre ulls).')}</div>` : ''}
+            ${v && v.resultat === 'ok' && f ? `<div class="banner ok">✓ ${t('Verificat per {nom}', { nom: esc(v.op) })} · ${esc(data(v.ts))}</div>` : ''}
+            ${rebutjos.length ? `<div class="targeta"><b>${t('Rebutjos anteriors:')}</b>${rebutjos.map(h => `<div class="ajuda">${esc(data(h.ts))} · ${esc(h.op)}: ${esc(tm(h.motiu))}</div>`).join('')}</div>` : ''}
+            ${c.imatge ? `<img class="imatge" src="${esc(c.imatge)}" alt="${t('Resultat esperat')}">` : ''}
+            <h3>${t('Llista de comprovació')} (${marcats.size}/${llista.length})</h3>
+            <div class="objecte">${llista.map((x, i) => `<div class="fila${marcats.has(i) ? ' fet' : ''}" data-chk="${i}"><div class="chk">✓</div><div class="txt"><div class="nm">${esc(x)}</div></div></div>`).join('')}</div>
+            <h3>${t('Fotos')}</h3><div class="fx"><button class="bt" id="vFoto">📷 ${t('Fer una foto')}</button><button class="bt" id="vInc">⚠ ${t('Incidència')}</button></div>
+            ${M.aOmplir(r).length && !prog.tancada ? `<button class="bt" id="vDefecte">💥 ${t('Peça defectuosa')}</button>` : ''}<div class="fotos" id="pFotos"></div>
+            ${f && !(v && v.resultat === 'ok') ? `<h3>${t('Resultat')}</h3>
+            ${pend.length ? `<div class="banner er">❗ ${t('Muntat amb mancants: hi falten {llista}. Es podrà aprovar quan el muntador ho completi.', { llista: pend.map(x => { const e = M.perClau.get(x.clau); return esc(e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ') })}</div>` : ''}
+            <button class="bt ok" id="vOk"${marcats.size < llista.length || meu || pend.length ? ' disabled' : ''}>✓ ${t('Aprovar')}${pend.length ? ' (' + t('hi falten peces') + ')' : marcats.size < llista.length ? ` (${t('falten {n} comprovacions', { n: llista.length - marcats.size })})` : ''}</button>
+            <label class="camp">${t('Motiu del rebuig')}<textarea id="vMotiu" placeholder="${t('Què s\'ha de corregir?')}"></textarea></label>
+            <button class="bt perill" id="vKo"${meu ? ' disabled' : ''}>✗ ${t('Rebutjar i tornar-lo al muntador')}</button>` : ''}`;
         $('vista').querySelectorAll('[data-chk]').forEach(n => n.onclick = () => {
             const i = +n.dataset.chk;
             if (marcats.has(i)) marcats.delete(i); else marcats.add(i);
@@ -1186,15 +1207,15 @@
         $('vInc').onclick = () => { obreIncidencia(id); };
         if ($('vDefecte')) $('vDefecte').onclick = () => formDefecte({ claus: M.aOmplir(r).map(e => e.clau), origen: 'muntatge', despres: () => VISTES.verif(id) });
         if ($('vOk')) $('vOk').onclick = () => {
-            if (!fer('verifica', { conj: id, resultat: 'ok', checks: Array.from(marcats) }, `Pas ${r.pas} · ${c.codi}: verificat ✓`)) return;
-            delete verifChecks[id]; so(true); avis('Pas verificat ✓');
+            if (!fer('verifica', { conj: id, resultat: 'ok', checks: Array.from(marcats) }, tc('Pas {n} · {conj}: verificat ✓', { n: r.pas, conj: c.codi }))) return;
+            delete verifChecks[id]; so(true); avis(t('Pas verificat ✓'));
             location.hash = '#/verificar';
         };
         if ($('vKo')) $('vKo').onclick = () => {
             const motiu = $('vMotiu').value.trim();
-            if (!motiu) { so(false); avis('Escriu el motiu del rebuig'); $('vMotiu').focus(); return; }
-            if (!fer('verifica', { conj: id, resultat: 'ko', motiu, checks: Array.from(marcats) }, `Pas ${r.pas} · ${c.codi}: rebutjat · ${motiu}`)) return;
-            delete verifChecks[id]; avis('Pas rebutjat: torna al muntador');
+            if (!motiu) { so(false); avis(t('Escriu el motiu del rebuig')); $('vMotiu').focus(); return; }
+            if (!fer('verifica', { conj: id, resultat: 'ko', motiu, checks: Array.from(marcats) }, tc('Pas {n} · {conj}: rebutjat · {motiu}', { n: r.pas, conj: c.codi, motiu }))) return;
+            delete verifChecks[id]; avis(t('Pas rebutjat: torna al muntador'));
             location.hash = '#/verificar';
         };
         pintaFotos(id);
@@ -1206,18 +1227,18 @@
     const GRAVETATS = { baixa: '#8888A0', mitjana: '#E8A838', alta: '#E53935' };
     VISTES.incidencies = function () {
         const l = prog.incidencies.slice().sort((a, b) => (!!a.resolta - !!b.resolta) || String(b.ts).localeCompare(a.ts));
-        $('vista').innerHTML = `${bannerTancada()}<h2>Incidències</h2>
-            <button class="bt pr" id="iNova"${pot('incidencia') ? '' : ' disabled'}>⚠ Nova incidència</button><div id="iForm"></div>
+        $('vista').innerHTML = `${bannerTancada()}<h2>${t('Incidències')}</h2>
+            <button class="bt pr" id="iNova"${pot('incidencia') ? '' : ' disabled'}>⚠ ${t('Nova incidència')}</button><div id="iForm"></div>
             ${l.length ? l.map(i => `<div class="targeta"${i.resolta ? ' style="opacity:.65"' : ''}>
-                <div class="fx"><span class="estat" style="background:${GRAVETATS[i.gravetat] || '#888'}">${esc(i.gravetat)}</span><b style="flex:1">${i.conj ? esc(codiConj(i.conj)) : 'General'}${i.clau ? ' · ' + esc(i.clau) : ''}</b>${i.resolta ? '<span class="xip ok">Resolta</span>' : ''}</div>
-                <p style="margin:6px 0">${esc(i.text)}</p><div class="ajuda">${esc(data(i.ts))}${i.op ? ' · ' + esc(i.op) : ''}</div>
-                ${i.resolta ? `<div class="ajuda">✓ ${esc(i.resolta.text)} · ${esc(i.resolta.op)} · ${esc(data(i.resolta.ts))}</div>` : pot('resol') ? `<button class="bt" data-resol="${esc(i.id)}">Marcar com a resolta</button>` : ''}</div>`).join('')
-                : '<div class="buit">Cap incidència. 👍</div>'}`;
+                <div class="fx"><span class="estat" style="background:${GRAVETATS[i.gravetat] || '#888'}">${esc(t(i.gravetat))}</span><b style="flex:1">${i.conj ? esc(codiConj(i.conj)) : t('General')}${i.clau ? ' · ' + esc(i.clau) : ''}</b>${i.resolta ? `<span class="xip ok">${t('Resolta')}</span>` : ''}</div>
+                <p style="margin:6px 0">${esc(tm(i.text))}</p><div class="ajuda">${esc(data(i.ts))}${i.op ? ' · ' + esc(i.op) : ''}</div>
+                ${i.resolta ? `<div class="ajuda">✓ ${esc(tm(i.resolta.text))} · ${esc(i.resolta.op)} · ${esc(data(i.resolta.ts))}</div>` : pot('resol') ? `<button class="bt" data-resol="${esc(i.id)}">${t('Marcar com a resolta')}</button>` : ''}</div>`).join('')
+                : `<div class="buit">${t('Cap incidència.')} 👍</div>`}`;
         $('iNova').onclick = () => obreFormIncidencia(pasActual || '');
         $('vista').querySelectorAll('[data-resol]').forEach(b => b.onclick = () => {
-            const s = prompt('Com s\'ha resolt?');
+            const s = prompt(t('Com s\'ha resolt?'));
             if (s === null) return;
-            if (fer('resol', { inc: b.dataset.resol, solucio: s.trim() }, 'Incidència resolta: ' + s.trim())) VISTES.incidencies();
+            if (fer('resol', { inc: b.dataset.resol, solucio: s.trim() }, tc('Incidència resolta: {text}', { text: s.trim() }))) VISTES.incidencies();
         });
         if (formPendent) { obreFormIncidencia(formPendent.conj, formPendent.clau); formPendent = null; }
     };
@@ -1226,26 +1247,26 @@
     function obreIncidencia(conj, clau) { formPendent = { conj, clau }; location.hash = '#/incidencies'; }
     function obreFormIncidencia(conj, clau) {
         const f = $('iForm'); if (!f) return;
-        f.innerHTML = `<div class="targeta"><label class="camp">Pas<select id="iPas"><option value="">General</option>${M.PLA.map(r => `<option value="${esc(r.conj.id)}"${r.conj.id === conj ? ' selected' : ''}>${r.pas} · ${esc(r.conj.codi)} ${esc(r.conj.nom)}</option>`).join('')}</select></label>
-            <label class="camp">Què passa?<textarea id="iText" placeholder="Peça defectuosa, falta material, plànol confús…"></textarea></label>
-            <label class="camp">Gravetat<select id="iGrav"><option value="baixa">Baixa</option><option value="mitjana" selected>Mitjana</option><option value="alta">Alta (atura el muntatge)</option></select></label>
-            <div class="fx"><button class="bt pr" id="iDesa">Desar</button><button class="bt" id="iCancel">Cancel·lar</button></div></div>`;
+        f.innerHTML = `<div class="targeta"><label class="camp">${t('Pas')}<select id="iPas"><option value="">${t('General')}</option>${M.PLA.map(r => `<option value="${esc(r.conj.id)}"${r.conj.id === conj ? ' selected' : ''}>${r.pas} · ${esc(r.conj.codi)} ${esc(r.conj.nom)}</option>`).join('')}</select></label>
+            <label class="camp">${t('Què passa?')}<textarea id="iText" placeholder="${t('Peça defectuosa, falta material, plànol confús…')}"></textarea></label>
+            <label class="camp">${t('Gravetat')}<select id="iGrav"><option value="baixa">${t('Baixa')}</option><option value="mitjana" selected>${t('Mitjana')}</option><option value="alta">${t('Alta (atura el muntatge)')}</option></select></label>
+            <div class="fx"><button class="bt pr" id="iDesa">${t('Desar')}</button><button class="bt" id="iCancel">${t('Cancel·lar')}</button></div></div>`;
         $('iText').focus();
         $('iCancel').onclick = () => { f.innerHTML = ''; };
         $('iDesa').onclick = () => {
             const text = $('iText').value.trim();
-            if (!text) return avis('Descriu la incidència');
+            if (!text) return avis(t('Descriu la incidència'));
             const c = $('iPas').value;
-            if (fer('incidencia', { conj: c, clau: clau || '', textInc: text, gravetat: $('iGrav').value }, `Incidència${c ? ' a ' + codiConj(c) : ''}: ${text}`)) { avis('Incidència registrada'); VISTES.incidencies(); }
+            if (fer('incidencia', { conj: c, clau: clau || '', textInc: text, gravetat: $('iGrav').value }, c ? tc('Incidència a {conj}: {text}', { conj: codiConj(c), text }) : tc('Incidència: {text}', { text }))) { avis(t('Incidència registrada')); VISTES.incidencies(); }
         };
     }
 
     // ─── Registre de traçabilitat ───
     VISTES.registre = function () {
         const r = prog.registre.slice().sort((a, b) => String(b.ts).localeCompare(a.ts));   // per hora real, encara que s'hagi sincronitzat tard
-        $('vista').innerHTML = `<h2>Registre · ${esc(ORD.codi)}</h2><div class="fx"><button class="bt" id="rCSV">⬇ Exportar CSV</button></div>
-            ${r.length ? `<div class="targeta" style="padding:4px 8px"><table class="taula">${r.slice(0, 400).map(x => `<tr><td style="white-space:nowrap;font-size:12px">${esc(data(x.ts))}${x.op ? '<br>' + esc(x.op) : ''}${x.rol && FO.ROLS[x.rol] ? ' ' + FO.ROLS[x.rol].ico : ''}</td><td>${esc(x.text)}</td></tr>`).join('')}</table></div>` : '<div class="buit">Encara no hi ha res.</div>'}`;
-        $('rCSV').onclick = () => baixa(`registre_${FO.nomFitxer(P.nom)}_${ORD.codi}.csv`, csv('data;persona;rol;tipus;text', prog.registre.map(x => [x.ts, x.op, x.rol || '', x.tipus, x.text])), 'text/csv');
+        $('vista').innerHTML = `<h2>${t('Registre')} · ${esc(ORD.codi)}</h2><div class="fx"><button class="bt" id="rCSV">⬇ ${t('Exportar CSV')}</button></div>
+            ${r.length ? `<div class="targeta" style="padding:4px 8px"><table class="taula">${r.slice(0, 400).map(x => `<tr><td style="white-space:nowrap;font-size:12px">${esc(data(x.ts))}${x.op ? '<br>' + esc(x.op) : ''}${x.rol && FO.ROLS[x.rol] ? ' ' + FO.ROLS[x.rol].ico : ''}</td><td>${esc(tm(x.text))}</td></tr>`).join('')}</table></div>` : `<div class="buit">${t('Encara no hi ha res.')}</div>`}`;
+        $('rCSV').onclick = () => baixa(`registre_${FO.nomFitxer(P.nom)}_${ORD.codi}.csv`, csv('data;persona;rol;tipus;text', prog.registre.map(x => [x.ts, x.op, x.rol || '', x.tipus, tm(x.text)])), 'text/csv');
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -1264,35 +1285,35 @@
         // per assignar: al servidor, les persones amb rol de muntador; sol, text lliure
         const muntadors = (personesSrv || []).filter(x => x.rols.includes('muntador') || x.rols.includes('responsable')).map(x => x.nom);
         $('vista').innerHTML = `${bannerTancada()}<div class="kpi">
-                <div>Verificats<b>${res.verificats} / ${res.total}</b></div><div>En curs<b>${res.enCurs}</b></div>
-                <div>Per verificar<b>${res.muntats}</b></div><div>Rebutjats<b>${res.rebutjats}</b></div>
-                <div>Caixes plenes<b>${plenes} / ${cx.length}</b></div><div>Incidències obertes<b>${res.incidenciesObertes}</b></div>
-                <div>Mancants oberts<b>${res.mancantsOberts}</b></div><div>Muntats amb mancants<b>${res.parcials}</b></div>
-                <div>Peces defectuoses<b>${res.pecesDefectuoses}</b></div><div>Defectes per decidir<b>${res.defectesPendents}</b></div></div>
+                <div>${t('Verificats')}<b>${res.verificats} / ${res.total}</b></div><div>${t('En curs')}<b>${res.enCurs}</b></div>
+                <div>${t('Per verificar')}<b>${res.muntats}</b></div><div>${t('Rebutjats')}<b>${res.rebutjats}</b></div>
+                <div>${t('Caixes plenes')}<b>${plenes} / ${cx.length}</b></div><div>${t('Incidències obertes')}<b>${res.incidenciesObertes}</b></div>
+                <div>${t('Mancants oberts')}<b>${res.mancantsOberts}</b></div><div>${t('Muntats amb mancants')}<b>${res.parcials}</b></div>
+                <div>${t('Peces defectuoses')}<b>${res.pecesDefectuoses}</b></div><div>${t('Defectes per decidir')}<b>${res.defectesPendents}</b></div></div>
             <div class="barra"><div style="width:${res.total ? res.verificats / res.total * 100 : 0}%"></div></div>
-            <div class="fx" style="margin-top:8px">${srv.url ? '<button class="bt" id="tPers">👥 Persones</button>' : ''}<button class="bt" id="tRes">📊 Resultats</button><button class="bt" id="tDef">💥 Defectes${res.defectesPendents ? ` (${res.defectesPendents})` : ''}</button></div>
-            ${prog.tancada ? '<button class="bt" id="tReobre">🔓 Reobrir l\'ordre</button>' : `<button class="bt${res.acabada ? ' ok' : ''}" id="tTanca">🔒 Tancar l'ordre${res.acabada ? '' : ' (encara no està acabada)'}</button>`}
-            <h3>Passos</h3>
+            <div class="fx" style="margin-top:8px">${srv.url ? `<button class="bt" id="tPers">👥 ${t('Persones')}</button>` : ''}<button class="bt" id="tRes">📊 ${t('Resultats')}</button><button class="bt" id="tDef">💥 ${t('Defectes')}${res.defectesPendents ? ` (${res.defectesPendents})` : ''}</button></div>
+            ${prog.tancada ? `<button class="bt" id="tReobre">🔓 ${t('Reobrir l\'ordre')}</button>` : `<button class="bt${res.acabada ? ' ok' : ''}" id="tTanca">🔒 ${t('Tancar l\'ordre')}${res.acabada ? '' : ' (' + t('encara no està acabada') + ')'}</button>`}
+            <h3>${t('Passos')}</h3>
             ${res.passos.map(x => `<div class="targeta"><div class="fx"><b style="flex:1"><a href="#/pas/${encodeURIComponent(x.id)}">${x.pas} · ${esc(x.codi)}</a> ${esc(x.nom)}</b>${xipEstat(x.estat, FO.ESTATS_PAS)}</div>
-                <div class="ajuda">${x.muntador ? '🔧 ' + esc(x.muntador) + (x.durada ? ' · ' + FO.textDurada(x.durada) : '') : ''}${x.verificador ? ' · ✅ ' + esc(x.verificador) : ''}${x.rebutjos.length ? ` · ✗ ${x.rebutjos.length} rebuig(s)` : ''}${x.incidencies ? ` · ⚠ ${x.incidencies}` : ''}</div>
-                <label class="camp" style="margin:6px 0 0">Assignat a${muntadors.length
+                <div class="ajuda">${x.muntador ? '🔧 ' + esc(x.muntador) + (x.durada ? ' · ' + FO.textDurada(x.durada) : '') : ''}${x.verificador ? ' · ✅ ' + esc(x.verificador) : ''}${x.rebutjos.length ? ` · ✗ ${t('{n} rebuig(s)', { n: x.rebutjos.length })}` : ''}${x.incidencies ? ` · ⚠ ${x.incidencies}` : ''}</div>
+                <label class="camp" style="margin:6px 0 0">${t('Assignat a')}${muntadors.length
                     ? `<select data-assigna="${esc(x.id)}"><option value="">—</option>${muntadors.map(n => `<option${n === x.assignat ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`
-                    : `<input data-assigna="${esc(x.id)}" value="${esc(x.assignat)}" placeholder="Nom de la persona">`}</label></div>`).join('')}`;
+                    : `<input data-assigna="${esc(x.id)}" value="${esc(x.assignat)}" placeholder="${t('Nom de la persona')}">`}</label></div>`).join('')}`;
         $('vista').querySelectorAll('[data-assigna]').forEach(i => i.onchange = () => {
             const persona = i.value.trim(), r = M.perConj.get(i.dataset.assigna);
-            fer('assigna', { conj: i.dataset.assigna, persona }, persona ? `${r.conj.codi} assignat a ${persona}` : `${r.conj.codi}: sense assignar`);
+            fer('assigna', { conj: i.dataset.assigna, persona }, persona ? tc('{conj} assignat a {persona}', { conj: r.conj.codi, persona }) : tc('{conj}: sense assignar', { conj: r.conj.codi }));
         });
         if ($('tPers')) $('tPers').onclick = () => { location.hash = '#/persones'; };
         $('tRes').onclick = () => { location.hash = '#/resultats'; };
         $('tDef').onclick = () => { location.hash = '#/defectes'; };
         if ($('tTanca')) $('tTanca').onclick = () => {
-            if (!res.acabada && !confirm(`Només hi ha ${res.verificats} de ${res.total} passos verificats. Tancar igualment l'ordre?`)) return;
-            if (res.incidenciesObertes && !confirm(`Hi ha ${res.incidenciesObertes} incidències obertes. Tancar igualment?`)) return;
-            if (res.mancantsOberts && !confirm(`Hi ha ${res.mancantsOberts} mancants oberts (material que no ha arribat). Tancar igualment?`)) return;
-            if (res.defectesPendents && !confirm(`Hi ha ${res.defectesPendents} peces defectuoses sense decidir què se'n fa. Tancar igualment?`)) return;
-            if (fer('tanca', {}, `Ordre ${ORD.codi} tancada`)) { avis('Ordre tancada'); ruta(); }
+            if (!res.acabada && !confirm(t('Només hi ha {n} de {t} passos verificats. Tancar igualment l\'ordre?', { n: res.verificats, t: res.total }))) return;
+            if (res.incidenciesObertes && !confirm(t('Hi ha {n} incidències obertes. Tancar igualment?', { n: res.incidenciesObertes }))) return;
+            if (res.mancantsOberts && !confirm(t('Hi ha {n} mancants oberts (material que no ha arribat). Tancar igualment?', { n: res.mancantsOberts }))) return;
+            if (res.defectesPendents && !confirm(t('Hi ha {n} peces defectuoses sense decidir què se\'n fa. Tancar igualment?', { n: res.defectesPendents }))) return;
+            if (fer('tanca', {}, tc('Ordre {codi} tancada', { codi: ORD.codi }))) { avis(t('Ordre tancada')); ruta(); }
         };
-        if ($('tReobre')) $('tReobre').onclick = () => { if (confirm('Reobrir l\'ordre?') && fer('reobre', {}, `Ordre ${ORD.codi} reoberta`)) ruta(); };
+        if ($('tReobre')) $('tReobre').onclick = () => { if (confirm(t('Reobrir l\'ordre?')) && fer('reobre', {}, tc('Ordre {codi} reoberta', { codi: ORD.codi }))) ruta(); };
         if (srv.url && !personesSrv) carregaPersones().then(() => { if (location.hash.startsWith('#/tauler') || location.hash.replace(/^#\/?/, '') === '') refresca(); });
     };
 
@@ -1301,20 +1322,20 @@
         // estat de cada ordre: del servidor (resum) o del progrés desat en aquest aparell
         const info = o => {
             const s = srv.projectes && (srv.projectes.find(x => x.id === P.id) || { ordres: [] }).ordres.find(x => x.id === o.id);
-            if (s) return `${s.passosFets}/${M.PLA.length} muntats${s.tancada ? ' · 🔒 tancada' : ''}`;
+            if (s) return t('{n} / {t} muntats', { n: s.passosFets, t: M.PLA.length }) + (s.tancada ? ' · 🔒 ' + t('tancada') : '');
             const p = o.id === ORD.id ? prog : llegeix(`fordre.muntatge.progres.${P.id}.${o.id}`);
-            if (!p) return 'sense començar';
+            if (!p) return t('sense començar');
             return FO.textEstatOrdre(FO.resumOrdre(M, p));
         };
         const potCrear = esResponsable() && (!srv.url || enXarxa());
-        $('vista').innerHTML = `<h2>Ordres de fabricació</h2>
-            <p class="ajuda">Cada unitat que es fabrica és una ordre, amb el seu progrés, registre i informe. El projecte fa de plantilla: es pot fabricar tantes vegades com calgui.</p>
+        $('vista').innerHTML = `<h2>${t('Ordres de fabricació')}</h2>
+            <p class="ajuda">${t('Cada unitat que es fabrica és una ordre, amb el seu progrés, registre i informe. El projecte fa de plantilla: es pot fabricar tantes vegades com calgui.')}</p>
             ${ORDRES.slice().reverse().map(o => `<button class="bt gran${o.id === ORD.id ? ' pr' : ''}" data-ordre="${esc(o.id)}"><i>🏭</i><span>${esc(o.codi)}${o.serie ? ' · ' + esc(o.serie) : ''}<small>${esc(info(o))} · ${esc(data(o.creada))}${o.notes ? ' · ' + esc(o.notes) : ''}</small></span></button>`).join('')}
-            ${potCrear ? `<h3>Nova ordre</h3><div class="targeta">
-                <label class="camp">Codi<input id="oCodi" placeholder="${esc(FO.codiOrdreSeguent(ORDRES))}"></label>
-                <label class="camp">Número de sèrie (opcional)<input id="oSerie"></label>
-                <label class="camp">Notes (client, comanda…)<input id="oNotes"></label>
-                <button class="bt pr" id="oCrea">+ Crear l'ordre i començar-hi</button></div>` : ''}`;
+            ${potCrear ? `<h3>${t('Nova ordre')}</h3><div class="targeta">
+                <label class="camp">${t('Codi')}<input id="oCodi" placeholder="${esc(FO.codiOrdreSeguent(ORDRES))}"></label>
+                <label class="camp">${t('Número de sèrie (opcional)')}<input id="oSerie"></label>
+                <label class="camp">${t('Notes (client, comanda…)')}<input id="oNotes"></label>
+                <button class="bt pr" id="oCrea">+ ${t('Crear l\'ordre i començar-hi')}</button></div>` : ''}`;
         $('vista').querySelectorAll('[data-ordre]').forEach(b => b.onclick = () => { canviaOrdre(b.dataset.ordre); location.hash = '#/' + NAV[rol()][0][0]; });
         if ($('oCrea')) $('oCrea').onclick = async () => {
             try {
@@ -1330,15 +1351,15 @@
     VISTES.resultats = function () {
         const res = FO.resumOrdre(M, prog);
         const pct = x => x == null ? '—' : Math.round(x * 100) + ' %';
-        $('vista').innerHTML = `<h2>Resultats · ${esc(ORD.codi)}</h2>
-            <div class="kpi"><div>Estat<b style="font-size:16px">${esc(FO.textEstatOrdre(res))}</b></div><div>Verificats<b>${res.verificats} / ${res.total}</b></div>
-                <div>Bé a la primera<b>${pct(res.primeraPassada)}</b></div><div>Rebutjos<b>${res.rebutjos}</b></div>
-                <div>Temps de muntatge<b style="font-size:16px">${FO.textDurada(res.tempsMuntatge)}</b></div><div>Incidències obertes<b>${res.incidenciesObertes}</b></div></div>
-            <div class="fx"><button class="bt pr" id="rInf">📄 Informe complet (imprimir / PDF)</button><button class="bt" id="rDesa">⬇ Desar l'informe</button></div>
-            <div class="fx"><button class="bt" id="rReg">🕘 Registre</button><button class="bt" id="rCSV">⬇ Registre CSV</button></div>
-            ${res.persones.length ? `<h3>Persones</h3><div class="targeta" style="padding:4px 8px"><table class="taula"><tr><th>Persona</th><th class="n">Omplerts</th><th class="n">Muntats</th><th class="n">Verificats</th><th class="n">Rebutjats</th></tr>
+        $('vista').innerHTML = `<h2>${t('Resultats')} · ${esc(ORD.codi)}</h2>
+            <div class="kpi"><div>${t('Estat')}<b style="font-size:16px">${esc(FO.textEstatOrdre(res))}</b></div><div>${t('Verificats')}<b>${res.verificats} / ${res.total}</b></div>
+                <div>${t('Bé a la primera')}<b>${pct(res.primeraPassada)}</b></div><div>${t('Rebutjos')}<b>${res.rebutjos}</b></div>
+                <div>${t('Temps de muntatge')}<b style="font-size:16px">${FO.textDurada(res.tempsMuntatge)}</b></div><div>${t('Incidències obertes')}<b>${res.incidenciesObertes}</b></div></div>
+            <div class="fx"><button class="bt pr" id="rInf">📄 ${t('Informe complet (imprimir / PDF)')}</button><button class="bt" id="rDesa">⬇ ${t('Desar l\'informe')}</button></div>
+            <div class="fx"><button class="bt" id="rReg">🕘 ${t('Registre')}</button><button class="bt" id="rCSV">⬇ ${t('Registre CSV')}</button></div>
+            ${res.persones.length ? `<h3>${t('Persones')}</h3><div class="targeta" style="padding:4px 8px"><table class="taula"><tr><th>${t('Persona')}</th><th class="n">${t('Omplerts')}</th><th class="n">${t('Muntats')}</th><th class="n">${t('Verificats')}</th><th class="n">${t('Rebutjats')}</th></tr>
                 ${res.persones.map(q => `<tr><td>${esc(q.nom)}</td><td class="n">${q.omplerts || ''}</td><td class="n">${q.muntats || ''}</td><td class="n">${q.verificats || ''}</td><td class="n">${q.rebutjats || ''}</td></tr>`).join('')}</table></div>` : ''}
-            ${prog.historial.length ? `<h3>Rebutjos</h3>${prog.historial.map(h => `<div class="targeta"><b>${esc(codiConj(h.conj))}</b> · ${esc(h.motiu)}<div class="ajuda">${esc(data(h.ts))} · ${esc(h.op)}${h.muntador ? ' · muntat per ' + esc(h.muntador) : ''}</div></div>`).join('')}` : ''}`;
+            ${prog.historial.length ? `<h3>${t('Rebutjos')}</h3>${prog.historial.map(h => `<div class="targeta"><b>${esc(codiConj(h.conj))}</b> · ${esc(tm(h.motiu))}<div class="ajuda">${esc(data(h.ts))} · ${esc(h.op)}${h.muntador ? ' · ' + t('muntat per {nom}', { nom: esc(h.muntador) }) : ''}</div></div>`).join('')}` : ''}`;
         const html = () => FO.informeHTML(M, prog, ORD, { empremtaActual: srv.projectes && (srv.projectes.find(x => x.id === P.id) || {}).empremta });
         $('rInf').onclick = () => {
             const url = URL.createObjectURL(new Blob([html()], { type: 'text/html' }));
@@ -1347,25 +1368,25 @@
         };
         $('rDesa').onclick = () => baixa(`informe_${FO.nomFitxer(P.nom)}_${ORD.codi}.html`, html(), 'text/html');
         $('rReg').onclick = () => { location.hash = '#/registre'; };
-        $('rCSV').onclick = () => baixa(`registre_${FO.nomFitxer(P.nom)}_${ORD.codi}.csv`, csv('data;persona;rol;tipus;text', prog.registre.map(x => [x.ts, x.op, x.rol || '', x.tipus, x.text])), 'text/csv');
+        $('rCSV').onclick = () => baixa(`registre_${FO.nomFitxer(P.nom)}_${ORD.codi}.csv`, csv('data;persona;rol;tipus;text', prog.registre.map(x => [x.ts, x.op, x.rol || '', x.tipus, tm(x.text)])), 'text/csv');
     };
 
     // ─── Persones (només amb servidor) ───
     VISTES.persones = async function () {
         if (!srv.url) { location.hash = '#/tauler'; return; }
-        $('vista').innerHTML = '<p class="ajuda">Carregant…</p>';
+        $('vista').innerHTML = `<p class="ajuda">${t('Carregant…')}</p>`;
         const l = await carregaPersones();
         let edita = null;   // persona que s'està editant (null = nova)
         const pinta = () => {
-            $('vista').innerHTML = `<h2>Persones del taller</h2>
-                <p class="ajuda">Cada persona entra amb el seu nom i PIN i pot tenir un o més rols. El PIN no es guarda mai en clar.</p>
+            $('vista').innerHTML = `<h2>${t('Persones del taller')}</h2>
+                <p class="ajuda">${t('Cada persona entra amb el seu nom i PIN i pot tenir un o més rols. El PIN no es guarda mai en clar.')}</p>
                 ${l.map((x, i) => `<button class="bt gran" data-i="${i}"><i>${FO.ROLS[x.rols[0]] ? FO.ROLS[x.rols[0]].ico : '👤'}</i><span>${esc(x.nom)}<small>${x.rols.map(r => FO.ROLS[r] ? FO.ROLS[r].nom : r).join(' · ')}</small></span></button>`).join('')}
-                <h3>${edita ? 'Editar ' + esc(edita.nom) : 'Persona nova'}</h3><div class="targeta">
-                ${edita ? '' : '<label class="camp">Nom<input id="peNom"></label>'}
+                <h3>${edita ? t('Editar {nom}', { nom: esc(edita.nom) }) : t('Persona nova')}</h3><div class="targeta">
+                ${edita ? '' : `<label class="camp">${t('Nom')}<input id="peNom"></label>`}
                 ${TOTS_ROLS.map(r => `<label class="ck"><input type="checkbox" data-rol="${r}"${edita && edita.rols.includes(r) ? ' checked' : ''}> ${FO.ROLS[r].ico} ${FO.ROLS[r].nom} <small class="ajuda">${esc(FO.ROLS[r].desc)}</small></label>`).join('')}
-                <label class="camp">${edita ? 'PIN nou (buit = no el canvia)' : 'PIN (de 4 a 8 xifres)'}<input id="pePin" type="password" inputmode="numeric" autocomplete="new-password"></label>
-                <button class="bt pr" id="peDesa">Desar</button>
-                ${edita ? `<button class="bt perill" id="peBaixa"${edita.nom === ses.nom ? ' disabled' : ''}>Donar de baixa</button><button class="bt" id="peNova">+ Persona nova</button>` : ''}</div>`;
+                <label class="camp">${edita ? t('PIN nou (buit = no el canvia)') : t('PIN (de 4 a 8 xifres)')}<input id="pePin" type="password" inputmode="numeric" autocomplete="new-password"></label>
+                <button class="bt pr" id="peDesa">${t('Desar')}</button>
+                ${edita ? `<button class="bt perill" id="peBaixa"${edita.nom === ses.nom ? ' disabled' : ''}>${t('Donar de baixa')}</button><button class="bt" id="peNova">+ ${t('Persona nova')}</button>` : ''}</div>`;
             $('vista').querySelectorAll('[data-i]').forEach(b => b.onclick = () => { edita = l[+b.dataset.i]; pinta(); });
             const desa = async actiu => {
                 const nom = edita ? edita.nom : $('peNom').value.trim();
@@ -1373,12 +1394,12 @@
                 const pin = $('pePin').value.trim();
                 try {
                     await api('/api/persones', { method: 'POST', body: JSON.stringify({ nom, rols, pin: pin || undefined, actiu }) });
-                    avis(actiu ? 'Desat' : 'Persona donada de baixa');
+                    avis(actiu ? t('Desat') : t('Persona donada de baixa'));
                     VISTES.persones();
                 } catch (e) { avis(e.message, 4000); }
             };
             $('peDesa').onclick = () => desa(true);
-            if ($('peBaixa')) $('peBaixa').onclick = () => { if (confirm(`Donar de baixa ${edita.nom}? Ja no podrà entrar.`)) desa(false); };
+            if ($('peBaixa')) $('peBaixa').onclick = () => { if (confirm(t('Donar de baixa {nom}? Ja no podrà entrar.', { nom: edita.nom }))) desa(false); };
             if ($('peNova')) $('peNova').onclick = () => { edita = null; pinta(); };
         };
         pinta();
@@ -1401,13 +1422,13 @@
             }
             bucleEscaner();
         } catch (e) {
-            resultat('in', 'No es pot obrir la càmera (permís o connexió no segura). Escriu el codi o fes servir un lector USB/Bluetooth.');
+            resultat('in', t('No es pot obrir la càmera (permís o connexió no segura). Escriu el codi o fes servir un lector USB/Bluetooth.'));
             setTimeout(() => $('codiManual').focus(), 100);
         }
     }
     function tancaEscaner() {
         esc_.actiu = false;
-        if (esc_.stream) esc_.stream.getTracks().forEach(t => t.stop());
+        if (esc_.stream) esc_.stream.getTracks().forEach(tr => tr.stop());
         esc_.stream = null; $('escaner').hidden = true;
         ruta();
     }
@@ -1446,20 +1467,20 @@
         if (valor.startsWith('FO1|') && valor.endsWith('|TAPA')) {
             const x = M.perObj.get(valor.split('|')[1]);
             so(true);
-            return resultat('in', `Tapa de <b>${esc(valor.split('|')[1])}</b>${x ? `<br><small>Pas ${x.r.pas} · ${esc(x.r.conj.nom)}</small>` : ''}`);
+            return resultat('in', `${t('Tapa de <b>{caixa}</b>', { caixa: esc(valor.split('|')[1]) })}${x ? `<br><small>${t('Pas {n}', { n: x.r.pas })} · ${esc(x.r.conj.nom)}</small>` : ''}`);
         }
         let e = null;
         if (valor.startsWith('FO1|')) {
             const [, safata, conjunt, codi] = valor.split('|');
             e = M.ETQ.find(x => x.safata === safata && x.codi === codi && x.tipus === 'caixeti') || M.ETQ.find(x => x.clau === safata && x.tipus !== 'caixeti');
-            if (!e) { so(false); return resultat('er', `Etiqueta d'un altre projecte o d'una versió anterior<br><small>${esc(safata)} · ${esc(conjunt)}</small>`); }
+            if (!e) { so(false); return resultat('er', `${t('Etiqueta d\'un altre projecte o d\'una versió anterior')}<br><small>${esc(safata)} · ${esc(conjunt)}</small>`); }
         } else {
             // codi de barres simple (codi del material): el més probable segons el context
             const cand = M.caixetins.filter(x => x.codi === valor);
             const ctx = x => (caixaActual ? caixaDeClau(x.clau) && caixaDeClau(x.clau).id === caixaActual : pasActual ? M.pasDe(x) === pasActual : true);
             const lliure = x => r0 === 'magatzem' ? !prog.omplert[x.clau] : !prog.agafat[x.clau];
             e = cand.find(x => ctx(x) && lliure(x)) || cand.find(ctx) || cand.find(lliure) || cand[0];
-            if (!e) { so(false); return resultat('er', `Codi desconegut: ${esc(valor)}`); }
+            if (!e) { so(false); return resultat('er', t('Codi desconegut: {codi}', { codi: esc(valor) })); }
         }
         // etiqueta d'una caixa o d'un contenidor
         if (e.tipus !== 'caixeti') {
@@ -1467,33 +1488,33 @@
             so(true);
             if (!c) return resultat('in', esc(e.clau));
             if (r0 === 'magatzem') { tancaEscaner(); location.hash = '#/caixa/' + encodeURIComponent(c.id); return; }
-            return resultat('in', `<b>${esc(c.id)}</b> · ${esc((FO.ESTATS_CAIXA[estatCaixa(c)] || {}).nom)}<br><small>Pas ${c.r.pas} · ${esc(c.r.conj.nom)} · ${c.claus.filter(k => prog.agafat[k]).length}/${c.claus.length} agafats</small>`);
+            return resultat('in', `<b>${esc(c.id)}</b> · ${esc((FO.ESTATS_CAIXA[estatCaixa(c)] || {}).nom)}<br><small>${t('Pas {n}', { n: c.r.pas })} · ${esc(c.r.conj.nom)} · ${t('{n}/{t} agafats', { n: c.claus.filter(k => prog.agafat[k]).length, t: c.claus.length })}</small>`);
         }
         const pas = M.pasDe(e), r = M.perConj.get(pas), m = e.caixeti.mat;
         if (r0 === 'magatzem') {
             const c = caixaDeClau(e.clau);
-            if (c && c.guarda) { so(false); return resultat('er', `${esc(c.id)} és una caixa de guarda: s'omple en muntar el conjunt, no des del magatzem`); }
-            if (caixaActual && c && c.id !== caixaActual) { so(false); return resultat('er', `✗ No és d'aquesta caixa<br>${esc(e.codi)} va a ${esc(c.id)}`); }
+            if (c && c.guarda) { so(false); return resultat('er', t('{caixa} és una caixa de guarda: s\'omple en muntar el conjunt, no des del magatzem', { caixa: esc(c.id) })); }
+            if (caixaActual && c && c.id !== caixaActual) { so(false); return resultat('er', `✗ ${t('No és d\'aquesta caixa')}<br>${t('{mat} va a {caixa}', { mat: esc(e.codi), caixa: esc(c.id) })}`); }
             const arriba = FO.esMancant(prog, e.clau);   // escanejar un mancant = el material ha arribat
-            if (prog.omplert[e.clau] && !arriba) { so(true); return resultat('ok', `Ja estava omplert: ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(e.safata)}</small>`); }
-            if (!omple(e.clau, e.qty)) return resultat('er', 'No s\'ha omplert');
-            if (arriba && !FO.esMancant(prog, e.clau)) { so(true); return resultat('ok', `✓ Ha arribat: ${esc(e.codi)} ×${e.qty}<br><small>Mancant resolt · ${esc(e.safata)}. El muntador ja ho pot completar.</small>`); }
+            if (prog.omplert[e.clau] && !arriba) { so(true); return resultat('ok', `${t('Ja estava omplert:')} ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(e.safata)}</small>`); }
+            if (!omple(e.clau, e.qty)) return resultat('er', t('No s\'ha omplert'));
+            if (arriba && !FO.esMancant(prog, e.clau)) { so(true); return resultat('ok', `✓ ${t('Ha arribat:')} ${esc(e.codi)} ×${e.qty}<br><small>${t('Mancant resolt · {caixa}. El muntador ja ho pot completar.', { caixa: esc(e.safata) })}</small>`); }
             so(true);
             const n = c ? c.claus.filter(k => prog.omplert[k]).length : 0;
-            return resultat('ok', `✓ Omplert: ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(m.nom)} · ${esc(e.safata)}${c ? ` · ${n}/${c.claus.length}${n === c.claus.length ? ' · caixa plena!' : ''}` : ''}</small>`);
+            return resultat('ok', `✓ ${t('Omplert:')} ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(m.nom)} · ${esc(e.safata)}${c ? ` · ${n}/${c.claus.length}${n === c.claus.length ? ' · ' + t('caixa plena!') : ''}` : ''}</small>`);
         }
         if (r0 === 'muntador') {
-            if (pasActual && pas !== pasActual) { so(false); return resultat('er', `✗ No és d'aquest pas<br>${esc(e.codi)} ×${e.qty} és del pas ${r ? r.pas + ' · ' + esc(r.conj.nom) : '?'}`); }
-            if (FO.esMancant(prog, e.clau)) { so(false); return resultat('er', `❗ ${esc(e.codi)} no ha arribat (mancant)<br><small>Munta la resta: el pas quedarà «muntat amb mancants».</small>`); }
+            if (pasActual && pas !== pasActual) { so(false); return resultat('er', `✗ ${t('No és d\'aquest pas')}<br>${esc(e.codi)} ×${e.qty} · ${r ? t('Pas {n}', { n: r.pas }) + ' · ' + esc(r.conj.nom) : '?'}`); }
+            if (FO.esMancant(prog, e.clau)) { so(false); return resultat('er', `❗ ${t('{mat} no ha arribat (mancant)', { mat: esc(e.codi) })}<br><small>${t('Munta la resta: el pas quedarà «muntat amb mancants».')}</small>`); }
             const ja = !!prog.agafat[e.clau];
-            if (!ja) { if (r) iniciaSiCal(r); if (!fer('agafa', { clau: e.clau, v: true }, `${e.codi} ×${e.qty}: agafat per escaneig (${e.safata})`)) return resultat('er', 'No s\'ha pogut marcar'); }
+            if (!ja) { if (r) iniciaSiCal(r); if (!fer('agafa', { clau: e.clau, v: true }, tc('{mat} ×{q}: agafat per escaneig ({caixa})', { mat: e.codi, q: e.qty, caixa: e.safata }))) return resultat('er', t('No s\'ha pogut marcar')); }
             const it = itemDe(pas, m.id), llista = r ? M.aAgafar(r) : [], n = llista.filter(x => prog.agafat[x.clau]).length;
             so(true);
-            return resultat('ok', `${ja ? 'Ja estava agafat' : '✓ Agafat'}: ${esc(e.codi)} ×${e.qty}<br><small>${esc(e.nom)}${it && it.parell ? ' · ' + fmt(it.parell, 1) + ' N·m' : ''}${it && it.nota ? '<br>▸ ' + esc(it.nota) : ''}</small>` +
-                (r ? `<br><small>Pas ${r.pas}: ${n}/${llista.length}${n === llista.length ? ' · complet!' : ''}</small>` : ''));
+            return resultat('ok', `${ja ? t('Ja estava agafat') : '✓ ' + t('Agafat')}: ${esc(e.codi)} ×${e.qty}<br><small>${esc(e.nom)}${it && it.parell ? ' · ' + fmt(it.parell, 1) + ' N·m' : ''}${it && it.nota ? '<br>▸ ' + esc(it.nota) : ''}</small>` +
+                (r ? `<br><small>${t('Pas {n}', { n: r.pas })}: ${n}/${llista.length}${n === llista.length ? ' · ' + t('complet!') : ''}</small>` : ''));
         }
         so(true);
-        resultat('in', `${esc(e.codi)} ×${e.qty} · ${esc(e.nom)}<br><small>${esc(e.safata)} · pas ${r ? r.pas + ' ' + esc(r.conj.codi) + ' · ' + esc((FO.ESTATS_PAS[estatDe(r)] || {}).nom) : '?'}${prog.omplert[e.clau] ? ' · omplert' : ''}${prog.agafat[e.clau] ? ' · agafat' : ''}</small>`);
+        resultat('in', `${esc(e.codi)} ×${e.qty} · ${esc(e.nom)}<br><small>${esc(e.safata)} · ${r ? t('pas {n}', { n: r.pas }) + ' ' + esc(r.conj.codi) + ' · ' + esc((FO.ESTATS_PAS[estatDe(r)] || {}).nom) : '?'}${prog.omplert[e.clau] ? ' · ' + t('omplert') : ''}${prog.agafat[e.clau] ? ' · ' + t('agafat') : ''}</small>`);
     }
     $('bEscaneja').onclick = () => obreEscaner();
     $('bTancaEsc').onclick = tancaEscaner;
@@ -1514,35 +1535,35 @@
     // ═══ Menú ═══
     function pintaMenu() {
         $('grupPersona').innerHTML = srv.url
-            ? (ses ? `<div class="targeta"><b>${esc(ses.nom)}</b><div class="ajuda">${ses.rols.map(r => FO.ROLS[r].ico + ' ' + FO.ROLS[r].nom).join(' · ')}</div><button class="bt" id="bSurt">👤 Canviar de persona</button></div>` : '')
-            : `<label class="camp">El teu nom (surt al registre)<input id="nomLocal" value="${esc(pref.nomLocal)}" autocomplete="name"></label>`;
+            ? (ses ? `<div class="targeta"><b>${esc(ses.nom)}</b><div class="ajuda">${ses.rols.map(r => FO.ROLS[r].ico + ' ' + FO.ROLS[r].nom).join(' · ')}</div><button class="bt" id="bSurt">👤 ${t('Canviar de persona')}</button></div>` : '')
+            : `<label class="camp">${t('El teu nom (surt al registre)')}<input id="nomLocal" value="${esc(pref.nomLocal)}" autocomplete="name"></label>`;
         if ($('bSurt')) $('bSurt').onclick = surt;
         if ($('nomLocal')) $('nomLocal').oninput = function () { pref.nomLocal = this.value.trim(); desaPref(); };
         $('consumAuto').checked = pref.consumAuto;
         $('urlSrv').value = pref.servidor || ''; $('clauSrv').value = pref.clau || '';
         $('infoSrv').textContent = srv.url
-            ? `${srv.fora ? 'Sense connexió amb' : 'Connectat a'} ${srv.url}${cua.length ? ` · ${cua.length} canvis per enviar` : ''}. ${srv.projecteOk ? 'El progrés, l\'estoc i les fotos d\'aquesta ordre es comparteixen amb tot el taller.' : 'Aquest projecte no és al servidor.'}`
-            : 'Sense servidor: el progrés es desa només en aquest aparell. Si al taller hi ha una Raspberry Pi o un PC amb FOrdre, obre l\'app des d\'allà o escriu-ne l\'adreça.';
+            ? `${srv.fora ? t('Sense connexió amb {url}', { url: srv.url }) : t('Connectat a {url}', { url: srv.url })}${cua.length ? ` · ${t('{n} canvis per enviar', { n: cua.length })}` : ''}. ${srv.projecteOk ? t('El progrés, l\'estoc i les fotos d\'aquesta ordre es comparteixen amb tot el taller.') : t('Aquest projecte no és al servidor.')}`
+            : t('Sense servidor: el progrés es desa només en aquest aparell. Si al taller hi ha una Raspberry Pi o un PC amb FOrdre, obre l\'app des d\'allà o escriu-ne l\'adreça.');
         const llista = srv.projectes || [];
-        $('projSrv').innerHTML = llista.length ? '<h3>Projectes del taller</h3>' + llista.map(x => `<button class="bt" data-psrv="${esc(x.id)}">${esc(x.nom)} <small style="opacity:.7">· ${x.ordres.length} ${x.ordres.length === 1 ? 'ordre' : 'ordres'}</small></button>`).join('') : '';
+        $('projSrv').innerHTML = llista.length ? `<h3>${t('Projectes del taller')}</h3>` + llista.map(x => `<button class="bt" data-psrv="${esc(x.id)}">${esc(x.nom)} <small style="opacity:.7">· ${x.ordres.length === 1 ? t('1 ordre') : t('{n} ordres', { n: x.ordres.length })}</small></button>`).join('') : '';
         $('projSrv').querySelectorAll('[data-psrv]').forEach(b => b.onclick = async () => {
             try { await recarregaDelServidor(b.dataset.psrv); $('menu').hidden = true; location.hash = '#/'; } catch (e) { avis(e.message); }
         });
         // el progrés compartit no es pot importar ni reiniciar des d'un mòbil
         $('bImportaProg').disabled = $('bReinicia').disabled = enXarxa();
-        $('infoApp').textContent = `FOrdre ${FO.VERSIO}${P ? ' · ' + P.nom : ''}${ORD ? ' · ' + ORD.codi : ''}${navigator.onLine ? '' : ' · sense connexió'}`;
+        $('infoApp').textContent = `FOrdre ${FO.VERSIO}${P ? ' · ' + P.nom : ''}${ORD ? ' · ' + ORD.codi : ''}${navigator.onLine ? '' : ' · ' + t('sense connexió')}`;
     }
     $('bMenu').onclick = () => { pintaMenu(); $('menu').hidden = false; };
     $('consumAuto').onchange = function () { pref.consumAuto = this.checked; desaPref(); };
     $('bConnecta').onclick = async () => {
         pref.servidor = $('urlSrv').value.trim().replace(/\/$/, ''); pref.clau = $('clauSrv').value.trim(); desaPref();
         const d = await detectaServidor();
-        if (!d) { avis('No es troba el servidor. Comprova l\'adreça i que aquest aparell confiï en el certificat (obre l\'adreça una vegada al navegador).', 6000); pintaMenu(); pintaEstatSrv(); return; }
+        if (!d) { avis(t('No es troba el servidor. Comprova l\'adreça i que aquest aparell confiï en el certificat (obre l\'adreça una vegada al navegador).'), 6000); pintaMenu(); pintaEstatSrv(); return; }
         $('menu').hidden = true;
         inicia();
     };
     $('bSrv').onclick = async () => {
-        if (srv.projecteNou) { try { await recarregaDelServidor(); avis('Projecte actualitzat'); } catch (e) { avis(e.message); } return; }
+        if (srv.projecteNou) { try { await recarregaDelServidor(); avis(t('Projecte actualitzat')); } catch (e) { avis(e.message); } return; }
         if (enXarxa()) sincronitza();
         avis($('bSrv').title, 3000);
     };
@@ -1550,17 +1571,17 @@
     $('fProjecte').addEventListener('change', function () {
         const f = this.files[0]; this.value = ''; if (!f) return;
         const rd = new FileReader();
-        rd.onload = () => { let p; try { p = JSON.parse(rd.result); } catch (e) { return avis('Fitxer no vàlid'); } obreProjecte(p, 'fitxer'); };
+        rd.onload = () => { let p; try { p = JSON.parse(rd.result); } catch (e) { return avis(t('Fitxer no vàlid')); } obreProjecte(p, 'fitxer'); };
         rd.readAsText(f);
     });
     $('bEnganxa').onclick = async () => {
-        const t = prompt('Enganxa l\'enllaç del projecte (…muntatge.html#p=…)');
-        if (!t) return;
-        try { obreProjecte(JSON.parse(await FO.descomprimeix(t.slice(t.indexOf('#p=') + 3))), 'enllaç'); } catch (e) { avis('Enllaç no vàlid'); }
+        const enllac = prompt(t('Enganxa l\'enllaç del projecte (…muntatge.html#p=…)'));
+        if (!enllac) return;
+        try { obreProjecte(JSON.parse(await FO.descomprimeix(enllac.slice(enllac.indexOf('#p=') + 3))), 'enllaç'); } catch (e) { avis(t('Enllaç no vàlid')); }
     };
     $('bOrdinador').onclick = () => {
         const d = llegeix(FO.CLAU_PROJECTE);
-        if (!d) return avis('No hi ha cap projecte de l\'app d\'escriptori en aquest navegador');
+        if (!d) return avis(t('No hi ha cap projecte de l\'app d\'escriptori en aquest navegador'));
         obreProjecte(d, 'navegador');
     };
     $('bExemple').onclick = () => obreProjecte(FO.exemple(), 'exemple');
@@ -1572,14 +1593,14 @@
         rd.onload = () => {
             try {
                 const d = JSON.parse(rd.result);
-                if (d.projecte !== P.id && !confirm('Aquest progrés és d\'un altre projecte. Importar-lo igualment?')) return;
-                prog = FO.normalitzaProgres(d.progres); desaProg(); $('menu').hidden = true; ruta(); avis('Progrés importat a ' + ORD.codi);
-            } catch (e) { avis('Fitxer no vàlid'); }
+                if (d.projecte !== P.id && !confirm(t('Aquest progrés és d\'un altre projecte. Importar-lo igualment?'))) return;
+                prog = FO.normalitzaProgres(d.progres); desaProg(); $('menu').hidden = true; ruta(); avis(t('Progrés importat a {codi}', { codi: ORD.codi }));
+            } catch (e) { avis(t('Fitxer no vàlid')); }
         };
         rd.readAsText(f);
     });
     $('bReinicia').onclick = () => {
-        if (!P || !confirm(`Esborrar tot el progrés, l'estoc i el registre de l'ordre ${ORD.codi} en aquest aparell?`)) return;
+        if (!P || !confirm(t('Esborrar tot el progrés, l\'estoc i el registre de l\'ordre {codi} en aquest aparell?', { codi: ORD.codi }))) return;
         prog = FO.progresBuit(); desaProg(); $('menu').hidden = true; ruta();
     };
 
@@ -1592,6 +1613,10 @@
     }
 
     // ═══ Inici ═══
+    // Textos fixos de l'HTML en l'idioma triat i selector d'idioma al menú
+    FO.traduiexDOM();
+    $('selIdiomaMenu').innerHTML = FO.selectorIdioma('');
+    FO.activaSelectorsIdioma();
     inicia();
     // Accés per a les proves automàtiques
     G.FOrdreMuntatge = {

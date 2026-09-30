@@ -16,6 +16,7 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
     const EPS = 1e-6;
     const unics = a => a.sort((p, q) => p - q).filter((v, i, arr) => i === 0 || v - arr[i - 1] > EPS);
     function cerca(arr, v) { // índex de v dins arr (ordenat)
@@ -185,7 +186,7 @@
         const re = /vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g;
         let m, vs = [];
         while ((m = re.exec(text))) { vs.push([+m[1], +m[2], +m[3]]); if (vs.length === 3) { tri.push(vs); vs = []; } }
-        if (!tri.length) throw new Error('No és un fitxer STL vàlid');
+        if (!tri.length) throw new Error(t('No és un fitxer STL vàlid'));
         return tri;
     };
 
@@ -195,7 +196,7 @@
         let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
         tri.forEach(t => t.forEach(v => { for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } }));
         const w = mx[0] - mn[0], d = mx[1] - mn[1], h = mx[2] - mn[2];
-        if (!(w > 0 && d > 0 && h > 0)) throw new Error('La peça no té volum');
+        if (!(w > 0 && d > 0 && h > 0)) throw new Error(t('La peça no té volum'));
         const res = resolucio || Math.max(0.5, Math.round(Math.max(w, d) / 100 * 10) / 10);
         const nx = Math.ceil(w / res), ny = Math.ceil(d / res);
         const z = new Float64Array(nx * ny).fill(Infinity);
@@ -392,7 +393,7 @@
         let cara = 'davant';
         if (cfg.relleu && zText1 - zText0 > 3) {
             if (gravaFront(ops, o, text, franjaText[0], franjaText[1], zText0, zText1, false, profG)) cara = 'darrere';
-            else avisos.push('el codi no hi cap en relleu');
+            else avisos.push(t('el codi no hi cap en relleu'));
         }
         if (cfg.rebaixEtiqueta && FO.midaEtiqueta) {
             const m = FO.midaEtiqueta({ nom: text, ample: franjaText[1] - franjaText[0] }, cfg.etiqueta, cfg.etiqueta === 'mida' ? { w: cfg.etiquetaW, h: cfg.etiquetaH } : null);
@@ -401,7 +402,7 @@
                 const x0 = cara === 'darrere' ? o.W - franjaText[1] + (franjaText[1] - franjaText[0] - w) / 2 : franjaText[0] + (franjaText[1] - franjaText[0] - w) / 2;
                 const z0 = zText0 + (zText1 - zText0 - h) / 2, pr = Math.min(0.4, pw / 2);
                 ops.push(cara === 'darrere' ? OP(x0, o.D - pr, x0 + w, o.D, z0, z0 + h, 0) : OP(x0, 0, x0 + w, pr, z0, z0 + h, 0));
-            } else avisos.push('l\'etiqueta no hi cap al rebaix');
+            } else avisos.push(t('l\'etiqueta no hi cap al rebaix'));
         }
         // QR a la cara posterior quan no hi ha tapa i la cara és lliure
         if (cfg.qrRelleu && tanc !== 'pressio' && tanc !== 'imants' && !(cfg.rebaixEtiqueta && cara === 'darrere')) {

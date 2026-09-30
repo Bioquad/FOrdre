@@ -11,6 +11,7 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
     const SEP_PAS = 60, SEP_SAF = 30, AMPLE_FILA = 1400;
 
@@ -165,7 +166,7 @@
                 const ampleCol = Math.max(...r.safates.map(s => s.W));
                 if (x > 0 && x + ampleCol > AMPLE_FILA) { x = 0; zFila -= fondFila + SEP_PAS * 1.6; fondFila = 0; }
                 let z = zFila, fond = 0;
-                const et = spriteText(`Pas ${r.pas} · ${r.conj.codi}${r.multiplicador > 1 ? ' ×' + r.multiplicador : ''}`, { col: r.conj.col, alt: 11 });
+                const et = spriteText(`${t('Pas {n}', { n: r.pas })} · ${r.conj.codi}${r.multiplicador > 1 ? ' ×' + r.multiplicador : ''}`, { col: r.conj.col, alt: 11 });
                 et.position.set(x + ampleCol / 2, 2, z + 22);
                 arrel.add(et);
                 // Crea un objecte imprès (safata, caixa o contenidor) dins `pare`
@@ -224,7 +225,7 @@
                     // nom (només dels objectes de primer nivell)
                     let nom = null;
                     if (!s.pare) {
-                        const extra = s.tipus === 'muntat' ? '  ▣ guarda' : s.forma === 'contenidor' ? '  ⧉ contenidor' : s.tipus === 'esd' ? '  ⚡ESD' : '';
+                        const extra = s.tipus === 'muntat' ? '  ▣ ' + t('guarda') : s.forma === 'contenidor' ? '  ⧉ ' + t('contenidor') : s.tipus === 'esd' ? '  ⚡ESD' : '';
                         nom = spriteText(s.id + extra, { alt: 7, fs: 36, bg: 'rgba(28,28,48,.75)', col: s.color });
                         nom.position.set(s.W / 2, Math.max(s.H, ...(s.caixes || []).map(c => c.obj.H + cfg.terra)) + 10, -s.D / 2);
                         safGrup.add(nom);

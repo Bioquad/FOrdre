@@ -1,6 +1,8 @@
 # Manual de FOrdre
 
-**Versió 1.6** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.7** · Instal·lació, configuració i ús, pas a pas
+
+*També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
 FOrdre prepara, a partir de la llista de materials d'una màquina, les **caixes i safates a mida** per imprimir en 3D (una per a cada pas de muntatge, amb un caixetí per a cada peça i les seves etiquetes) i després **guia el taller**: qui omple les caixes, qui munta, qui verifica i qui ho gestiona, fins a tenir la màquina acabada i un informe de tot el que s'ha fet.
 
@@ -169,7 +171,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.6.0
+  FOrdre · servidor del taller 1.7.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -417,7 +419,7 @@ El format es tria a **⚙ Configuració › Etiquetes** (o a la fitxa de qualsev
 | Full A4 | 70 × 37 (3 × 8), 48,5 × 25,4 (4 × 11), 38 × 21,2 (5 × 13), 25,4 × 10 (7 × 27) | Impressora normal amb fulls adhesius |
 | A mida | La que vulguis | — |
 
-Cada etiqueta porta el **codi**, el **nom**, la **quantitat**, el **pas**, el **conjunt**, els colors, un **QR** i un **codi de barres** (Code 128). L'etiqueta s'adapta a l'amplada del caixetí: si és molt estret, s'hi treu el QR. En imprimir, tria **escala 100 %** (sense «ajustar a la pàgina»).
+Cada etiqueta porta el **codi**, el **nom**, la **quantitat**, el **pas**, el **conjunt**, els colors, un **QR** i un **codi de barres** (Code 128). L'etiqueta s'adapta a l'amplada del caixetí: si és molt estret, s'hi treu el QR. Els textos de l'etiqueta surten en l'idioma del configurador. En imprimir, tria **escala 100 %** (sense «ajustar a la pàgina»).
 
 ### 3.5 El taller: persones i rols
 
@@ -425,7 +427,7 @@ Cada etiqueta porta el **codi**, el **nom**, la **quantitat**, el **pas**, el **
 
 ![Primer ús](imatges/t01-primer-us.jpg)
 
-1. Escriu el nom (per exemple, *Rosa*) i un PIN de 4 a 8 xifres (per exemple, `1111`, que després canviaràs per un de segur).
+1. Tria l'**idioma**, escriu el nom (per exemple, *Rosa*) i un PIN de 4 a 8 xifres (per exemple, `1111`, que després canviaràs per un de segur).
 2. Prem **Crear el Responsable i entrar**.
 
 Si el servidor encara no té cap projecte, l'app ho diu. El Responsable el publica des del configurador (punt 5.10), o pot tocar **Projecte d'exemple** per provar-ho: si entra com a Responsable, l'exemple es publica sol al servidor.
@@ -481,6 +483,23 @@ Si un aparell sempre el fa servir la mateixa feina (la tauleta del magatzem, la 
 Obre l'adreça i desa-la a la pantalla d'inici. La pàgina d'ajuda del servidor (`http://<servidor>:8080`) té els quatre enllaços. Amb l'app instal·lada, si mantens premuda la icona, també surten les dreceres dels rols. Si la persona que entra no té aquell rol, l'app l'avisa i fa servir el seu.
 
 A la carpeta `2-taller` del ZIP hi ha els mateixos accessos en fitxers: `rol-magatzem.html`, `rol-muntador.html`, `rol-qualitat.html` i `rol-responsable.html`.
+
+### 3.7 Idioma
+
+FOrdre es pot fer servir en **català**, **castellà** i **anglès**. On es tria:
+
+| Eina | On |
+|---|---|
+| Configurador | Selector **CA / ES / EN** a la barra de dalt, al costat de ◐. |
+| App del taller | Menú ⋮ › **Idioma**, o a sota de la llista de persones de la pantalla d'entrada. |
+| Pàgina d'ajuda del servidor | Surt en l'idioma del navegador. A dalt hi ha els enllaços **CA · ES · EN**. |
+
+- Cada aparell **recorda** el seu idioma. El primer cop es fa servir el del navegador (si no és cap dels tres, l'anglès).
+- També es pot posar a l'adreça amb `?lang=ca`, `?lang=es` o `?lang=en`. Per exemple, la tauleta del magatzem en castellà: `https://<servidor>:8443/muntatge.html?rol=magatzem&lang=es`.
+- **Què es tradueix:** tots els textos de les apps, les etiquetes, el full de ruta, l'informe, les capçaleres de la plantilla CSV i els missatges del servidor.
+- **El registre** es llegeix en l'idioma de cadascú: si en Marc treballa en castellà i la Rosa en català, la Rosa veu en català el que ha fet en Marc.
+- **El que escriu la gent** (notes, motius, descripcions) i les dades del projecte (noms de conjunts i materials) es mostren tal com s'han escrit.
+- L'importador reconeix les columnes en qualsevol dels tres idiomes, així que una plantilla descarregada en anglès es pot tornar a importar des d'un configurador en català.
 
 ---
 
@@ -596,7 +615,7 @@ La pantalla té tres parts:
 - **Al centre**, la **vista 3D** de totes les caixes, ordenades per pas.
 - **A la dreta**, la **fitxa** del que tens seleccionat. Sense selecció, surten el projecte, el resum i el filament necessari.
 
-A la barra de dalt hi ha: **Nou**, **Obrir**, **Desar**, **Exemple**, **Importar llista**, **Plantilla CSV**, **⬇ STL (ZIP)**, **🏷 Etiquetes**, **RFID / CSV**, **Full de ruta**, **🖨 Tandes**, **📱 Muntatge**, **🏭 Taller** (només amb el servidor), **⚙ Configuració** i **◐** (tema clar o fosc).
+A la barra de dalt hi ha: **Nou**, **Obrir**, **Desar**, **Exemple**, **Importar llista**, **Plantilla CSV**, **⬇ STL (ZIP)**, **🏷 Etiquetes**, **RFID / CSV**, **Full de ruta**, **🖨 Tandes**, **📱 Muntatge**, **🏭 Taller** (només amb el servidor), **⚙ Configuració** (en pantalles justes, només la icona ⚙), el selector d'idioma **CA / ES / EN** i **◐** (tema clar o fosc).
 
 ### 5.1 Importar la llista
 
@@ -752,7 +771,7 @@ Prem **📱 Muntatge**. Pots passar el projecte d'aquestes maneres:
 ### 6.1 Entrar i triar el rol
 
 1. Obre l'app (`https://<servidor>:8443/muntatge.html`, o l'accés directe del teu rol).
-2. Toca el teu nom.
+2. Toca el teu nom. A sota de la llista pots canviar l'**idioma**.
 3. Escriu el PIN amb el teclat i prem **✓**.
 
 | Tria el nom | Escriu el PIN |
@@ -769,7 +788,7 @@ Prem **📱 Muntatge**. Pots passar el projecte d'aquestes maneres:
   - 🔴 sense connexió (es guarda tot i s'envia en tornar);
   - ⟳ el projecte s'ha actualitzat (toca'l per carregar-lo).
 - **⌖** obre l'escàner.
-- **⋮** és el menú: canviar de persona, servidor, projectes, instal·lar l'app…
+- **⋮** és el menú: idioma, canviar de persona, servidor, projectes, instal·lar l'app…
 
 ![Tria de rol](imatges/t05-tria-rol.jpg)
 
@@ -1044,6 +1063,14 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 
 **Rosa:** Tauler › Persones › la persona › **Donar de baixa**. Les seves sessions es tanquen a tots els aparells.
 
+### 7.8 Un equip que treballa en diversos idiomes
+
+> En Marc prefereix treballar en castellà, l'Anna en català i un tècnic de manteniment extern, en anglès.
+
+1. Cadascú tria el seu idioma al seu aparell (menú ⋮ › **Idioma**), o se li prepara un accés directe amb `&lang=es`, `&lang=ca` o `&lang=en`.
+2. Tots treballen sobre la mateixa ordre. El **registre**, els estats i els avisos surten a cadascú en el seu idioma.
+3. L'informe de l'ordre surt en l'idioma de qui l'obre. Les notes i els motius escrits a mà es mostren tal com es van escriure.
+
 ---
 
 ## 8. Resolució de problemes
@@ -1066,6 +1093,7 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 | El configurador mostra una caixa amb un avís *«sobresurt»*. | La peça és més alta que el caixetí. | Revisa les mides del material, puja la *Fondària màxima* o fes servir tapa (la tapa porta un marc més alt). |
 | Les safates són massa grans per a la impressora. | La mida del llit no és la correcta. | ⚙ Configuració › Impressora › Llit X / Llit Y. |
 | Les tapes a pressió van massa justes o massa fluixes. | El joc no està calibrat. | Imprimeix la peça de calibratge (punt 3.2). |
+| L'app surt en un idioma que no és el teu. | S'ha agafat l'idioma del navegador. | Menú ⋮ › **Idioma** (al configurador, el selector **CA / ES / EN**). L'aparell el recordarà. |
 
 ---
 
@@ -1120,6 +1148,7 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 | App del taller, per rol | `https://192.168.1.50:8443/muntatge.html?rol=magatzem` (o `muntador`, `qualitat`, `responsable`) |
 | Configurador | `https://192.168.1.50:8443/index.html` |
 | Configurador amb una llista d'exemple | `https://192.168.1.50:8443/index.html?llista=exemples/plantilla_fordre.csv` |
+| Qualsevol de les anteriors en un altre idioma | Afegeix `?lang=es` o `?lang=en` (o `&lang=…` si ja hi ha un `?`) |
 
 ### 9.4 Dreceres de teclat del configurador
 
@@ -1135,5 +1164,6 @@ A l'app del taller, un **lector de codis USB o Bluetooth** funciona sense config
 ### 9.5 Fitxers i llicència
 
 - Projecte: `.fordre.json`. Llistes: `.csv`, `.xlsx`. Caixes: `.stl`, `.3mf`. Etiquetes RFID: `.csv`.
+- Els noms interns de fitxers i carpetes (`muntatge.html`, `servidor/`, `dades/`, `exemples/`…) no canvien amb l'idioma.
 - Codi font i demo: https://github.com/Bioquad/FOrdre
 - Llicència: **CERN Open Hardware Licence v2 – Strongly Reciprocal** (fitxer `LICENSE`). Les llibreries de tercers (Three.js, qrcode-generator, SheetJS, jsQR) porten la seva pròpia llicència a `vendor/llicencies/`.

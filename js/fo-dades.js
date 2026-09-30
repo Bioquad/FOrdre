@@ -13,8 +13,9 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.6.1';
+    FO.VERSIO = '1.7.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -87,32 +88,32 @@
     };
 
     FO.TANCAMENTS = {
-        cap: { nom: 'Oberta', desc: 'Sense tancament.' },
-        llavi: { nom: 'Llavi interior', desc: 'Una vora que entra cap al centre de cada caixetí (0-5 mm) i reté les peces; s\'imprimeix a 45° sense suports.' },
-        pressio: { nom: 'Tapa a pressió', desc: 'Tapa amb una faldilla que encaixa per dins de les parets.' },
-        imants: { nom: 'Tapa amb imants', desc: 'Tapa i caixa amb allotjaments per a imants de disc a les cantonades.' }
+        cap: { nom: t('Oberta'), desc: t('Sense tancament.') },
+        llavi: { nom: t('Llavi interior'), desc: t('Una vora que entra cap al centre de cada caixetí (0-5 mm) i reté les peces; s\'imprimeix a 45° sense suports.') },
+        pressio: { nom: t('Tapa a pressió'), desc: t('Tapa amb una faldilla que encaixa per dins de les parets.') },
+        imants: { nom: t('Tapa amb imants'), desc: t('Tapa i caixa amb allotjaments per a imants de disc a les cantonades.') }
     };
 
     // Formats del kit d'un conjunt
     FO.FORMATS_KIT = {
-        fusionat: { nom: 'Safata fusionada', desc: 'Una sola peça amb tots els caixetins. La més ràpida d\'imprimir.' },
-        individual: { nom: 'Caixes individuals', desc: 'Una caixa per material, cadascuna del seu color i material.' },
-        contenidor: { nom: 'Caixes + contenidor', desc: 'Caixes individuals dins un contenidor obert per dalt per transportar-les juntes.' },
-        mixt: { nom: 'Mixt (petits fusionats)', desc: 'Els materials petits en un bloc de caixetins fusionats, els grans en caixes individuals, tot dins el contenidor.' }
+        fusionat: { nom: t('Safata fusionada'), desc: t('Una sola peça amb tots els caixetins. La més ràpida d\'imprimir.') },
+        individual: { nom: t('Caixes individuals'), desc: t('Una caixa per material, cadascuna del seu color i material.') },
+        contenidor: { nom: t('Caixes + contenidor'), desc: t('Caixes individuals dins un contenidor obert per dalt per transportar-les juntes.') },
+        mixt: { nom: t('Mixt (petits fusionats)'), desc: t('Els materials petits en un bloc de caixetins fusionats, els grans en caixes individuals, tot dins el contenidor.') }
     };
 
     // Materials d'impressió (densitat en g/cm³)
     FO.MATERIALS_IMPRESSIO = {
-        PLA: { nom: 'PLA', dens: 1.24, notes: 'Rígid i fàcil. Evitar calor (> 55 °C) i dissolvents.' },
-        PETG: { nom: 'PETG', dens: 1.27, notes: 'Resistent a olis, greixos i cops. Bo per a líquids.' },
-        ABS: { nom: 'ABS', dens: 1.04, notes: 'Resisteix temperatura; cal impressora tancada.' },
-        ASA: { nom: 'ASA', dens: 1.07, notes: 'Com l\'ABS, resistent als UV.' },
-        PC: { nom: 'PC (policarbonat)', dens: 1.20, notes: 'Molt resistent i rígid.' },
-        PA: { nom: 'PA (niló)', dens: 1.14, notes: 'Resistent al desgast i a olis; absorbeix humitat.' },
-        PP: { nom: 'PP (polipropilè)', dens: 0.90, notes: 'Resistència química màxima (àcids, dissolvents).' },
-        TPU: { nom: 'TPU (flexible)', dens: 1.21, notes: 'Flexible: per a peces delicades o amortir cops.' },
-        'PETG-ESD': { nom: 'PETG-ESD (antiestàtic)', dens: 1.30, esd: true, notes: 'Dissipatiu: per a electrònica sensible.' },
-        'PLA-CF': { nom: 'PLA amb fibra de carboni', dens: 1.29, notes: 'Rígid i lleuger; lleugerament conductor.' }
+        PLA: { nom: 'PLA', dens: 1.24, notes: t('Rígid i fàcil. Evitar calor (> 55 °C) i dissolvents.') },
+        PETG: { nom: 'PETG', dens: 1.27, notes: t('Resistent a olis, greixos i cops. Bo per a líquids.') },
+        ABS: { nom: 'ABS', dens: 1.04, notes: t('Resisteix temperatura; cal impressora tancada.') },
+        ASA: { nom: 'ASA', dens: 1.07, notes: t('Com l\'ABS, resistent als UV.') },
+        PC: { nom: t('PC (policarbonat)'), dens: 1.20, notes: t('Molt resistent i rígid.') },
+        PA: { nom: t('PA (niló)'), dens: 1.14, notes: t('Resistent al desgast i a olis; absorbeix humitat.') },
+        PP: { nom: t('PP (polipropilè)'), dens: 0.90, notes: t('Resistència química màxima (àcids, dissolvents).') },
+        TPU: { nom: t('TPU (flexible)'), dens: 1.21, notes: t('Flexible: per a peces delicades o amortir cops.') },
+        'PETG-ESD': { nom: t('PETG-ESD (antiestàtic)'), dens: 1.30, esd: true, notes: t('Dissipatiu: per a electrònica sensible.') },
+        'PLA-CF': { nom: t('PLA amb fibra de carboni'), dens: 1.29, notes: t('Rígid i lleuger; lleugerament conductor.') }
     };
 
     // Color de la caixa per tipus de material (esquema 'tipus')
@@ -134,22 +135,22 @@
 
     // Tipus de material
     FO.TIPUS = {
-        peca: { nom: 'Peça', ico: '◼' },
-        cargol: { nom: 'Cargoleria / petit material', ico: '⚙' },
-        consumible: { nom: 'Consumible (coles, brides…)', ico: '✚' },
-        subconjunt: { nom: 'Subconjunt muntat', ico: '▣' }
+        peca: { nom: t('Peça'), ico: '◼' },
+        cargol: { nom: t('Cargoleria / petit material'), ico: '⚙' },
+        consumible: { nom: t('Consumible (coles, brides…)'), ico: '✚' },
+        subconjunt: { nom: t('Subconjunt muntat'), ico: '▣' }
     };
 
     // Com es col·loquen les unitats dins el caixetí
     FO.DISPOSICIONS = {
-        auto: 'Automàtica',
-        individual: 'Individual (una cel·la per unitat)',
-        apilat: 'Apilades',
-        capa: 'En una sola capa',
-        granel: 'A granel (amuntegades)'
+        auto: t('Automàtica'),
+        individual: t('Individual (una cel·la per unitat)'),
+        apilat: t('Apilades'),
+        capa: t('En una sola capa'),
+        granel: t('A granel (amuntegades)')
     };
 
-    FO.FORMES = { box: 'Prisma', cylinder: 'Cilindre' };
+    FO.FORMES = { box: t('Prisma'), cylinder: t('Cilindre') };
 
     // Paleta per assignar colors quan no n'hi ha
     FO.PALETA = ['#4A90D9', '#E8A838', '#4CAF50', '#9C27B0', '#E53935', '#00ACC1',
@@ -250,7 +251,7 @@
         conjunts.forEach(c => { if (c.pare && !ids.has(c.pare)) c.pare = null; });
         // id estable: l'app de muntatge hi associa el progrés i l'estoc
         const revisions = (Array.isArray(p.revisions) ? p.revisions : []).slice(-30);
-        return { v: FO.VERSIO, id: String(p.id || FO.nouId('p')), nom: String(p.nom || 'Projecte FOrdre'), config: cfg, materials, conjunts, revisions };
+        return { v: FO.VERSIO, id: String(p.id || FO.nouId('p')), nom: String(p.nom || t('Projecte FOrdre')), config: cfg, materials, conjunts, revisions };
     };
 
     // Tancament efectiu d'un conjunt
@@ -309,81 +310,81 @@
         const av = [];
         const ids = new Set(p.materials.map(m => m.id));
         p.conjunts.forEach(c => {
-            c.items.forEach(it => { if (!ids.has(it.mat)) av.push(`${c.codi}: material inexistent (${it.mat})`); });
-            if (c.pare && FO.esDescendent(p, c.pare, c.id)) av.push(`${c.codi}: forma un cicle a l'arbre`);
+            c.items.forEach(it => { if (!ids.has(it.mat)) av.push(t('{codi}: material inexistent ({mat})', { codi: c.codi, mat: it.mat })); });
+            if (c.pare && FO.esDescendent(p, c.pare, c.id)) av.push(t('{codi}: forma un cicle a l\'arbre', { codi: c.codi }));
         });
         const codis = new Map();
         p.materials.forEach(m => codis.set(m.codi, (codis.get(m.codi) || 0) + 1));
-        codis.forEach((n, k) => { if (n > 1) av.push(`Codi de material repetit: ${k}`); });
+        codis.forEach((n, k) => { if (n > 1) av.push(t('Codi de material repetit: {codi}', { codi: k })); });
         return av;
     };
 
     // ─── Projecte d'exemple ───
     FO.exemple = function () {
         // proveïdor d'exemple segons el prefix del codi (per a la llista de compra)
-        const PROV = { 'MT': 'RS Components', 'CRG': 'Würth', 'FEM': 'Würth', 'VOL': 'Würth', 'SEP': 'Würth', 'HID': 'SMC', 'CON': 'Ferreteria local', 'PCB-101': 'Mouser' };
+        const PROV = { 'MT': 'RS Components', 'CRG': 'Würth', 'FEM': 'Würth', 'VOL': 'Würth', 'SEP': 'Würth', 'HID': 'SMC', 'CON': t('Ferreteria local'), 'PCB-101': 'Mouser' };
         const M = (codi, nom, tipus, x, y, z, pes, extra) => {
             const prov = PROV[codi] || PROV[codi.split('-')[0]];
             return Object.assign({ id: codi, codi, nom, tipus, x, y, z, pes }, prov ? { origen: 'comprat', proveidor: prov } : {}, extra || {});
         };
         return FO.normalitzaProjecte({
             id: 'exemple-dx1',
-            nom: 'Dosificadora DX-1 (exemple)',
+            nom: t('Dosificadora DX-1 (exemple)'),
             materials: [
-                M('PL-001', 'Placa base alumini 3 mm', 'peca', 180, 120, 3, 175, { col: '#9AA5B1', apilable: true }),
-                M('PL-002', 'Escaire acer inox', 'peca', 40, 30, 25, 38, { col: '#B0BEC5' }),
-                M('FV-010', 'Tapa fibra de vidre', 'peca', 150, 90, 12, 60, { col: '#E0D6A8', fragil: 6, apilable: false }),
-                M('3D-021', 'Suport motor (PETG imprès)', 'peca', 55, 45, 30, 22, { col: '#FF7043' }),
-                M('3D-022', 'Guia cable (PLA imprès)', 'peca', 60, 12, 10, 4, { col: '#26A69A', disposicio: 'capa' }),
-                M('PCB-100', 'Placa de control', 'peca', 100, 70, 18, 55, { col: '#2E7D32', esd: true, fragil: 7, apilable: false }),
-                M('PCB-101', 'Mòdul sensor de pressió', 'peca', 30, 20, 8, 6, { col: '#388E3C', esd: true, fragil: 6 }),
-                M('MT-050', 'Motor pas a pas NEMA17', 'peca', 42, 42, 48, 280, { col: '#455A64', apilable: false }),
-                M('HID-200', 'Mànega pressió 6 mm (tram)', 'peca', 120, 14, 14, 18, { col: '#1E88E5', disposicio: 'capa' }),
-                M('HID-201', 'Racord ràpid 1/4"', 'cargol', 22, 14, 14, 9, { col: '#FBC02D' }),
-                M('HID-210', 'Dipòsit d\'oli precarregat', 'peca', 40, 40, 70, 95, { col: '#6D4C41', forma: 'cylinder', liquid: true, angleMax: 10 }),
-                M('CRG-M4x10', 'Cargol DIN912 M4×10', 'cargol', 10, 7, 7, 1.6, { col: '#78909C' }),
-                M('CRG-M3x8', 'Cargol DIN7985 M3×8', 'cargol', 8, 6, 6, 0.8, { col: '#90A4AE' }),
-                M('FEM-M4', 'Femella autoblocant M4', 'cargol', 7, 7, 5, 1.1, { col: '#607D8B' }),
-                M('VOL-M4', 'Volandera DIN125 M4', 'cargol', 9, 9, 1, 0.3, { col: '#B0BEC5' }),
-                M('SEP-M3', 'Separador M3×10 niló', 'cargol', 6, 6, 10, 0.2, { col: '#ECEFF1' }),
-                M('CON-01', 'Frenafils Loctite 243 (10 ml)', 'consumible', 25, 25, 75, 18, { col: '#1565C0', forma: 'cylinder', liquid: true, angleMax: 30, caixaMaterial: 'PETG', caixaColor: '#FDD835' }),
-                M('CON-02', 'Brides 100 mm', 'consumible', 100, 3, 1.2, 0.3, { col: '#212121' }),
-                M('CON-03', 'Etiquetes de cable', 'consumible', 60, 40, 5, 10, { col: '#FFFFFF' }),
-                M('CON-04', 'Cola epoxi bicomponent', 'consumible', 30, 20, 100, 30, { col: '#8E24AA', liquid: true, angleMax: 45 })
+                M('PL-001', t('Placa base alumini 3 mm'), 'peca', 180, 120, 3, 175, { col: '#9AA5B1', apilable: true }),
+                M('PL-002', t('Escaire acer inox'), 'peca', 40, 30, 25, 38, { col: '#B0BEC5' }),
+                M('FV-010', t('Tapa fibra de vidre'), 'peca', 150, 90, 12, 60, { col: '#E0D6A8', fragil: 6, apilable: false }),
+                M('3D-021', t('Suport motor (PETG imprès)'), 'peca', 55, 45, 30, 22, { col: '#FF7043' }),
+                M('3D-022', t('Guia cable (PLA imprès)'), 'peca', 60, 12, 10, 4, { col: '#26A69A', disposicio: 'capa' }),
+                M('PCB-100', t('Placa de control'), 'peca', 100, 70, 18, 55, { col: '#2E7D32', esd: true, fragil: 7, apilable: false }),
+                M('PCB-101', t('Mòdul sensor de pressió'), 'peca', 30, 20, 8, 6, { col: '#388E3C', esd: true, fragil: 6 }),
+                M('MT-050', t('Motor pas a pas NEMA17'), 'peca', 42, 42, 48, 280, { col: '#455A64', apilable: false }),
+                M('HID-200', t('Mànega pressió 6 mm (tram)'), 'peca', 120, 14, 14, 18, { col: '#1E88E5', disposicio: 'capa' }),
+                M('HID-201', t('Racord ràpid 1/4"'), 'cargol', 22, 14, 14, 9, { col: '#FBC02D' }),
+                M('HID-210', t('Dipòsit d\'oli precarregat'), 'peca', 40, 40, 70, 95, { col: '#6D4C41', forma: 'cylinder', liquid: true, angleMax: 10 }),
+                M('CRG-M4x10', t('Cargol DIN912 M4×10'), 'cargol', 10, 7, 7, 1.6, { col: '#78909C' }),
+                M('CRG-M3x8', t('Cargol DIN7985 M3×8'), 'cargol', 8, 6, 6, 0.8, { col: '#90A4AE' }),
+                M('FEM-M4', t('Femella autoblocant M4'), 'cargol', 7, 7, 5, 1.1, { col: '#607D8B' }),
+                M('VOL-M4', t('Volandera DIN125 M4'), 'cargol', 9, 9, 1, 0.3, { col: '#B0BEC5' }),
+                M('SEP-M3', t('Separador M3×10 niló'), 'cargol', 6, 6, 10, 0.2, { col: '#ECEFF1' }),
+                M('CON-01', t('Frenafils Loctite 243 (10 ml)'), 'consumible', 25, 25, 75, 18, { col: '#1565C0', forma: 'cylinder', liquid: true, angleMax: 30, caixaMaterial: 'PETG', caixaColor: '#FDD835' }),
+                M('CON-02', t('Brides 100 mm'), 'consumible', 100, 3, 1.2, 0.3, { col: '#212121' }),
+                M('CON-03', t('Etiquetes de cable'), 'consumible', 60, 40, 5, 10, { col: '#FFFFFF' }),
+                M('CON-04', t('Cola epoxi bicomponent'), 'consumible', 30, 20, 100, 30, { col: '#8E24AA', liquid: true, angleMax: 45 })
             ],
             conjunts: [
-                { id: 'MAQ', codi: 'DX-1', nom: 'Dosificadora completa', col: '#4A90D9', ordre: 0 },
+                { id: 'MAQ', codi: 'DX-1', nom: t('Dosificadora completa'), col: '#4A90D9', ordre: 0 },
                 {
-                    id: 'XAS', codi: 'DX-1.1', nom: 'Xassís', pare: 'MAQ', ordre: 1, col: '#9AA5B1',
-                    eines: 'Clau Allen 3 mm, clau dinamomètrica, clau fixa 7 mm',
-                    instruccions: 'Presentar les dues plaques base i alinear els forats\nMuntar els 4 escaires amb cargol, volandera i femella\nFixar els 2 grups motor a la placa superior\nComprovar l\'escaire del conjunt abans del collat final',
-                    items: [{ mat: 'PL-001', qty: 2 }, { mat: 'PL-002', qty: 4 }, { mat: 'CRG-M4x10', qty: 24, parell: 2.5 }, { mat: 'FEM-M4', qty: 16, parell: 2.5 }, { mat: 'VOL-M4', qty: 24 }, { mat: 'CON-01', qty: 1, nota: 'Una gota a cada cargol dels escaires' }]
+                    id: 'XAS', codi: 'DX-1.1', nom: t('Xassís'), pare: 'MAQ', ordre: 1, col: '#9AA5B1',
+                    eines: t('Clau Allen 3 mm, clau dinamomètrica, clau fixa 7 mm'),
+                    instruccions: t('Presentar les dues plaques base i alinear els forats\nMuntar els 4 escaires amb cargol, volandera i femella\nFixar els 2 grups motor a la placa superior\nComprovar l\'escaire del conjunt abans del collat final'),
+                    items: [{ mat: 'PL-001', qty: 2 }, { mat: 'PL-002', qty: 4 }, { mat: 'CRG-M4x10', qty: 24, parell: 2.5 }, { mat: 'FEM-M4', qty: 16, parell: 2.5 }, { mat: 'VOL-M4', qty: 24 }, { mat: 'CON-01', qty: 1, nota: t('Una gota a cada cargol dels escaires') }]
                 },
                 {
-                    id: 'MOT', codi: 'DX-1.1.1', nom: 'Grup motor', pare: 'XAS', ordre: 1, col: '#FF7043', qty: 2,
+                    id: 'MOT', codi: 'DX-1.1.1', nom: t('Grup motor'), pare: 'XAS', ordre: 1, col: '#FF7043', qty: 2,
                     muntat: { x: 60, y: 50, z: 80, pes: 320, apilable: false, fragil: 3 },
-                    eines: 'Clau Allen 2,5 mm',
-                    instruccions: 'Encarar el motor al suport amb el connector cap enrere\nCollar els 4 cargols en creu',
-                    items: [{ mat: 'MT-050', qty: 1 }, { mat: '3D-021', qty: 1 }, { mat: 'CRG-M3x8', qty: 4, parell: 1.2, nota: 'En creu, sense passar-se: el suport és de plàstic' }, { mat: 'CON-01', qty: 1 }]
+                    eines: t('Clau Allen 2,5 mm'),
+                    instruccions: t('Encarar el motor al suport amb el connector cap enrere\nCollar els 4 cargols en creu'),
+                    items: [{ mat: 'MT-050', qty: 1 }, { mat: '3D-021', qty: 1 }, { mat: 'CRG-M3x8', qty: 4, parell: 1.2, nota: t('En creu, sense passar-se: el suport és de plàstic') }, { mat: 'CON-01', qty: 1 }]
                 },
                 {
-                    id: 'ELE', codi: 'DX-1.2', nom: 'Electrònica de control', pare: 'MAQ', ordre: 2, col: '#2E7D32', formatKit: 'contenidor', tancament: 'imants',
+                    id: 'ELE', codi: 'DX-1.2', nom: t('Electrònica de control'), pare: 'MAQ', ordre: 2, col: '#2E7D32', formatKit: 'contenidor', tancament: 'imants',
                     muntat: { x: 110, y: 80, z: 35, pes: 90, esd: true, fragil: 7, apilable: false },
-                    eines: 'Polsera antiestàtica, tornavís PH1, alicates de tall',
-                    instruccions: 'Posar-se la polsera antiestàtica abans d\'obrir les caixes ESD\nMuntar els separadors a la placa de control\nConnectar els mòduls de pressió\nOrdenar el cablejat amb les guies i les brides\nEtiquetar tots els cables',
-                    items: [{ mat: 'PCB-100', qty: 1, nota: 'Manipular només per les vores' }, { mat: 'PCB-101', qty: 2 }, { mat: 'SEP-M3', qty: 8 }, { mat: 'CRG-M3x8', qty: 8, parell: 0.6 }, { mat: '3D-022', qty: 6 }, { mat: 'CON-02', qty: 20 }, { mat: 'CON-03', qty: 1 }]
+                    eines: t('Polsera antiestàtica, tornavís PH1, alicates de tall'),
+                    instruccions: t('Posar-se la polsera antiestàtica abans d\'obrir les caixes ESD\nMuntar els separadors a la placa de control\nConnectar els mòduls de pressió\nOrdenar el cablejat amb les guies i les brides\nEtiquetar tots els cables'),
+                    items: [{ mat: 'PCB-100', qty: 1, nota: t('Manipular només per les vores') }, { mat: 'PCB-101', qty: 2 }, { mat: 'SEP-M3', qty: 8 }, { mat: 'CRG-M3x8', qty: 8, parell: 0.6 }, { mat: '3D-022', qty: 6 }, { mat: 'CON-02', qty: 20 }, { mat: 'CON-03', qty: 1 }]
                 },
                 {
-                    id: 'HID', codi: 'DX-1.3', nom: 'Circuit hidràulic', pare: 'MAQ', ordre: 3, col: '#1E88E5', materialCaixa: 'PETG', materialContenidor: 'PETG', tancament: 'pressio',
-                    eines: 'Talla-tubs, clau fixa 14 mm',
-                    instruccions: 'Tallar les mànegues a escaire\nEndollar els racords fins al tope\nOmplir el circuit des del dipòsit i purgar l\'aire\nProva d\'estanquitat a 6 bar durant 10 min',
-                    items: [{ mat: 'HID-200', qty: 4 }, { mat: 'HID-201', qty: 8, parell: 8 }, { mat: 'HID-210', qty: 1, nota: 'Mantenir vertical' }, { mat: 'CON-02', qty: 10 }]
+                    id: 'HID', codi: 'DX-1.3', nom: t('Circuit hidràulic'), pare: 'MAQ', ordre: 3, col: '#1E88E5', materialCaixa: 'PETG', materialContenidor: 'PETG', tancament: 'pressio',
+                    eines: t('Talla-tubs, clau fixa 14 mm'),
+                    instruccions: t('Tallar les mànegues a escaire\nEndollar els racords fins al tope\nOmplir el circuit des del dipòsit i purgar l\'aire\nProva d\'estanquitat a 6 bar durant 10 min'),
+                    items: [{ mat: 'HID-200', qty: 4 }, { mat: 'HID-201', qty: 8, parell: 8 }, { mat: 'HID-210', qty: 1, nota: t('Mantenir vertical') }, { mat: 'CON-02', qty: 10 }]
                 },
                 {
-                    formatKit: 'fusionat', id: 'CAR', codi: 'DX-1.4', nom: 'Carcassa', pare: 'MAQ', ordre: 4, col: '#E0D6A8',
-                    eines: 'Tornavís PH2, guants, espàtula',
-                    instruccions: 'Preparar la cola epoxi (temps obert 5 min)\nEncolar els reforços de les tapes\nCollar les tapes al xassís',
-                    items: [{ mat: 'FV-010', qty: 2, nota: 'Fràgil: no recolzar sobre les cantonades' }, { mat: 'CRG-M3x8', qty: 12, parell: 0.8 }, { mat: 'CON-04', qty: 1 }]
+                    formatKit: 'fusionat', id: 'CAR', codi: 'DX-1.4', nom: t('Carcassa'), pare: 'MAQ', ordre: 4, col: '#E0D6A8',
+                    eines: t('Tornavís PH2, guants, espàtula'),
+                    instruccions: t('Preparar la cola epoxi (temps obert 5 min)\nEncolar els reforços de les tapes\nCollar les tapes al xassís'),
+                    items: [{ mat: 'FV-010', qty: 2, nota: t('Fràgil: no recolzar sobre les cantonades') }, { mat: 'CRG-M3x8', qty: 12, parell: 0.8 }, { mat: 'CON-04', qty: 1 }]
                 }
             ]
         });

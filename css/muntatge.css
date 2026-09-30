@@ -171,3 +171,7 @@ main a { color: var(--ac) }
 .bt-falta { flex-shrink: 0; min-height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid #F57C00; background: none; color: #F57C00; font-weight: 600; cursor: pointer }
 .peu button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .bt-falta { width: 40px; padding: 0; font-size: 18px }
+
+/* Selector d'idioma a les pantalles d'entrada (sota la llista) */
+.idioma-peu { margin-top: 18px; text-align: center }
+.idioma-peu select { height: 40px; border-radius: 10px; border: 1px solid var(--bd); background: var(--p2); color: var(--tx); padding: 0 10px; font-size: 15px }

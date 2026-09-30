@@ -27,12 +27,12 @@
 <body>
     <!-- Capçalera: enrere · projecte i ordre · rol · estat del servidor · escàner · menú -->
     <header class="cap">
-        <button class="ic" id="bEnrere" aria-label="Enrere" hidden>‹</button>
+        <button class="ic" id="bEnrere" aria-label="Enrere" data-t-aria-label hidden>‹</button>
         <div class="titol"><b>F<span>O</span>rdre</b> <small id="nomProj">Taller</small><button class="xip-ordre" id="bOrdre" hidden></button></div>
         <button class="xip-rol" id="bRol" hidden></button>
-        <button class="ic" id="bSrv" aria-label="Estat del servidor del taller" style="font-size:18px">●</button>
-        <button class="ic" id="bEscaneja" aria-label="Escanejar">⌖</button>
-        <button class="ic" id="bMenu" aria-label="Opcions">⋮</button>
+        <button class="ic" id="bSrv" aria-label="Estat del servidor del taller" data-t-aria-label style="font-size:18px">●</button>
+        <button class="ic" id="bEscaneja" aria-label="Escanejar" data-t-aria-label>⌖</button>
+        <button class="ic" id="bMenu" aria-label="Opcions" data-t-aria-label>⋮</button>
     </header>
 
     <main id="vista"></main>
@@ -46,17 +46,17 @@
         <div class="mira"></div>
         <div class="resultat" id="resEsc"></div>
         <div class="esc-barra">
-            <input type="text" id="codiManual" placeholder="Codi manual o lector USB…" autocomplete="off" enterkeyhint="go">
-            <button id="bTancaEsc">Tancar</button>
+            <input type="text" id="codiManual" placeholder="Codi manual o lector USB…" data-t-placeholder autocomplete="off" enterkeyhint="go">
+            <button id="bTancaEsc" data-t>Tancar</button>
         </div>
     </div>
 
     <!-- Tria del rol -->
     <div class="full" id="triaRol" hidden>
         <div class="fitxa">
-            <h2>Amb quin rol treballes ara?</h2>
+            <h2 data-t>Amb quin rol treballes ara?</h2>
             <div id="llistaRols"></div>
-            <button class="bt" data-tanca="triaRol">Tancar</button>
+            <button class="bt" data-tanca="triaRol" data-t>Tancar</button>
         </div>
     </div>
 
@@ -68,33 +68,34 @@
     <!-- Menú -->
     <div class="full" id="menu" hidden>
         <div class="fitxa">
-            <h2>Opcions</h2>
+            <h2 data-t>Opcions</h2>
+            <label class="camp"><span data-t>Idioma</span><span id="selIdiomaMenu"></span></label>
             <div class="grup" id="grupPersona"></div>
-            <label class="ck"><input type="checkbox" id="consumAuto"> Descomptar de l'estoc el material que no ha passat pel magatzem en marcar un pas com a muntat</label>
+            <label class="ck"><input type="checkbox" id="consumAuto"> <span data-t>Descomptar de l'estoc el material que no ha passat pel magatzem en marcar un pas com a muntat</span></label>
             <div class="grup" id="grupSrv">
-                <h3 style="margin-top:0">Servidor del taller</h3>
+                <h3 style="margin-top:0" data-t>Servidor del taller</h3>
                 <p class="ajuda" id="infoSrv"></p>
-                <label class="camp">Adreça del servidor (buit = automàtic)<input type="url" id="urlSrv" placeholder="https://raspberrypi.local:8443" autocomplete="off"></label>
-                <label class="camp">Clau del taller (si n'hi ha)<input type="password" id="clauSrv" autocomplete="off"></label>
-                <button class="bt" id="bConnecta">🔌 Connectar</button>
+                <label class="camp"><span data-t>Adreça del servidor (buit = automàtic)</span><input type="url" id="urlSrv" placeholder="https://raspberrypi.local:8443" autocomplete="off"></label>
+                <label class="camp"><span data-t>Clau del taller (si n'hi ha)</span><input type="password" id="clauSrv" autocomplete="off"></label>
+                <button class="bt" id="bConnecta" data-t>🔌 Connectar</button>
                 <div id="projSrv"></div>
             </div>
             <div class="grup">
-                <h3>Projecte</h3>
-                <button class="bt" id="bObrirFitxer">📂 Obrir fitxer de projecte</button>
-                <button class="bt" id="bEnganxa">🔗 Enganxar un enllaç</button>
-                <button class="bt" id="bOrdinador">💻 Projecte d'aquest navegador</button>
-                <button class="bt" id="bExemple">🧪 Projecte d'exemple</button>
+                <h3 data-t>Projecte</h3>
+                <button class="bt" id="bObrirFitxer" data-t>📂 Obrir fitxer de projecte</button>
+                <button class="bt" id="bEnganxa" data-t>🔗 Enganxar un enllaç</button>
+                <button class="bt" id="bOrdinador" data-t>💻 Projecte d'aquest navegador</button>
+                <button class="bt" id="bExemple" data-t>🧪 Projecte d'exemple</button>
             </div>
             <div class="grup">
-                <h3>Progrés d'aquesta ordre</h3>
-                <button class="bt" id="bExportaProg">⬇ Exportar el progrés (JSON)</button>
-                <button class="bt" id="bImportaProg">⬆ Importar un progrés</button>
-                <button class="bt perill" id="bReinicia">Reiniciar el progrés en aquest aparell</button>
+                <h3 data-t>Progrés d'aquesta ordre</h3>
+                <button class="bt" id="bExportaProg" data-t>⬇ Exportar el progrés (JSON)</button>
+                <button class="bt" id="bImportaProg" data-t>⬆ Importar un progrés</button>
+                <button class="bt perill" id="bReinicia" data-t>Reiniciar el progrés en aquest aparell</button>
             </div>
-            <button class="bt pr" id="bInstal·la" hidden>📲 Instal·lar l'app</button>
+            <button class="bt pr" id="bInstal·la" hidden data-t>📲 Instal·lar l'app</button>
             <p class="ajuda" id="infoApp"></p>
-            <button class="bt" data-tanca="menu">Tancar</button>
+            <button class="bt" data-tanca="menu" data-t>Tancar</button>
         </div>
     </div>
 
@@ -104,6 +105,8 @@
     <div class="avis" id="avis"></div>
 
     <script src="vendor/jsQR.js" defer></script>
+    <script src="js/fo-i18n.js"></script>
+    <script src="js/fo-idiomes.js"></script>
     <script src="js/fo-dades.js"></script>
     <script src="js/fo-calcul.js"></script>
     <script src="js/fo-etiquetes.js"></script>

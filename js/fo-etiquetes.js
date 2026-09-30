@@ -10,21 +10,22 @@
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
+    const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
     // w = null → cinta contínua (llargada automàtica)
     FO.FORMATS_ETIQUETA = {
-        cinta9: { nom: 'Cinta 9 mm', w: null, h: 9 },
-        cinta12: { nom: 'Cinta 12 mm', w: null, h: 12 },
-        cinta18: { nom: 'Cinta 18 mm', w: null, h: 18 },
-        cinta24: { nom: 'Cinta 24 mm', w: null, h: 24 },
-        rotlle62: { nom: 'Rotlle tèrmic 62 × 29 mm', w: 62, h: 29 },
-        rotlle50: { nom: 'Rotlle tèrmic 50 × 25 mm', w: 50, h: 25 },
-        rotlle40: { nom: 'Rotlle tèrmic 40 × 20 mm', w: 40, h: 20 },
+        cinta9: { nom: t('Cinta 9 mm'), w: null, h: 9 },
+        cinta12: { nom: t('Cinta 12 mm'), w: null, h: 12 },
+        cinta18: { nom: t('Cinta 18 mm'), w: null, h: 18 },
+        cinta24: { nom: t('Cinta 24 mm'), w: null, h: 24 },
+        rotlle62: { nom: t('Rotlle tèrmic 62 × 29 mm'), w: 62, h: 29 },
+        rotlle50: { nom: t('Rotlle tèrmic 50 × 25 mm'), w: 50, h: 25 },
+        rotlle40: { nom: t('Rotlle tèrmic 40 × 20 mm'), w: 40, h: 20 },
         a4_70x37: { nom: 'A4 · 70 × 37 mm (3 × 8)', w: 70, h: 37, full: { cols: 3, files: 8, mx: 0, my: 0.5, gx: 0, gy: 0 } },
         a4_48x25: { nom: 'A4 · 48,5 × 25,4 mm (4 × 11)', w: 48.5, h: 25.4, full: { cols: 4, files: 11, mx: 8, my: 8.8, gx: 0, gy: 0 } },
         a4_38x21: { nom: 'A4 · 38 × 21,2 mm (5 × 13)', w: 38, h: 21.2, full: { cols: 5, files: 13, mx: 10, my: 10.7, gx: 0, gy: 0 } },
         a4_25x10: { nom: 'A4 · 25,4 × 10 mm (7 × 27)', w: 25.4, h: 10, full: { cols: 7, files: 27, mx: 8.5, my: 13.5, gx: 2.5, gy: 0 } },
-        mida: { nom: 'A mida…', w: 40, h: 15 }
+        mida: { nom: t('A mida…'), w: 40, h: 15 }
     };
 
     // ─── Code 128 (joc B) ───
@@ -87,14 +88,14 @@
             const tots = s.forma === 'contenidor' ? s.caixes.flatMap(c => c.obj.caixetins) : s.caixetins;
             if (s.forma !== 'caixa') out.push({
                 clau: s.id, tipus: s.forma === 'contenidor' ? 'contenidor' : 'safata', safata: s.id, conjunt: r.conj.codi, codi: s.id,
-                nom: (s.tipus === 'muntat' ? 'Guarda: ' : '') + r.conj.nom, qty: s.forma === 'contenidor' ? s.caixes.length + ' caixes' : (s.tipus === 'muntat' ? s.caixetins.reduce((a, c) => a + c.qty, 0) : ''),
+                nom: (s.tipus === 'muntat' ? t('Guarda:') + ' ' : '') + r.conj.nom, qty: s.forma === 'contenidor' ? t('{n} caixes', { n: s.caixes.length }) : (s.tipus === 'muntat' ? s.caixetins.reduce((a, c) => a + c.qty, 0) : ''),
                 pas: r.pas, col: r.conj.col, col2: r.conj.col, esd: tots.some(c => c.mat.esd),
                 liquid: tots.some(c => c.mat.liquid), dreta: tots.some(c => c.o.dreta), ample: s.W
             });
             // la tapa porta la seva etiqueta: si se separa de la caixa, se sap de quina és
             if (s.tancament === 'pressio' || s.tancament === 'imants') out.push({
                 clau: s.id + '#T', tipus: 'tapa', safata: s.id, conjunt: r.conj.codi, codi: s.id,
-                nom: 'Tapa · ' + (s.forma === 'caixa' && s.caixetins[0] ? s.caixetins[0].mat.nom : r.conj.nom), qty: '',
+                nom: t('Tapa') + ' · ' + (s.forma === 'caixa' && s.caixetins[0] ? s.caixetins[0].mat.nom : r.conj.nom), qty: '',
                 pas: r.pas, col: s.forma === 'caixa' && s.caixetins[0] ? s.caixetins[0].mat.col : r.conj.col, col2: r.conj.col,
                 esd: tots.some(c => c.mat.esd), liquid: tots.some(c => c.mat.liquid), dreta: false, ample: s.W
             });
@@ -162,8 +163,8 @@
             y += f2 * 1.3;
             s += `<text x="${x}" y="${y}" font-size="${f2}">${esc(fit(e.nom, Math.floor(amp / (f2 * 0.5))))}</text>`;
             y += f3 * 1.35;
-            s += `<text x="${x}" y="${y}" font-size="${f3}" fill="#444">${esc(fit(`Pas ${e.pas} · ${e.conjunt} · ${e.safata}`, Math.floor(amp / (f3 * 0.5))))}</text>`;
-            if (icones) { y += f3 * 1.35; s += `<text x="${x}" y="${y}" font-size="${f3}">${icones}${e.esd ? ' ESD' : ''}${e.liquid ? ' líquid' : ''}${e.dreta ? ' vertical' : ''}</text>`; }
+            s += `<text x="${x}" y="${y}" font-size="${f3}" fill="#444">${esc(fit(`${t('Pas {n}', { n: e.pas })} · ${e.conjunt} · ${e.safata}`, Math.floor(amp / (f3 * 0.5))))}</text>`;
+            if (icones) { y += f3 * 1.35; s += `<text x="${x}" y="${y}" font-size="${f3}">${icones}${e.esd ? ' ESD' : ''}${e.liquid ? ' ' + t('líquid') : ''}${e.dreta ? ' ' + t('vertical') : ''}</text>`; }
             if (ambBarres) {
                 const bh = Math.max(4, h - y - pad * 1.5);
                 if (bh >= 4) s += `<g fill="#000">${svgBarres(e.codi, x, h - pad - bh, amp, bh).svg}</g>`;
@@ -199,7 +200,7 @@
             });
             if (f.w) css = css.replace('@page{margin:0}', `@page{size:${f.w}mm ${f.h}mm;margin:0}`);
         }
-        return `<!doctype html><html lang="ca"><head><meta charset="utf-8"><title>Etiquetes FOrdre</title><style>${css}svg{display:block}</style></head><body>${cos}<script>setTimeout(()=>print(),300)<\/script></body></html>`;
+        return `<!doctype html><html lang="${FO.idioma ? FO.idioma() : 'ca'}"><head><meta charset="utf-8"><title>${t('Etiquetes FOrdre')}</title><style>${css}svg{display:block}</style></head><body>${cos}<script>setTimeout(()=>print(),300)<\/script></body></html>`;
     };
 
     // ─── CSV per a RFID / NFC / sistemes externs ───

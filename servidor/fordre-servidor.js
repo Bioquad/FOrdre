@@ -37,6 +37,8 @@ const PORT = +arg('port', process.env.FORDRE_PORT || 8443);
 const PORT_HTTP = +arg('port-http', process.env.FORDRE_PORT_HTTP || 8080);
 const CLAU = String(arg('clau', process.env.FORDRE_CLAU || '') || '');
 global.FO = {};
+require(path.join(ARREL, 'js', 'fo-i18n.js'));      // idiomes: les respostes de l'API van en català (les apps les tradueixen)
+require(path.join(ARREL, 'js', 'fo-idiomes.js'));   // diccionaris castellà i anglès (per a la pàgina d'ajuda)
 require(path.join(ARREL, 'js', 'fo-dades.js'));     // model i número de versió (el mateix que les apps)
 require(path.join(ARREL, 'js', 'fo-progres.js'));   // operacions, rols i permisos
 const FO = global.FO;
@@ -254,7 +256,7 @@ async function api(req, res, url) {
     const cal = rol => {
         if (obert) return true;
         if (!ses) { json(req, res, 401, { error: 'Cal iniciar sessió' }); return false; }
-        if (rol && !ses.rols.includes(rol) && !ses.rols.includes('responsable')) { json(req, res, 403, { error: 'Cal el rol de ' + FO.ROLS[rol].nom }); return false; }
+        if (rol && !ses.rols.includes(rol) && !ses.rols.includes('responsable')) { json(req, res, 403, { error: FO.t('Cal el rol de {rol}', { rol: FO.ROLS[rol].nom }) }); return false; }
         return true;
     };
 
@@ -421,16 +423,19 @@ function gestor(cert, segur) {
             const host = (req.headers.host || 'localhost').replace(/:\d+$/, '');
             const desti = `https://${host}:${PORT}${url.pathname === '/' ? '/muntatge.html' : url.pathname}${url.search}`;
             if (url.pathname === '/' || url.pathname === '/ajuda') {
+                // la pàgina d'ajuda surt en l'idioma del navegador (?lang=ca|es|en per forçar-lo)
+                const L = idiomaPeticio(req, url), t = (s, v) => FO.t(s, v, L), q = '&lang=' + L;
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FOrdre taller</title>
+                return res.end(`<!doctype html><html lang="${L}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FOrdre ${t('Taller')}</title>
 <body style="font-family:system-ui;max-width:560px;margin:24px auto;padding:0 16px;line-height:1.5">
-<h1>FOrdre · servidor del taller</h1>
-<p><a href="${desti}" style="font-size:20px">➜ Obrir l'app del taller</a></p>
-<p>Accés directe per rol: ${Object.entries(FO.ROLS).map(([r, x]) => `<a href="https://${host}:${PORT}/muntatge.html?rol=${r}">${x.ico} ${x.nom}</a>`).join(' · ')}</p>
-<p><a href="https://${host}:${PORT}/index.html">➜ Obrir el configurador (ordinador)</a></p>
-<h2>Primer cop en aquest aparell</h2>
-<ol><li><a href="/certificat">Descarrega el certificat del taller</a> i instal·la'l com a <b>certificat de CA</b> (Android: Configuració › Seguretat › Xifratge i credencials › Instal·la un certificat › Certificat de CA · iPhone: obre'l, instal·la el perfil i activa'l a Configuració › General › Informació › Confiança de certificats).</li>
-<li>O bé obre l'app i accepta l'avís de seguretat del navegador («Configuració avançada › Continua»).</li></ol></body>`);
+<p style="text-align:right">${Object.entries(FO.IDIOMES).map(([k, x]) => k === L ? `<b>${x.curt}</b>` : `<a href="?lang=${k}">${x.curt}</a>`).join(' · ')}</p>
+<h1>FOrdre · ${t('servidor del taller')}</h1>
+<p><a href="${desti}${desti.includes('?') ? q : '?' + q.slice(1)}" style="font-size:20px">➜ ${t('Obrir l\'app del taller')}</a></p>
+<p>${t('Accés directe per rol:')} ${Object.entries(FO.ROLS).map(([r, x]) => `<a href="https://${host}:${PORT}/muntatge.html?rol=${r}${q}">${x.ico} ${t(x.nom)}</a>`).join(' · ')}</p>
+<p><a href="https://${host}:${PORT}/index.html?${q.slice(1)}">➜ ${t('Obrir el configurador (ordinador)')}</a></p>
+<h2>${t('Primer cop en aquest aparell')}</h2>
+<ol><li>${t('<a href="/certificat">Descarrega el certificat del taller</a> i instal·la\'l com a <b>certificat de CA</b> (Android: Configuració › Seguretat › Xifratge i credencials › Instal·la un certificat › Certificat de CA · iPhone: obre\'l, instal·la el perfil i activa\'l a Configuració › General › Informació › Confiança de certificats).')}</li>
+<li>${t('O bé obre l\'app i accepta l\'avís de seguretat del navegador («Configuració avançada › Continua»).')}</li></ol></body></html>`);
             }
             res.writeHead(302, { Location: desti }); return res.end();
         }
@@ -438,6 +443,14 @@ function gestor(cert, segur) {
         if (url.pathname === '/') { res.writeHead(302, { Location: '/muntatge.html' }); return res.end(); }
         estatic(req, res, url);
     };
+}
+
+// Idioma d'una petició: ?lang=… o la capçalera Accept-Language del navegador (per defecte, català)
+function idiomaPeticio(req, url) {
+    const q = url.searchParams.get('lang');
+    if (FO.IDIOMES[q]) return q;
+    const l = String(req.headers['accept-language'] || '').split(',').map(x => x.trim().slice(0, 2).toLowerCase()).find(x => FO.IDIOMES[x]);
+    return l || 'ca';
 }
 
 // ─── QR a la consola ───
