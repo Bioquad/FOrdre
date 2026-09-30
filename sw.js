@@ -3,7 +3,7 @@
 // Estratègia: xarxa primer per als fitxers de l'app (per rebre les
 // actualitzacions) i còpia local si no hi ha connexió.
 // ═══════════════════════════════════════════════════════════════
-const CACHE = 'fordre-v1.4.2';
+const CACHE = 'fordre-v1.5.0';
 const FITXERS = [
     './', './index.html', './muntatge.html', './manifest.webmanifest', './manifest-taller.webmanifest',
     './css/fordre.css', './css/muntatge.css',

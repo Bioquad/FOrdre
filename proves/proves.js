@@ -343,6 +343,36 @@ console.log('Processos: rols, ordres i resultats');
         const pr = FO.normalitzaProgres({ fets: { X: { ts: 't' } }, vist: ['a'] });
         assert(pr.fets.X && Array.isArray(pr.historial) && pr.tancada === null && typeof pr.omplert === 'object');
     });
+    prova('mancants: omplir menys del que cal obre un mancant i omplir-ho tot el resol', () => {
+        const pr = nova(), e = m.aOmplir(r0)[0], mat = e.caixeti.mat.id;
+        fes(pr, 'omple', { clau: e.clau, mat, qty: 1, cal: 3 }, 'Marc', ['magatzem']);
+        assert(FO.esMancant(pr, e.clau) && pr.mancants[e.clau].falten === 2, 'falten 2');
+        fes(pr, 'omple', { clau: e.clau, mat, qty: 3, cal: 3 }, 'Marc', ['magatzem']);
+        assert(!FO.esMancant(pr, e.clau) && pr.mancants[e.clau].resolt, 'resolt en arribar');
+        assert(!fes(pr, 'manca', { clau: 'X', mat, falten: 4, nota: 'arriba dijous' }, 'Marc', ['magatzem']));
+        assert(FO.mancantsOberts(pr).length === 1 && FO.mancantsOberts(pr)[0].nota === 'arriba dijous');
+        assert(/rol/.test(fes(pr, 'manca', { clau: 'Y', mat, falten: 1 }, 'Anna', ['muntador'])), 'només el magatzem marca mancants');
+    });
+    prova('mancants: un pas muntat amb mancants no bloqueja el pare i no es pot aprovar fins que es completa', () => {
+        const pr = nova(), fill = m.PLA.find(r => r.conj.pare), pare = fill.conj.pare;
+        fes(pr, 'fet', { conj: fill.conj.id, pendents: [{ clau: 'K', mat: 'A', qty: 2 }] }, 'Anna', ['muntador']);
+        assert(FO.estatPas(pr, fill.conj.id, false) === 'parcial', 'estat parcial');
+        assert(!!pr.fets[fill.conj.id], 'compta com a muntat per als passos següents');
+        assert(!fes(pr, 'fet', { conj: pare }, 'Anna', ['muntador']), 'el pare es pot muntar');
+        assert(/mancants/.test(fes(pr, 'verifica', { conj: fill.conj.id, resultat: 'ok' }, 'Pau', ['qualitat'])), 'no s\'aprova amb peces que falten');
+        assert(!fes(pr, 'completa', { conj: fill.conj.id }, 'Anna', ['muntador']));
+        assert(FO.estatPas(pr, fill.conj.id, false) === 'muntat' && pr.fets[fill.conj.id].completat, 'complet');
+        assert(!fes(pr, 'verifica', { conj: fill.conj.id, resultat: 'ok' }, 'Pau', ['qualitat']));
+    });
+    prova('mancants: una caixa amb un mancant es veu com a «amb mancants» i surt a l\'informe', () => {
+        const pr = nova(), c = m.caixes.find(x => !x.guarda && x.claus.length);
+        c.claus.forEach((k, i) => FO.aplicaOp(pr, { id: 'q' + i, t: 'omple', clau: k, qty: 1 }));
+        FO.aplicaOp(pr, { id: 'q-m', t: 'manca', clau: c.claus[0], mat: 'A', falten: 2, nota: 'proveïdor' });
+        assert(FO.estatCaixa(pr, c.id, c.claus) === 'mancant');
+        const res = FO.resumOrdre(m, pr);
+        assert(res.mancantsOberts === 1 && res.mancants.length === 1 && /mancants/.test(FO.textEstatOrdre(Object.assign(res, { inici: 'x' }))));
+        assert(/<h2>Mancants<\/h2>/.test(FO.informeHTML(m, pr, { codi: 'OF' })));
+    });
     prova('resultats: rendiment a la primera, temps i persones', () => {
         const pr = nova(), t0 = Date.parse('2026-01-01T10:00:00Z');
         const at = min => new Date(t0 + min * 60000).toISOString();

@@ -13,8 +13,10 @@
 // seu progrés propi, i el projecte fa de plantilla reutilitzable.
 //
 // Processos i rols:
-//   Omplir      → Magatzem     (posar el material a les caixes; surt de l'estoc)
-//   Utilitzar   → Muntador     (agafar caixes, començar, muntar, tornar caixes)
+//   Omplir      → Magatzem     (posar el material a les caixes; surt de l'estoc;
+//                               el que no ha arribat queda com a MANCANT)
+//   Utilitzar   → Muntador     (agafar caixes, començar, muntar, tornar caixes;
+//                               si falten peces, es munta la resta i es completa després)
 //   Comprovar   → Qualitat     (verificar: aprovar o rebutjar amb motiu)
 //   Gestionar   → Responsable  (assignar, incidències, tancar l'ordre)
 //   Resultats   → tothom en pot consultar; l'informe el fa js/fo-informe.js
@@ -35,8 +37,8 @@
 
     // Qui pot fer cada operació (el Responsable ho pot fer tot)
     FO.PERMISOS = {
-        omple: ['magatzem'], buida: ['magatzem'], estoc: ['magatzem'], estocFix: ['magatzem'],
-        agafa: ['muntador'], inicia: ['muntador'], instr: ['muntador'], fet: ['muntador'], desfet: ['muntador'],
+        omple: ['magatzem'], buida: ['magatzem'], manca: ['magatzem'], estoc: ['magatzem'], estocFix: ['magatzem'],
+        agafa: ['muntador'], inicia: ['muntador'], instr: ['muntador'], fet: ['muntador'], desfet: ['muntador'], completa: ['muntador'],
         retorna: ['magatzem', 'muntador'],
         verifica: ['qualitat'], resol: ['qualitat'],
         assigna: [], tanca: [], reobre: [],
@@ -52,6 +54,7 @@
         pendent: { nom: 'Pendent', col: '#8888A0' },
         preparat: { nom: 'Preparat', col: '#E8A838' },
         'en curs': { nom: 'En curs', col: '#4A90D9' },
+        parcial: { nom: 'Muntat amb mancants', col: '#F57C00' },
         muntat: { nom: 'Muntat', col: '#7E57C2' },
         rebutjat: { nom: 'Rebutjat', col: '#E53935' },
         verificat: { nom: 'Verificat', col: '#43A047' }
@@ -59,6 +62,7 @@
     FO.ESTATS_CAIXA = {
         buida: { nom: 'Buida', col: '#8888A0' },
         parcial: { nom: 'Omplint-se', col: '#E8A838' },
+        mancant: { nom: 'Amb mancants', col: '#F57C00' },
         plena: { nom: 'Plena', col: '#4A90D9' },
         'en ús': { nom: 'En ús', col: '#7E57C2' },
         retornada: { nom: 'Retornada', col: '#43A047' }
@@ -67,6 +71,7 @@
     FO.progresBuit = () => ({
         agafat: {}, instr: {}, fets: {}, estoc: {}, registre: [], fotos: {},
         omplert: {},        // clau de caixetí → { qty, mat, ts, op }
+        mancants: {},       // clau de caixetí → { mat, falten, inicial, nota, ts, op, resolt: null | { ts, op } }
         retornat: {},       // id de caixa / safata → { ts, op }
         inicis: {},         // conjunt → { ts, op } (inici del muntatge, per mesurar el temps)
         verificacions: {},  // conjunt → { resultat: 'ok'|'ko', motiu, checks, ts, op }
@@ -91,8 +96,9 @@
 
     // Estat d'un pas (conjunt). `preparat`: si totes les seves caixes estan agafades
     FO.estatPas = function (p, conj, preparat) {
-        const v = p.verificacions[conj];
-        if (p.fets[conj]) return v && v.resultat === 'ok' ? 'verificat' : 'muntat';
+        const v = p.verificacions[conj], f = p.fets[conj];
+        if (f && f.pendents && f.pendents.length) return 'parcial';   // muntat, però hi falten peces
+        if (f) return v && v.resultat === 'ok' ? 'verificat' : 'muntat';
         if (v && v.resultat === 'ko') return 'rebutjat';
         if (p.inicis[conj]) return 'en curs';
         return preparat ? 'preparat' : 'pendent';
@@ -103,9 +109,29 @@
         if (p.retornat[obj]) return 'retornada';
         if (!claus.length) return 'buida';
         if (claus.every(k => p.agafat[k])) return 'en ús';
+        if (claus.some(k => FO.esMancant(p, k))) return 'mancant';
         const n = claus.filter(k => p.omplert[k]).length;
         return n === claus.length ? 'plena' : n ? 'parcial' : 'buida';
     };
+
+    // ─── Mancants ───
+    // Un caixetí té un mancant obert si hi falta material que encara no ha arribat
+    FO.esMancant = (p, clau) => !!(p.mancants && p.mancants[clau] && !p.mancants[clau].resolt);
+    FO.mancantsOberts = p => Object.entries(p.mancants || {}).filter(([, m]) => !m.resolt).map(([clau, m]) => Object.assign({ clau }, m));
+    // Obre, actualitza o resol el mancant d'un caixetí segons quantes peces hi falten
+    function actualitzaMancant(p, clau, mat, falten, ts, qui, nota) {
+        const ant = p.mancants[clau], obert = ant && !ant.resolt;
+        if (falten > 0) {
+            p.mancants[clau] = {
+                mat: mat || (ant && ant.mat) || '', falten,
+                inicial: obert ? Math.max(ant.inicial || 0, falten) : falten,
+                nota: nota != null && nota !== '' ? nota : obert ? ant.nota : '',
+                ts: obert ? ant.ts : ts, op: obert ? ant.op : qui, resolt: null
+            };
+        } else if (obert) {
+            ant.falten = 0; ant.resolt = { ts, op: qui };   // ja ha arribat tot
+        }
+    }
 
     // ─── Validació (regles del procés) ───
     // Retorna el motiu pel qual una operació no es pot fer, o '' si és correcta.
@@ -120,7 +146,10 @@
             if (opcions.quatreUlls && usuari && f.op && f.op === usuari.nom && !usuari.rols.includes('responsable'))
                 return 'No pots verificar un pas que has muntat tu: ho ha de fer una altra persona';
             if (o.resultat === 'ko' && !String(o.motiu || '').trim()) return 'Per rebutjar cal indicar el motiu';
+            if (o.resultat !== 'ko' && f.pendents && f.pendents.length) return 'Hi falten peces (mancants): no es pot aprovar fins que el pas estigui complet';
         }
+        if (o.t === 'manca' && !(Number(o.falten) >= 0)) return 'Cal indicar quantes peces falten';
+        if (o.t === 'completa' && !p.fets[o.conj]) return 'Aquest pas encara no està muntat';
         if (o.t === 'omple' && !(Number(o.qty) > 0)) return 'Cal una quantitat';
         return '';
     };
@@ -138,8 +167,14 @@
                 const ant = p.omplert[o.clau], q = Number(o.qty) || 0;
                 if (o.mat) p.estoc[o.mat] = (p.estoc[o.mat] || 0) - (q - (ant ? ant.qty : 0));   // el material surt del magatzem
                 p.omplert[o.clau] = { qty: q, mat: o.mat || '', ts, op: qui };
+                // `cal` = quantitat que hi ha d'anar: si n'hi ha menys, la resta queda com a mancant
+                if (o.cal != null) actualitzaMancant(p, o.clau, o.mat, Number(o.cal) - q, ts, qui);
                 break;
             }
+            case 'manca':
+                // el material no ha arribat (o no n'hi ha prou): es marca sense aturar la feina
+                actualitzaMancant(p, o.clau, o.mat, Number(o.falten) || 0, ts, qui, o.nota);
+                break;
             case 'buida': {
                 const ant = p.omplert[o.clau];
                 if (!ant) return marca(p, o);
@@ -165,7 +200,8 @@
             case 'fet':
                 if (p.fets[o.conj]) return marca(p, o);           // ja estava muntat: no es torna a consumir
                 Object.entries(o.consum || {}).forEach(([m, q]) => { p.estoc[m] = (p.estoc[m] || 0) - q; });
-                p.fets[o.conj] = { ts, op: qui, consum: o.consum || {} };
+                // `pendents`: peces que no s'han pogut posar perquè falten; el pas es completarà quan arribin
+                p.fets[o.conj] = { ts, op: qui, consum: o.consum || {}, pendents: Array.isArray(o.pendents) ? o.pendents : [] };
                 if (!p.inicis[o.conj]) p.inicis[o.conj] = { ts, op: qui };
                 delete p.verificacions[o.conj];                   // un pas refet s'ha de tornar a verificar
                 break;
@@ -175,6 +211,14 @@
                 Object.entries(f.consum || {}).forEach(([m, q]) => { p.estoc[m] = (p.estoc[m] || 0) + q; });
                 delete p.fets[o.conj];
                 delete p.verificacions[o.conj];
+                break;
+            }
+            case 'completa': {
+                // s'han posat les peces que faltaven (totes, o només les claus indicades)
+                const f = p.fets[o.conj];
+                if (!f) return marca(p, o);
+                f.pendents = o.claus ? (f.pendents || []).filter(x => !o.claus.includes(x.clau)) : [];
+                if (!f.pendents.length) f.completat = { ts, op: qui };
                 break;
             }
             // — Comprovar (Qualitat) —

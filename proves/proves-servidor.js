@@ -156,6 +156,22 @@ const op = (t, dades) => Object.assign({ id: 'prova-' + (++n), t, ts: new Date()
         assert(r.cos.aplicades === 1 && !r.cos.estat.fets.B && r.cos.estat.historial.length === 1);
         assert(FO_estat(r.cos.estat, 'B') === 'rebutjat');
     });
+    await prova('mancants: el magatzem els marca, es munta igualment i qualitat espera que es completi', async () => {
+        let r = await ops(T.anna, [op('manca', { clau: 'B|M9', mat: 'M9', falten: 2 })]);
+        assert(r.cos.rebutjades.length === 1, 'un muntador no marca mancants');
+        r = await ops(T.marc, [op('manca', { clau: 'B|M9', mat: 'M9', falten: 2, nota: 'arriba dilluns' })]);
+        assert(r.cos.aplicades === 1 && r.cos.estat.mancants['B|M9'].falten === 2, JSON.stringify(r.cos));
+        r = await ops(T.anna, [op('fet', { conj: 'B', pendents: [{ clau: 'B|M9', mat: 'M9', qty: 2 }] })]);
+        assert(r.cos.aplicades === 1 && r.cos.estat.fets.B.pendents.length === 1);
+        r = await ops(T.pau, [op('verifica', { conj: 'B', resultat: 'ok' })]);
+        assert(r.cos.rebutjades.length === 1 && /mancants/.test(r.cos.rebutjades[0].motiu), 'no s\'aprova incomplet');
+        r = await ops(T.marc, [op('omple', { clau: 'B|M9', mat: 'M9', qty: 2, cal: 2 })]);
+        assert(r.cos.estat.mancants['B|M9'].resolt, 'ha arribat');
+        r = await ops(T.anna, [op('completa', { conj: 'B' })]);
+        assert(r.cos.aplicades === 1 && !r.cos.estat.fets.B.pendents.length);
+        r = await ops(T.pau, [op('verifica', { conj: 'B', resultat: 'ok' })]);
+        assert(r.cos.aplicades === 1, JSON.stringify(r.cos.rebutjades));
+    });
     await prova('una operació repetida s\'aplica un sol cop', async () => {
         const o = op('estoc', { mat: 'M1', delta: 1 });
         await ops(T.marc, [o]);
