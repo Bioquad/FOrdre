@@ -12,6 +12,8 @@
 
 ![FOrdre: caixes i safates a mida generades a partir de la llista de materials](imatges/1-caixes-3d.png)
 
+> 📘 **[Manual complet d'instal·lació, configuració i ús](docs/MANUAL.md)** · també en [PDF per imprimir](docs/MANUAL.pdf)
+
 ## 🚀 Prova-ho en un minut
 
 **Puja la llista de materials i FOrdre genera les caixes.** No cal instal·lar res: funciona al navegador.
@@ -160,6 +162,8 @@ Cada pas passa per *pendent → preparat → en curs → muntat → verificat* (
 | `vendor/` | Llibreries de tercers (Three.js, qrcode-generator, SheetJS, jsQR) amb les seves llicències |
 | `exemples/` | Projecte d'exemple, plantilla CSV i BOM de mostra |
 | `imatges/` | Captures de la portada |
+| `docs/` | **Manual complet** (`MANUAL.md`, `MANUAL.pdf`) i les seves captures |
+| `eines/manual-pdf.py` | Genera el manual en HTML i PDF a partir de `docs/MANUAL.md` |
 | `proves/` | Proves del nucli (`node proves/proves.js`) i del servidor (`node proves/proves-servidor.js`) |
 | `eslint.config.js` | Regles de revisió del codi (`npx eslint js servidor proves sw.js`) |
 
