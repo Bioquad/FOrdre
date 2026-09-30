@@ -164,3 +164,9 @@ main a { color: var(--ac) }
     #nomProj, .cap .titol > b { display: none }
     .xip-ordre { margin-left: 0; font-size: 14px; padding: 4px 8px }
 }
+
+/* ─── Mancants (v1.5) ─── */
+.fila.mancant { background: rgba(245, 124, 0, .10) }
+.fila.mancant .chk { border-color: #F57C00; background: #F57C00; color: #fff; font-weight: 700 }
+.bt-falta { flex-shrink: 0; min-height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid #F57C00; background: none; color: #F57C00; font-weight: 600; cursor: pointer }
+.peu button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }

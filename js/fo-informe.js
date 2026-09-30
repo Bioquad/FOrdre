@@ -9,7 +9,7 @@
 //
 //  2. FO.resumOrdre(model, progres) i FO.informeHTML(...): el resultat d'una
 //     ordre: estat de cada pas i de cada caixa, temps de muntatge, rebutjos,
-//     incidències, material mogut i activitat de cada persona. L'informe és
+//     incidències, mancants, material mogut i activitat de cada persona. L'informe és
 //     una pàgina HTML autònoma, llesta per imprimir o desar en PDF.
 // ═══════════════════════════════════════════════════════════════
 (function (G) {
@@ -83,6 +83,7 @@
                 durada: f && ini ? durada(ini.ts, f.ts) : 0,
                 verificador: v ? v.op : '', verificat: v ? v.ts : '', resultat: v ? v.resultat : '',
                 rebutjos, assignat: p.assignacions[id] || '',
+                pendents: f && f.pendents ? f.pendents : [],   // peces que falten (muntat amb mancants)
                 incidencies: p.incidencies.filter(i => i.conj === id && !i.resolta).length
             };
         });
@@ -119,6 +120,9 @@
             primeraPassada: verificats ? passos.filter(x => x.estat === 'verificat' && !ambRebuig.has(x.id)).length / verificats : null,
             rebutjos: p.historial.length,
             incidenciesObertes: p.incidencies.filter(i => !i.resolta).length, incidencies: p.incidencies,
+            // mancants: material que no havia arribat en omplir les caixes
+            mancants: Object.entries(p.mancants || {}).map(([clau, x]) => Object.assign({ clau, pas: m.pasDe(m.perClau.get(clau) || {}) }, x)),
+            mancantsOberts: FO.mancantsOberts(p).length, parcials: n('parcial'),
             inici: hores[0] || '', final: p.tancada ? p.tancada.ts : hores[hores.length - 1] || '',
             tempsMuntatge, tancada: p.tancada,
             acabada: passos.length > 0 && verificats === passos.length
@@ -130,6 +134,7 @@
         if (res.tancada) return 'Tancada';
         if (res.acabada) return 'Llesta per tancar';
         if (!res.inici) return 'Sense començar';
+        if (res.mancantsOberts) return `${res.verificats}/${res.total} verificats · ${res.mancantsOberts} mancants`;
         return `${res.verificats}/${res.total} verificats`;
     };
 
@@ -170,17 +175,21 @@ ${canviat ? '<div class="av">⚠ El projecte s\'ha modificat després de crear a
  <div>Bé a la primera<b>${pct(res.primeraPassada)}</b></div>
  <div>Rebutjos<b>${res.rebutjos}</b></div>
  <div>Incidències obertes<b>${res.incidenciesObertes}</b></div>
+ <div>Mancants oberts<b>${res.mancantsOberts} / ${res.mancants.length}</b></div>
  <div>Temps de muntatge<b>${FO.textDurada(res.tempsMuntatge)}</b></div>
  <div>Inici → final<b style="font-size:13px">${data(res.inici)}<br>${data(res.final)}</b></div>
 </div>
 
 <h2>Passos</h2>
 <table><tr><th>Pas</th><th>Conjunt</th><th>Estat</th><th>Muntat per</th><th class="n">Durada</th><th>Verificat per</th><th class="n">Rebutjos</th></tr>
-${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.nom)}</td><td>${xip(x.estat)}</td><td>${esc(x.muntador)}<div class="sub">${data(x.muntat)}</div></td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}${x.verificat ? `<div class="sub">${data(x.verificat)}</div>` : ''}</td><td class="n">${x.rebutjos.length || ''}</td></tr>`).join('')}
+${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.nom)}</td><td>${xip(x.estat)}${x.pendents.length ? `<div class="sub">Falten: ${x.pendents.map(q => { const mt = mat(q.mat); return esc(mt ? mt.codi : q.mat) + ' ×' + q.qty; }).join(', ')}</div>` : ''}</td><td>${esc(x.muntador)}<div class="sub">${data(x.muntat)}</div></td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}${x.verificat ? `<div class="sub">${data(x.verificat)}</div>` : ''}</td><td class="n">${x.rebutjos.length || ''}</td></tr>`).join('')}
 </table>
 
 ${p.historial.length ? `<h2>Rebutjos de qualitat</h2><table><tr><th>Data</th><th>Pas</th><th>Motiu</th><th>Muntador</th><th>Qualitat</th></tr>
 ${p.historial.map(h => { const r = m.perConj.get(h.conj); return `<tr><td>${data(h.ts)}</td><td>${r ? esc(r.conj.codi) : esc(h.conj)}</td><td class="ko">${esc(h.motiu)}</td><td>${esc(h.muntador)}</td><td>${esc(h.op)}</td></tr>`; }).join('')}</table>` : ''}
+
+${res.mancants.length ? `<h2>Mancants</h2><table><tr><th>Des de</th><th>Material</th><th>Caixetí</th><th>Pas</th><th class="n">Faltaven</th><th>Nota</th><th>Estat</th></tr>
+${res.mancants.map(x => { const mt = mat(x.mat), r = m.perConj.get(x.pas); return `<tr><td>${data(x.ts)}<div class="sub">${esc(x.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}` : esc(x.mat)}</td><td>${esc(x.clau)}</td><td>${r ? esc(r.conj.codi) : ''}</td><td class="n">${x.inicial || x.falten}</td><td>${esc(x.nota)}</td><td>${x.resolt ? `<span class="ok">✓ Arribat</span><div class="sub">${data(x.resolt.ts)} · ${esc(x.resolt.op)}</div>` : `<span class="ko">Falten ${x.falten}</span>`}</td></tr>`; }).join('')}</table>` : ''}
 
 ${res.incidencies.length ? `<h2>Incidències</h2><table><tr><th>Data</th><th>On</th><th>Gravetat</th><th>Descripció</th><th>Resolució</th></tr>
 ${res.incidencies.map(i => { const r = m.perConj.get(i.conj); return `<tr><td>${data(i.ts)}<div class="sub">${esc(i.op)}</div></td><td>${r ? esc(r.conj.codi) : ''}${i.clau ? ' · ' + esc(i.clau) : ''}</td><td>${esc(i.gravetat)}</td><td>${esc(i.text)}</td><td>${i.resolta ? `<span class="ok">✓</span> ${esc(i.resolta.text)}<div class="sub">${data(i.resolta.ts)} · ${esc(i.resolta.op)}</div>` : '<span class="ko">Oberta</span>'}</td></tr>`; }).join('')}</table>` : ''}

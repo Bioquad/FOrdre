@@ -4,9 +4,11 @@
 // Cada persona entra amb el seu rol i veu la seva part del procés:
 //
 //   📦 Magatzem    OMPLIR     posa el material a les caixes (escanejant les
-//                             etiquetes), porta l'estoc i la llista de compra.
+//                             etiquetes), porta l'estoc i la llista de compra;
+//                             el que no ha arribat va a la llista de MANCANTS.
 //   🔧 Muntador    UTILITZAR  agafa les caixes, segueix les instruccions,
-//                             marca el pas com a muntat i torna les caixes.
+//                             marca el pas com a muntat i torna les caixes. Si hi
+//                             falten peces, munta la resta i ho completa quan arriben.
 //   ✅ Qualitat    COMPROVAR  verifica cada pas muntat amb una llista de
 //                             comprovació; aprova o rebutja amb motiu.
 //   📋 Responsable GESTIONAR  ordres de fabricació, tauler, assignacions,
@@ -561,17 +563,18 @@
 
     // ═══ Navegació: pestanyes segons el rol ═══
     const NAV = {
-        magatzem: [['omplir', '📦', 'Omplir'], ['estoc', '▦', 'Estoc'], ['compra', '🛒', 'Compra'], ['incidencies', '⚠', 'Incidències']],
+        magatzem: [['omplir', '📦', 'Omplir'], ['mancants', '❗', 'Mancants'], ['estoc', '▦', 'Estoc'], ['compra', '🛒', 'Compra'], ['incidencies', '⚠', 'Incidències']],
         muntador: [['passos', '☰', 'Passos'], ['incidencies', '⚠', 'Incidències'], ['registre', '🕘', 'Registre']],
         qualitat: [['verificar', '✅', 'Verificar'], ['incidencies', '⚠', 'Incidències'], ['registre', '🕘', 'Registre']],
-        responsable: [['tauler', '📋', 'Tauler'], ['ordres', '🏭', 'Ordres'], ['incidencies', '⚠', 'Incidències'], ['resultats', '📊', 'Resultats']]
+        responsable: [['tauler', '📋', 'Tauler'], ['ordres', '🏭', 'Ordres'], ['mancants', '❗', 'Mancants'], ['incidencies', '⚠', 'Incidències'], ['resultats', '📊', 'Resultats']]
     };
     // Pantalles de detall i la pestanya a què tornen
     const PARE = { pas: 'passos', caixa: 'omplir', verif: 'verificar', persones: 'tauler' };
     function mostraNav(v) { $('peu').hidden = !v; document.body.classList.toggle('sense-peu', !v); }
     function pintaNav(actual) {
-        const oberts = prog ? prog.incidencies.filter(i => !i.resolta).length : 0;
-        $('peu').innerHTML = NAV[rol()].map(([r, ico, nom]) => `<button data-ruta="${r}" class="${r === actual || PARE[actual] === r ? 'on' : ''}"><i>${ico}</i>${nom}${r === 'incidencies' && oberts ? ` (${oberts})` : ''}</button>`).join('');
+        // comptadors a les pestanyes: incidències i mancants oberts
+        const compta = { incidencies: prog ? prog.incidencies.filter(i => !i.resolta).length : 0, mancants: prog ? FO.mancantsOberts(prog).length : 0 };
+        $('peu').innerHTML = NAV[rol()].map(([r, ico, nom]) => `<button data-ruta="${r}" class="${r === actual || PARE[actual] === r ? 'on' : ''}"><i>${ico}</i>${nom}${compta[r] ? ` (${compta[r]})` : ''}</button>`).join('');
         $('peu').querySelectorAll('button').forEach(b => b.onclick = () => { location.hash = '#/' + b.dataset.ruta; });
         mostraNav(true);
     }
@@ -660,11 +663,11 @@
     VISTES.omplir = function (filtre) {
         const totes = caixesKit(), plenes = totes.filter(c => ['plena', 'en ús', 'retornada'].includes(estatCaixa(c))).length;
         const perOmplir = filtre !== 'totes';
-        $('vista').innerHTML = `${bannerTancada()}<div class="kpi"><div>Caixes plenes<b>${plenes} / ${totes.length}</b></div><div>Ordre<b style="font-size:16px">${esc(ORD.codi)}</b></div></div>
+        $('vista').innerHTML = `${bannerTancada()}<div class="kpi"><div>Caixes plenes<b>${plenes} / ${totes.length}</b></div><div>Mancants oberts<b>${FO.mancantsOberts(prog).length}</b></div><div>Ordre<b style="font-size:16px">${esc(ORD.codi)}</b></div></div>
             <button class="bt pr" id="oEsc">⌖ Escanejar etiquetes per omplir</button>
             <div class="fx" style="margin:4px 0 8px"><button class="bt${perOmplir ? ' pr' : ''}" data-f="">Per omplir</button><button class="bt${perOmplir ? '' : ' pr'}" data-f="totes">Totes</button></div>
             ${M.PLA.map(r => {
-                const cx = totes.filter(c => c.r === r && (!perOmplir || ['buida', 'parcial'].includes(estatCaixa(c))));
+                const cx = totes.filter(c => c.r === r && (!perOmplir || ['buida', 'parcial', 'mancant'].includes(estatCaixa(c))));
                 if (!cx.length) return '';
                 return `<h3>Pas ${r.pas} · ${esc(r.conj.codi)} ${esc(r.conj.nom)}</h3>` + cx.map(c => {
                     const n = c.claus.filter(k => prog.omplert[k]).length;
@@ -683,20 +686,24 @@
         if (!c) { location.hash = '#/omplir'; return; }
         const est = estatCaixa(c);
         const files = c.claus.map(k => {
-            const e = M.perClau.get(k), m = e.caixeti.mat, om = prog.omplert[k], estoc = prog.estoc[m.id];
-            return `<div class="fila${om ? ' fet' : ''}" data-clau="${esc(k)}"><div class="chk">✓</div><span class="sw" style="background:${m.col}"></span>
+            const e = M.perClau.get(k), m = e.caixeti.mat, om = prog.omplert[k], estoc = prog.estoc[m.id], mc = FO.esMancant(prog, k) && prog.mancants[k];
+            return `<div class="fila${om && !mc ? ' fet' : ''}${mc ? ' mancant' : ''}" data-clau="${esc(k)}"><div class="chk">${mc ? '!' : '✓'}</div><span class="sw" style="background:${m.col}"></span>
                 <div class="txt"><div class="cd">${esc(m.codi)}${icones(m)}</div><div class="nm">${esc(m.nom)}</div>${c.o.forma === 'contenidor' ? `<div class="ajuda">${esc(e.safata)}</div>` : ''}
-                ${om ? `<div class="ajuda">Omplert ${esc(data(om.ts))}${om.op ? ' · ' + esc(om.op) : ''}${om.qty !== e.qty ? ` · <b>${om.qty}</b> de ${e.qty}` : ''}</div>` : ''}</div>
-                <div class="q">×${e.qty}${estoc != null ? `<small class="${estoc < e.qty && !om ? 'falta' : ''}">estoc ${estoc}</small>` : ''}</div></div>`;
+                ${om ? `<div class="ajuda">Omplert ${esc(data(om.ts))}${om.op ? ' · ' + esc(om.op) : ''}${om.qty !== e.qty ? ` · <b>${om.qty}</b> de ${e.qty}` : ''}</div>` : ''}
+                ${mc ? `<div class="nota">❗ Falten ${mc.falten}${mc.nota ? ' · ' + esc(mc.nota) : ''} · toca quan arribi</div>` : ''}</div>
+                <div class="q">×${e.qty}${estoc != null ? `<small class="${estoc < e.qty && !om ? 'falta' : ''}">estoc ${estoc}</small>` : ''}</div>
+                ${!mc && !(om && om.qty >= e.qty) && !prog.tancada ? `<button class="bt-falta" data-falta="${esc(k)}" title="No ha arribat (o no n'hi ha prou)">Falta</button>` : ''}</div>`;
         }).join('');
         $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.o.color}"><div class="sub">Pas ${c.r.pas} · ${esc(c.r.conj.codi)} ${esc(c.r.conj.nom)}</div><h2>${esc(c.id)}</h2><div class="sub">${xipEstat(est, FO.ESTATS_CAIXA)}</div></div>
-            <p class="ajuda">Toca cada caixetí quan hi hagis posat el material, o escaneja'n l'etiqueta. Toca'l un altre cop per buidar-lo.</p>
+            <p class="ajuda">Toca cada caixetí quan hi hagis posat el material, o escaneja'n l'etiqueta. Si no ha arribat, prem <b>Falta</b>: va a la llista de mancants i el muntatge pot continuar amb la resta.</p>
             <div class="fx"><button class="bt pr" id="cEsc">⌖ Escanejar</button><button class="bt" id="cTot">Omplir-ho tot</button></div>
             <div class="objecte">${files}</div>
             <div class="fx"><button class="bt" id="cRet"${est === 'retornada' ? ' disabled' : ''}>↩ Caixa retornada al magatzem</button><button class="bt" id="cInc">⚠ Incidència</button></div>`;
         $('vista').querySelectorAll('[data-clau]').forEach(f => f.onclick = () => { commutaOmplert(f.dataset.clau); VISTES.caixa(id); });
+        $('vista').querySelectorAll('[data-falta]').forEach(b => b.onclick = ev => { ev.stopPropagation(); marcaMancant(b.dataset.falta); VISTES.caixa(id); });
         $('cEsc').onclick = () => obreEscaner();
-        $('cTot').onclick = () => { c.claus.filter(k => !prog.omplert[k]).forEach(k => omple(k, M.perClau.get(k).qty, true)); VISTES.caixa(id); };
+        // «Omplir-ho tot» no toca els mancants: aquells caixetins esperen el material
+        $('cTot').onclick = () => { c.claus.filter(k => !prog.omplert[k] && !FO.esMancant(prog, k)).forEach(k => omple(k, M.perClau.get(k).qty, true)); VISTES.caixa(id); };
         $('cRet').onclick = () => { if (fer('retorna', { obj: c.id }, `${c.id}: caixa retornada al magatzem`)) VISTES.caixa(id); };
         $('cInc').onclick = () => { obreIncidencia(c.r.conj.id, c.id); };
     };
@@ -709,12 +716,31 @@
             qty = Math.round(FO.num(r, 0));
             if (qty <= 0) return null;
         }
-        return fer('omple', { clau, mat: m.id, qty }, `${m.codi} ×${qty}: omplert a ${e.safata}${qty < e.qty ? ` (en falten ${e.qty - qty})` : ''}`);
+        // `cal`: el que hi ha d'anar; si se n'hi posa menys, la diferència queda com a mancant
+        const eraMancant = FO.esMancant(prog, clau);
+        const text = `${m.codi} ×${qty}: ${eraMancant && qty >= e.qty ? 'ha arribat el que faltava, ' : ''}omplert a ${e.safata}${qty < e.qty ? ` (en falten ${e.qty - qty}: mancant)` : ''}`;
+        return fer('omple', { clau, mat: m.id, qty, cal: e.qty }, text);
     }
+    // Tocar un caixetí: omplir-lo; si ja és ple, buidar-lo; si té un mancant, és que el material ha arribat
     function commutaOmplert(clau) {
         const e = M.perClau.get(clau);
-        if (prog.omplert[clau]) { if (confirm(`Buidar ${e.codi} de ${e.safata}? El material torna a l'estoc.`)) fer('buida', { clau }, `${e.codi}: buidat de ${e.safata}`); }
+        if (FO.esMancant(prog, clau)) {
+            const mc = prog.mancants[clau];
+            if (confirm(`Ha arribat ${e.codi}? Es completarà el caixetí fins a ${e.qty} (hi faltaven ${mc.falten}).`)) omple(clau, e.qty);
+        } else if (prog.omplert[clau]) { if (confirm(`Buidar ${e.codi} de ${e.safata}? El material torna a l'estoc.`)) fer('buida', { clau }, `${e.codi}: buidat de ${e.safata}`); }
         else omple(clau, e.qty);
+    }
+    // «Falta»: el material no ha arribat o no n'hi ha prou. S'hi posa el que hi ha i la resta queda com a mancant.
+    function marcaMancant(clau) {
+        const e = M.perClau.get(clau), m = e.caixeti.mat, ja = prog.omplert[clau] ? prog.omplert[clau].qty : 0;
+        const r = prompt(`${m.codi} · ${m.nom}\nEn calen ${e.qty}. Quants n'has pogut posar a la caixa? (0 si no n'ha arribat cap)`, String(ja));
+        if (r === null) return;
+        const posats = Math.max(0, Math.min(e.qty, Math.round(FO.num(r, 0))));
+        if (posats >= e.qty) { omple(clau, e.qty, true); return; }
+        const nota = prompt('Nota per a la llista de mancants (proveïdor, data prevista…). Opcional:', '') || '';
+        if (posats > ja) omple(clau, posats, true);
+        fer('manca', { clau, mat: m.id, falten: e.qty - posats, nota }, `❗ Mancant: ${m.codi} · falten ${e.qty - posats} de ${e.qty} a ${e.safata}${nota ? ' · ' + nota : ''}`);
+        avis('Afegit a la llista de mancants. El muntatge pot continuar amb la resta.', 3500);
     }
 
     // ─── Estoc ───
@@ -762,29 +788,74 @@
     // ─── Llista de compra (per proveïdor) ───
     function llistaCompra() {
         const nec = necessari(), grups = new Map();
+        const urgents = new Set(FO.mancantsOberts(prog).map(x => x.mat));   // els mancants aturen feina: primer
         P.materials.forEach(m => {
             const falta = (nec.get(m.id) || 0) - Math.max(0, prog.estoc[m.id] || 0);
             if (falta <= 0) return;
             const g = m.origen === 'propi' ? 'Fabricació pròpia' : (m.proveidor || 'Sense proveïdor');
             if (!grups.has(g)) grups.set(g, []);
-            grups.get(g).push({ m, falta });
+            grups.get(g).push({ m, falta, urgent: urgents.has(m.id) });
         });
+        grups.forEach(l => l.sort((a, b) => b.urgent - a.urgent));
         return grups;
     }
     VISTES.compra = function () {
         const grups = llistaCompra();
         $('vista').innerHTML = `<h2>Llista de compra</h2><p class="ajuda">El que falta per omplir les caixes i acabar els passos pendents, descomptant l'estoc, agrupat per proveïdor.</p>
-            ${grups.size ? Array.from(grups).map(([g, l]) => `<h3>${esc(g)}</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${l.map(x => `<tr><td><span class="sw" style="background:${x.m.col}"></span> <b>${esc(x.m.codi)}</b><div class="ajuda">${esc(x.m.nom)}</div></td><td class="n falta">${x.falta}</td></tr>`).join('')}</table></div>`).join('')
+            ${grups.size ? Array.from(grups).map(([g, l]) => `<h3>${esc(g)}</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${l.map(x => `<tr><td><span class="sw" style="background:${x.m.col}"></span> <b>${esc(x.m.codi)}</b>${x.urgent ? ' <span class="xip er">❗ mancant</span>' : ''}<div class="ajuda">${esc(x.m.nom)}</div></td><td class="n falta">${x.falta}</td></tr>`).join('')}</table></div>`).join('')
                 + `<div class="fx"><button class="bt" id="cCopia">Copiar</button>${navigator.share ? '<button class="bt" id="cComparteix">Compartir…</button>' : ''}<button class="bt" id="cCSV">⬇ CSV</button></div>`
                 : '<div class="buit">✓ No falta res.</div>'}`;
         if (!grups.size) return;
         let t = `Llista de compra · ${P.nom} · ${ORD.codi} · ${new Date().toLocaleDateString('ca-ES')}\n`;
-        grups.forEach((l, g) => { t += `\n${g}\n` + l.map(x => `  ${x.falta} × ${x.m.codi}  ${x.m.nom}`).join('\n') + '\n'; });
+        grups.forEach((l, g) => { t += `\n${g}\n` + l.map(x => `  ${x.falta} × ${x.m.codi}  ${x.m.nom}${x.urgent ? '  (URGENT: mancant)' : ''}`).join('\n') + '\n'; });
         $('cCopia').onclick = async () => { try { await navigator.clipboard.writeText(t); avis('Copiat'); } catch (e) { prompt('Copia:', t); } };
         if ($('cComparteix')) $('cComparteix').onclick = () => navigator.share({ title: 'Llista de compra', text: t }).catch(() => { });
         $('cCSV').onclick = () => {
-            const files = []; grups.forEach((l, g) => l.forEach(x => files.push([g, x.m.codi, x.m.nom, x.falta])));
-            baixa('compra.csv', csv('proveidor;codi;nom;quantitat', files), 'text/csv');
+            const files = []; grups.forEach((l, g) => l.forEach(x => files.push([g, x.m.codi, x.m.nom, x.falta, x.urgent ? 'si' : ''])));
+            baixa('compra.csv', csv('proveidor;codi;nom;quantitat;urgent', files), 'text/csv');
+        };
+    };
+
+    // ─── Llista de mancants ───
+    // El material que no ha arribat en omplir les caixes, agrupat per material, per enviar-lo a compres.
+    // El muntatge no s'atura: els passos es munten amb la resta i es completen quan arriba.
+    function llistaMancants() {
+        const perMat = new Map();
+        FO.mancantsOberts(prog).forEach(x => {
+            const e = M.perClau.get(x.clau), m = FO.material(P, x.mat) || { id: x.mat, codi: x.mat, nom: '', col: '#888' };
+            const g = perMat.get(m.id) || { m, falten: 0, llocs: [], des: x.ts, notes: new Set() };
+            g.falten += x.falten; g.llocs.push({ x, e, caixa: caixaDeClau(x.clau), pas: e ? M.perConj.get(M.pasDe(e)) : null });
+            if (x.ts < g.des) g.des = x.ts;
+            if (x.nota) g.notes.add(x.nota);
+            perMat.set(m.id, g);
+        });
+        return Array.from(perMat.values()).sort((a, b) => String(a.des).localeCompare(b.des));
+    }
+    function textMancants(l) {
+        return `Llista de mancants · ${P.nom} · ${ORD.codi}${ORD.serie ? ' · ' + ORD.serie : ''} · ${new Date().toLocaleDateString('ca-ES')}\n\n` +
+            l.map(g => `${g.falten} × ${g.m.codi}  ${g.m.nom}${g.m.proveidor ? '  [' + g.m.proveidor + ']' : ''}\n    per a: ${g.llocs.map(y => (y.pas ? 'pas ' + y.pas.pas + ' ' + y.pas.conj.codi : '') + ' (' + y.x.falten + ')').join(', ')}${g.notes.size ? '\n    nota: ' + Array.from(g.notes).join(' · ') : ''}`).join('\n') + '\n';
+    }
+    VISTES.mancants = function () {
+        const l = llistaMancants();
+        const resolts = Object.entries(prog.mancants).filter(([, x]) => x.resolt).sort((a, b) => String(b[1].resolt.ts).localeCompare(a[1].resolt.ts)).slice(0, 15);
+        $('vista').innerHTML = `${bannerTancada()}<h2>Mancants · ${esc(ORD.codi)}</h2>
+            <p class="ajuda">Material que no ha arribat. <b>El muntatge no s'atura:</b> els passos es munten amb la resta i queden «muntats amb mancants»; quan arriba el material, el magatzem l'omple i el muntador ho completa.</p>
+            ${l.length ? l.map(g => `<div class="targeta"><div class="fx"><span class="sw" style="background:${g.m.col}"></span><b style="flex:1">${esc(g.m.codi)} <span style="font-weight:400">${esc(g.m.nom)}</span></b><span class="xip er">falten ${g.falten}</span></div>
+                <div class="ajuda">Des del ${esc(data(g.des))}${g.m.proveidor ? ' · ' + esc(g.m.proveidor) : ''}${g.notes.size ? ' · ' + esc(Array.from(g.notes).join(' · ')) : ''}</div>
+                ${g.llocs.map(y => `<div class="fx" style="margin-top:6px"><span style="flex:1;font-size:14px">${y.pas ? `Pas ${y.pas.pas} · ${esc(y.pas.conj.codi)} ${esc(y.pas.conj.nom)}` : ''} · <b>${esc(y.x.clau)}</b> · ${y.x.falten} de ${y.e ? y.e.qty : '?'}</span>
+                    ${y.caixa && pot('omple') ? `<button class="bt" style="width:auto;min-height:36px;margin:0" data-caixa="${esc(y.caixa.id)}">Ha arribat ›</button>` : ''}</div>`).join('')}</div>`).join('')
+                + `<div class="fx"><button class="bt" id="mCopia">Copiar</button>${navigator.share ? '<button class="bt" id="mComparteix">Compartir…</button>' : ''}<button class="bt" id="mCSV">⬇ CSV</button></div>`
+                : '<div class="buit">✓ No hi ha cap mancant obert.</div>'}
+            ${resolts.length ? `<h3>Arribats</h3><div class="targeta" style="padding:4px 8px"><table class="taula">${resolts.map(([clau, x]) => { const m = FO.material(P, x.mat); return `<tr><td><b>${esc(m ? m.codi : x.mat)}</b> · ${esc(clau)}<div class="ajuda">faltaven ${x.inicial || ''} · arribat ${esc(data(x.resolt.ts))}${x.resolt.op ? ' · ' + esc(x.resolt.op) : ''}</div></td></tr>`; }).join('')}</table></div>` : ''}`;
+        $('vista').querySelectorAll('[data-caixa]').forEach(b => b.onclick = () => { location.hash = '#/caixa/' + encodeURIComponent(b.dataset.caixa); });
+        if (!l.length) return;
+        const t = textMancants(l);
+        $('mCopia').onclick = async () => { try { await navigator.clipboard.writeText(t); avis('Copiat'); } catch (e) { prompt('Copia:', t); } };
+        if ($('mComparteix')) $('mComparteix').onclick = () => navigator.share({ title: 'Llista de mancants', text: t }).catch(() => { });
+        $('mCSV').onclick = () => {
+            const files = [];
+            l.forEach(g => g.llocs.forEach(y => files.push([g.m.codi, g.m.nom, g.m.proveidor || '', y.x.falten, y.x.clau, y.pas ? y.pas.conj.codi : '', y.x.ts, y.x.nota || ''])));
+            baixa(`mancants_${ORD.codi}.csv`, csv('codi;nom;proveidor;falten;caixeti;pas;des_de;nota', files), 'text/csv');
         };
     };
 
@@ -816,11 +887,12 @@
 
     // Fila d'un caixetí a agafar
     function filaCaixeti(e, conjId) {
-        const c = e.caixeti, m = c.mat, it = itemDe(conjId, m.id), fet = !!prog.agafat[e.clau];
-        return `<div class="fila${fet ? ' fet' : ''}" data-clau="${esc(e.clau)}">
-            <div class="chk">✓</div><span class="sw" style="background:${m.col}"></span>
+        const c = e.caixeti, m = c.mat, it = itemDe(conjId, m.id), mc = FO.esMancant(prog, e.clau), fet = !mc && !!prog.agafat[e.clau];
+        return `<div class="fila${fet ? ' fet' : ''}${mc ? ' mancant no' : ''}"${mc ? '' : ` data-clau="${esc(e.clau)}"`}>
+            <div class="chk">${mc ? '!' : '✓'}</div><span class="sw" style="background:${m.col}"></span>
             <div class="txt"><div class="cd">${esc(m.codi)}${it && it.parell ? `<span class="parell">${fmt(it.parell, 1)} N·m</span>` : ''}${icones(m)}</div>
-            <div class="nm">${esc(m.nom)}</div>${it && it.nota ? `<div class="nota">▸ ${esc(it.nota)}</div>` : ''}</div>
+            <div class="nm">${esc(m.nom)}</div>${it && it.nota ? `<div class="nota">▸ ${esc(it.nota)}</div>` : ''}
+            ${mc ? `<div class="nota">❗ No ha arribat: en falten ${prog.mancants[e.clau].falten}. Munta la resta.</div>` : ''}</div>
             <div class="q">×${c.qty}</div></div>`;
     }
     // Bloc d'una caixa (o contenidor amb les seves caixes) amb els caixetins a agafar
@@ -842,10 +914,18 @@
     VISTES.pas = function (id) {
         const r = M.perConj.get(id);
         if (!r) { location.hash = '#/passos'; return; }
-        const c = r.conj, llista = M.aAgafar(r), agafats = llista.filter(e => prog.agafat[e.clau]).length;
+        // els caixetins mancants (el material no ha arribat) no es poden agafar: no compten a la preparació
+        const c = r.conj, llista = M.aAgafar(r).filter(e => !FO.esMancant(prog, e.clau)), agafats = llista.filter(e => prog.agafat[e.clau]).length;
+        const nMancantsAgafar = M.aAgafar(r).length - llista.length;
         const f = prog.fets[c.id], v = prog.verificacions[c.id], ini = prog.inicis[c.id];
         const falten = r.entrades.filter(e => !prog.fets[e.conj.id]);
-        const senseOmplir = FO.usaMagatzem(prog) ? M.aOmplir(r).filter(e => !prog.omplert[e.clau]) : [];
+        const senseOmplir = FO.usaMagatzem(prog) ? M.aOmplir(r).filter(e => !prog.omplert[e.clau] && !FO.esMancant(prog, e.clau)) : [];
+        // Mancants: peces d'aquest pas que no han arribat. No aturen el muntatge.
+        const mancantsPas = M.aOmplir(r).filter(e => FO.esMancant(prog, e.clau));
+        const pend = f && f.pendents ? f.pendents : [];                       // muntat amb mancants: què falta posar
+        const arribats = pend.filter(x => !FO.esMancant(prog, x.clau));        // … i què ja ha arribat
+        const subParcials = r.entrades.filter(e => prog.fets[e.conj.id] && (prog.fets[e.conj.id].pendents || []).length);
+        const nomPend = x => { const e = M.perClau.get(x.clau); return esc(e ? e.codi : x.mat) + ' ×' + x.qty; };
         const instr = c.instruccions.split(/\r?\n/).map(t => t.trim()).filter(Boolean);
         const fetsI = prog.instr[c.id] || [];
         const parells = c.items.filter(i => i.parell > 0).map(i => ({ i, m: FO.material(P, i.mat) })).filter(x => x.m);
@@ -855,14 +935,18 @@
         const qui = prog.assignacions[c.id];
         $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">Pas ${r.pas} de ${M.PLA.length}${r.multiplicador > 1 ? ` · muntar-ne ${r.multiplicador}` : ''}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}${qui ? ' · 👤 ' + esc(qui) : ''}</div></div>
             ${v && v.resultat === 'ko' && !f ? `<div class="banner er">✗ <b>Rebutjat per Qualitat</b> (${esc(v.op)}, ${esc(data(v.ts))}): ${esc(v.motiu)}<br><small>Corregeix-ho i torna a marcar el pas com a muntat.</small></div>` : ''}
-            ${f && !v ? `<div class="banner in">Muntat ${esc(data(f.ts))}${f.op ? ' per ' + esc(f.op) : ''} · <b>pendent de verificar</b> per Qualitat.</div>` : ''}
+            ${pend.length ? `<div class="banner er">❗ <b>Muntat amb mancants.</b> Queden per posar: ${pend.map(nomPend).join(', ')}.
+                ${arribats.length ? `<br>✓ Ja han arribat: ${arribats.map(nomPend).join(', ')}. Posa-les i prem «Completar».` : '<br><small>Quan arribin, el magatzem les posarà a la caixa i aquí es podrà completar.</small>'}</div>` : ''}
+            ${subParcials.length && !f ? `<div class="banner in">ℹ ${subParcials.map(e => esc(e.conj.codi)).join(', ')} ${subParcials.length === 1 ? 'està muntat' : 'estan muntats'} amb mancants: pots continuar aquest pas; les peces que falten es posaran després.</div>` : ''}
+            ${mancantsPas.length && !f ? `<div class="banner wr">❗ <b>Falten peces que no han arribat:</b> ${mancantsPas.map(e => esc(e.codi) + ' ×' + prog.mancants[e.clau].falten).join(', ')}.<br><small>Pots muntar la resta: el pas quedarà «muntat amb mancants», no aturarà el conjunt següent i el completaràs quan arribin.</small></div>` : ''}
+            ${f && !v && !pend.length ? `<div class="banner in">Muntat ${esc(data(f.ts))}${f.op ? ' per ' + esc(f.op) : ''} · <b>pendent de verificar</b> per Qualitat.</div>` : ''}
             ${f && v && v.resultat === 'ok' ? `<div class="banner ok">✓ Verificat per ${esc(v.op)} · ${esc(data(v.ts))}</div>` : ''}
             ${falten.length && !f ? `<div class="banner er"><b>Abans cal muntar:</b> ${falten.map(x => `<a href="#/pas/${encodeURIComponent(x.conj.id)}">${esc(x.conj.codi)} ${esc(x.conj.nom)}</a>`).join(', ')}</div>` : ''}
             ${senseOmplir.length && !f ? `<div class="banner wr">📦 El magatzem encara no ha omplert ${senseOmplir.length} caixetí(ns) d'aquest pas: ${senseOmplir.slice(0, 6).map(e => esc(e.codi)).join(', ')}${senseOmplir.length > 6 ? '…' : ''}</div>` : ''}
             <div class="dues"><div>
-            <h3>1 · Preparació: agafa les caixes (${agafats}/${llista.length})</h3>
+            <h3>1 · Preparació: agafa les caixes (${agafats}/${llista.length}${nMancantsAgafar ? ` · ❗ ${nMancantsAgafar} no ha${nMancantsAgafar > 1 ? 'n' : ''} arribat` : ''})</h3>
             <div class="fx"><button class="bt pr" id="pEsc">⌖ Escanejar etiquetes</button><button class="bt" id="pTots">${agafats === llista.length && llista.length ? 'Desmarcar tot' : 'Marcar-ho tot'}</button></div>
-            ${M.objectesPas(r).map(o => blocObjecte(o, c.id, llista)).join('') || '<p class="ajuda">Aquest pas no té caixes pròpies.</p>'}
+            ${M.objectesPas(r).map(o => blocObjecte(o, c.id, M.aAgafar(r))).join('') || '<p class="ajuda">Aquest pas no té caixes pròpies.</p>'}
             ${r.fora.length ? `<div class="targeta"><b>Preparar a part</b> (no cap a cap caixa): ${r.fora.map(x => esc(x.mat.codi) + ' ×' + x.qty).join(', ')}</div>` : ''}
             </div><div>
             <h3>2 · Muntatge</h3>
@@ -875,7 +959,9 @@
             <h3>Fotos</h3><div class="fx"><button class="bt" id="pFoto">📷 Fer una foto</button><button class="bt" id="pInc">⚠ Incidència</button></div><div class="fotos" id="pFotos"></div>
             <h3>3 · Final</h3>
             ${guarda.length ? `<div class="targeta">Guarda ${r.multiplicador > 1 ? 'les ' + r.multiplicador + ' unitats' : 'el conjunt'} a: <b>${guarda.map(o => esc(o.id)).join(', ')}</b></div>` : ''}
-            ${f ? (v && v.resultat === 'ok' ? '' : '<button class="bt" id="pDesfer">Desfer «muntat»</button>') : `<button class="bt ok" id="pFet"${falten.length ? ' disabled' : ''}>✓ Marcar el pas com a muntat</button>`}
+            ${pend.length ? `<button class="bt ok" id="pCompleta"${arribats.length ? '' : ' disabled'}>✓ Completar: he posat les peces que han arribat${arribats.length ? ` (${arribats.length})` : ''}</button>
+                <button class="bt" id="pCompletaTot">Completar-ho tot (he trobat les peces)</button>` : ''}
+            ${f ? (v && v.resultat === 'ok' ? '' : '<button class="bt" id="pDesfer">Desfer «muntat»</button>') : `<button class="bt ok" id="pFet"${falten.length ? ' disabled' : ''}>${mancantsPas.length ? `✓ Muntar sense les peces que falten (${mancantsPas.length})` : '✓ Marcar el pas com a muntat'}</button>`}
             ${f && perTornar.length ? `<button class="bt" id="pTorna">↩ Tornar les caixes buides al magatzem (${perTornar.length})</button>` : ''}
             </div></div>`;
         const vi = $('vista');
@@ -895,7 +981,15 @@
         if ($('pInicia')) $('pInicia').onclick = () => { iniciaSiCal(r); VISTES.pas(id); };
         $('pFoto').onclick = () => { $('fFoto').dataset.pas = c.id; $('fFoto').click(); };
         $('pInc').onclick = () => { obreIncidencia(c.id); };
-        if ($('pFet')) $('pFet').onclick = () => marcaFet(r, agafats, llista.length);
+        if ($('pFet')) $('pFet').onclick = () => marcaFet(r, agafats, llista.length, mancantsPas);
+        const completa = (claus, text) => { if (fer('completa', { conj: c.id, claus }, text)) { so(true); avis(claus ? 'Peces posades' : 'Pas complet ✓ · ara el verificarà Qualitat'); VISTES.pas(id); } };
+        if ($('pCompleta')) $('pCompleta').onclick = () => {
+            const claus = arribats.map(x => x.clau), tot = claus.length === pend.length;
+            completa(tot ? null : claus, `Pas ${r.pas} · ${c.codi}: posades les peces que faltaven (${arribats.map(x => { const e = M.perClau.get(x.clau); return (e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ')})${tot ? ' · pas complet' : ''}`);
+        };
+        if ($('pCompletaTot')) $('pCompletaTot').onclick = () => {
+            if (confirm('Marcar el pas com a complet? Fes-ho només si ja hi has posat totes les peces que faltaven.')) completa(null, `Pas ${r.pas} · ${c.codi}: completat (peces trobades)`);
+        };
         if ($('pDesfer')) $('pDesfer').onclick = () => { if (fer('desfet', { conj: c.id }, `Pas ${r.pas} · ${c.codi}: desfet`)) VISTES.pas(id); };
         if ($('pTorna')) $('pTorna').onclick = () => { perTornar.forEach(o => fer('retorna', { obj: o.id }, `${o.id}: caixa tornada al magatzem`)); avis('Caixes tornades'); VISTES.pas(id); };
         pintaFotos(c.id);
@@ -909,18 +1003,24 @@
         if (v && pas) iniciaSiCal(M.perConj.get(pas));
         fer('agafa', { clau, v }, v ? `${e.codi} ×${e.qty}: agafat (${e.safata})` : `${e.codi}: desmarcat`);
     }
-    function marcaFet(r, agafats, total) {
-        if (agafats < total && !confirm(`Només hi ha ${agafats} de ${total} caixetins marcats com a agafats. Marcar igualment el pas com a muntat?`)) return;
+    function marcaFet(r, agafats, total, mancantsPas) {
+        mancantsPas = mancantsPas || [];
+        // amb mancants: es munta la resta i el pas queda «muntat amb mancants», sense aturar el conjunt següent
+        const pendents = mancantsPas.map(e => ({ clau: e.clau, mat: e.caixeti.mat.id, qty: prog.mancants[e.clau].falten }));
+        if (pendents.length && !confirm(`Falten ${pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ')}.\nMuntar el pas sense aquestes peces? Quedarà «muntat amb mancants» i el completaràs quan arribin.`)) return;
+        else if (!pendents.length && agafats < total && !confirm(`Només hi ha ${agafats} de ${total} caixetins marcats com a agafats. Marcar igualment el pas com a muntat?`)) return;
         // Consum d'estoc: només el material que NO ha passat pel magatzem (el de les caixes ja va sortir en omplir-les)
         const consum = {};
         if (pref.consumAuto) r.conj.items.forEach(it => {
             const posat = M.aOmplir(r).filter(e => e.caixeti.mat.id === it.mat).reduce((a, e) => a + (prog.omplert[e.clau] ? prog.omplert[e.clau].qty : 0), 0);
-            const q = Math.min(Math.max(0, prog.estoc[it.mat] || 0), Math.max(0, it.qty * r.multiplicador - posat));
+            const falta = pendents.filter(x => x.mat === it.mat).reduce((a, x) => a + x.qty, 0);   // el que no s'hi ha posat no es consumeix
+            const q = Math.min(Math.max(0, prog.estoc[it.mat] || 0), Math.max(0, it.qty * r.multiplicador - posat - falta));
             if (q > 0) consum[it.mat] = q;
         });
         iniciaSiCal(r);
-        if (!fer('fet', { conj: r.conj.id, consum }, `Pas ${r.pas} · ${r.conj.codi} ${r.conj.nom} muntat${r.multiplicador > 1 ? ' (×' + r.multiplicador + ')' : ''}`)) return;
-        so(true); avis('Pas muntat ✓ · ara el verificarà Qualitat');
+        const text = `Pas ${r.pas} · ${r.conj.codi} ${r.conj.nom} muntat${r.multiplicador > 1 ? ' (×' + r.multiplicador + ')' : ''}${pendents.length ? ' amb mancants: falten ' + pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ') : ''}`;
+        if (!fer('fet', { conj: r.conj.id, consum, pendents }, text)) return;
+        so(true); avis(pendents.length ? 'Muntat amb mancants: el conjunt següent ja pot continuar' : 'Pas muntat ✓ · ara el verificarà Qualitat', 3500);
         VISTES.pas(r.conj.id);
     }
 
@@ -938,6 +1038,7 @@
         const est = r => estatDe(r);
         $('vista').innerHTML = bannerTancada() +
             grup('Per verificar', M.PLA.filter(r => est(r) === 'muntat'), 'Cap pas espera verificació.') +
+            grup('Muntats amb mancants (encara no es poden aprovar)', M.PLA.filter(r => est(r) === 'parcial'), 'Cap.') +
             grup('Rebutjats, pendents de refer', M.PLA.filter(r => est(r) === 'rebutjat'), 'Cap.') +
             grup('Verificats', M.PLA.filter(r => est(r) === 'verificat'), 'Encara cap.');
         $('vista').querySelectorAll('[data-anar]').forEach(n => n.onclick = () => { location.hash = '#/verif/' + encodeURIComponent(n.dataset.anar); });
@@ -958,6 +1059,7 @@
         const c = r.conj, f = prog.fets[id], v = prog.verificacions[id], ini = prog.inicis[id];
         const llista = comprovacions(r), marcats = verifChecks[id] || (verifChecks[id] = new Set());
         const meu = f && f.op && f.op === nomPersona() && !esResponsable();
+        const pend = f && f.pendents ? f.pendents : [];   // muntat amb mancants: no es pot aprovar
         const rebutjos = prog.historial.filter(h => h.conj === id);
         $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">Verificació · pas ${r.pas}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}</div></div>
             ${!f ? `<div class="banner wr">Aquest pas encara no està muntat${v && v.resultat === 'ko' ? ` (rebutjat: ${esc(v.motiu)})` : ''}.</div>` : `<div class="targeta">Muntat per <b>${esc(f.op || '?')}</b> · ${esc(data(f.ts))}${ini ? ` · durada ${FO.textDurada(new Date(f.ts) - new Date(ini.ts))}` : ''}</div>`}
@@ -969,7 +1071,8 @@
             <div class="objecte">${llista.map((t, i) => `<div class="fila${marcats.has(i) ? ' fet' : ''}" data-chk="${i}"><div class="chk">✓</div><div class="txt"><div class="nm">${esc(t)}</div></div></div>`).join('')}</div>
             <h3>Fotos</h3><div class="fx"><button class="bt" id="vFoto">📷 Fer una foto</button><button class="bt" id="vInc">⚠ Incidència</button></div><div class="fotos" id="pFotos"></div>
             ${f && !(v && v.resultat === 'ok') ? `<h3>Resultat</h3>
-            <button class="bt ok" id="vOk"${marcats.size < llista.length || meu ? ' disabled' : ''}>✓ Aprovar${marcats.size < llista.length ? ` (falten ${llista.length - marcats.size} comprovacions)` : ''}</button>
+            ${pend.length ? `<div class="banner er">❗ Muntat amb mancants: hi falten ${pend.map(x => { const e = M.perClau.get(x.clau); return esc(e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ')}. Es podrà aprovar quan el muntador ho completi.</div>` : ''}
+            <button class="bt ok" id="vOk"${marcats.size < llista.length || meu || pend.length ? ' disabled' : ''}>✓ Aprovar${pend.length ? ' (hi falten peces)' : marcats.size < llista.length ? ` (falten ${llista.length - marcats.size} comprovacions)` : ''}</button>
             <label class="camp">Motiu del rebuig<textarea id="vMotiu" placeholder="Què s'ha de corregir?"></textarea></label>
             <button class="bt perill" id="vKo"${meu ? ' disabled' : ''}>✗ Rebutjar i tornar-lo al muntador</button>` : ''}`;
         $('vista').querySelectorAll('[data-chk]').forEach(n => n.onclick = () => {
@@ -1054,13 +1157,14 @@
     VISTES.tauler = function () {
         const res = FO.resumOrdre(M, prog);
         const cx = res.caixes.filter(x => !x.c.guarda && x.c.claus.length);
-        const plenes = cx.filter(x => x.estat !== 'buida' && x.estat !== 'parcial').length;
+        const plenes = cx.filter(x => !['buida', 'parcial', 'mancant'].includes(x.estat)).length;
         // per assignar: al servidor, les persones amb rol de muntador; sol, text lliure
         const muntadors = (personesSrv || []).filter(x => x.rols.includes('muntador') || x.rols.includes('responsable')).map(x => x.nom);
         $('vista').innerHTML = `${bannerTancada()}<div class="kpi">
                 <div>Verificats<b>${res.verificats} / ${res.total}</b></div><div>En curs<b>${res.enCurs}</b></div>
                 <div>Per verificar<b>${res.muntats}</b></div><div>Rebutjats<b>${res.rebutjats}</b></div>
-                <div>Caixes plenes<b>${plenes} / ${cx.length}</b></div><div>Incidències obertes<b>${res.incidenciesObertes}</b></div></div>
+                <div>Caixes plenes<b>${plenes} / ${cx.length}</b></div><div>Incidències obertes<b>${res.incidenciesObertes}</b></div>
+                <div>Mancants oberts<b>${res.mancantsOberts}</b></div><div>Muntats amb mancants<b>${res.parcials}</b></div></div>
             <div class="barra"><div style="width:${res.total ? res.verificats / res.total * 100 : 0}%"></div></div>
             <div class="fx" style="margin-top:8px">${srv.url ? '<button class="bt" id="tPers">👥 Persones</button>' : ''}<button class="bt" id="tRes">📊 Resultats</button></div>
             ${prog.tancada ? '<button class="bt" id="tReobre">🔓 Reobrir l\'ordre</button>' : `<button class="bt${res.acabada ? ' ok' : ''}" id="tTanca">🔒 Tancar l'ordre${res.acabada ? '' : ' (encara no està acabada)'}</button>`}
@@ -1079,6 +1183,7 @@
         if ($('tTanca')) $('tTanca').onclick = () => {
             if (!res.acabada && !confirm(`Només hi ha ${res.verificats} de ${res.total} passos verificats. Tancar igualment l'ordre?`)) return;
             if (res.incidenciesObertes && !confirm(`Hi ha ${res.incidenciesObertes} incidències obertes. Tancar igualment?`)) return;
+            if (res.mancantsOberts && !confirm(`Hi ha ${res.mancantsOberts} mancants oberts (material que no ha arribat). Tancar igualment?`)) return;
             if (fer('tanca', {}, `Ordre ${ORD.codi} tancada`)) { avis('Ordre tancada'); ruta(); }
         };
         if ($('tReobre')) $('tReobre').onclick = () => { if (confirm('Reobrir l\'ordre?') && fer('reobre', {}, `Ordre ${ORD.codi} reoberta`)) ruta(); };
@@ -1263,14 +1368,17 @@
             const c = caixaDeClau(e.clau);
             if (c && c.guarda) { so(false); return resultat('er', `${esc(c.id)} és una caixa de guarda: s'omple en muntar el conjunt, no des del magatzem`); }
             if (caixaActual && c && c.id !== caixaActual) { so(false); return resultat('er', `✗ No és d'aquesta caixa<br>${esc(e.codi)} va a ${esc(c.id)}`); }
-            if (prog.omplert[e.clau]) { so(true); return resultat('ok', `Ja estava omplert: ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(e.safata)}</small>`); }
+            const arriba = FO.esMancant(prog, e.clau);   // escanejar un mancant = el material ha arribat
+            if (prog.omplert[e.clau] && !arriba) { so(true); return resultat('ok', `Ja estava omplert: ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(e.safata)}</small>`); }
             if (!omple(e.clau, e.qty)) return resultat('er', 'No s\'ha omplert');
+            if (arriba && !FO.esMancant(prog, e.clau)) { so(true); return resultat('ok', `✓ Ha arribat: ${esc(e.codi)} ×${e.qty}<br><small>Mancant resolt · ${esc(e.safata)}. El muntador ja ho pot completar.</small>`); }
             so(true);
             const n = c ? c.claus.filter(k => prog.omplert[k]).length : 0;
             return resultat('ok', `✓ Omplert: ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(m.nom)} · ${esc(e.safata)}${c ? ` · ${n}/${c.claus.length}${n === c.claus.length ? ' · caixa plena!' : ''}` : ''}</small>`);
         }
         if (r0 === 'muntador') {
             if (pasActual && pas !== pasActual) { so(false); return resultat('er', `✗ No és d'aquest pas<br>${esc(e.codi)} ×${e.qty} és del pas ${r ? r.pas + ' · ' + esc(r.conj.nom) : '?'}`); }
+            if (FO.esMancant(prog, e.clau)) { so(false); return resultat('er', `❗ ${esc(e.codi)} no ha arribat (mancant)<br><small>Munta la resta: el pas quedarà «muntat amb mancants».</small>`); }
             const ja = !!prog.agafat[e.clau];
             if (!ja) { if (r) iniciaSiCal(r); if (!fer('agafa', { clau: e.clau, v: true }, `${e.codi} ×${e.qty}: agafat per escaneig (${e.safata})`)) return resultat('er', 'No s\'ha pogut marcar'); }
             const it = itemDe(pas, m.id), llista = r ? M.aAgafar(r) : [], n = llista.filter(x => prog.agafat[x.clau]).length;

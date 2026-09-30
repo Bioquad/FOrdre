@@ -70,8 +70,8 @@ La primera vegada que s'obre l'app amb el servidor, demana crear el **Responsabl
 
 | Rol | Pot fer |
 |---|---|
-| 📦 Magatzem | Omplir i buidar caixes, estoc, tornar caixes |
-| 🔧 Muntador | Agafar caixes, començar i marcar passos com a muntats, tornar caixes |
+| 📦 Magatzem | Omplir i buidar caixes, marcar mancants, estoc, tornar caixes |
+| 🔧 Muntador | Agafar caixes, començar i marcar passos com a muntats (també amb mancants) i completar-los, tornar caixes |
 | ✅ Qualitat | Verificar (aprovar o rebutjar amb motiu) i resoldre incidències |
 | 📋 Responsable | Tot l'anterior, i a més publicar projectes, obrir i tancar ordres, assignar passos i gestionar persones |
 
