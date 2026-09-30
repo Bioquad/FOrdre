@@ -172,6 +172,16 @@ const op = (t, dades) => Object.assign({ id: 'prova-' + (++n), t, ts: new Date()
         r = await ops(T.pau, [op('verifica', { conj: 'B', resultat: 'ok' })]);
         assert(r.cos.aplicades === 1, JSON.stringify(r.cos.rebutjades));
     });
+    await prova('defectes: es registren, en demanen recanvi i només Qualitat decideix', async () => {
+        let r = await ops(T.anna, [op('defecte', { clau: 'A|M1', mat: 'M1', conj: 'A', qty: 1, origen: 'muntatge', tipus: 'Trencada' })]);
+        assert(r.cos.aplicades === 1 && r.cos.estat.defectes.length === 1 && r.cos.estat.mancants['A|M1'].falten === 1, JSON.stringify(r.cos.rebutjades));
+        assert(r.cos.estat.fets.A.pendents.length === 1 && !r.cos.estat.verificacions.A, 'el pas A torna a quedar pendent');
+        const d = r.cos.estat.defectes[0].id;
+        r = await ops(T.anna, [op('decideix', { def: d, decisio: 'ferralla' })]);
+        assert(r.cos.rebutjades.length === 1, 'un muntador no decideix');
+        r = await ops(T.pau, [op('decideix', { def: d, decisio: 'ferralla' })]);
+        assert(r.cos.aplicades === 1 && r.cos.estat.defectes[0].decisio.op === 'Pau');
+    });
     await prova('una operació repetida s\'aplica un sol cop', async () => {
         const o = op('estoc', { mat: 'M1', delta: 1 });
         await ops(T.marc, [o]);

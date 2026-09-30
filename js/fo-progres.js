@@ -17,7 +17,8 @@
 //                               el que no ha arribat queda com a MANCANT)
 //   Utilitzar   → Muntador     (agafar caixes, començar, muntar, tornar caixes;
 //                               si falten peces, es munta la resta i es completa després)
-//   Comprovar   → Qualitat     (verificar: aprovar o rebutjar amb motiu)
+//   Comprovar   → Qualitat     (verificar: aprovar o rebutjar amb motiu;
+//                               decidir què es fa amb les peces DEFECTUOSES)
 //   Gestionar   → Responsable  (assignar, incidències, tancar l'ordre)
 //   Resultats   → tothom en pot consultar; l'informe el fa js/fo-informe.js
 // Funciona al navegador i a Node (servidor).
@@ -40,7 +41,8 @@
         omple: ['magatzem'], buida: ['magatzem'], manca: ['magatzem'], estoc: ['magatzem'], estocFix: ['magatzem'],
         agafa: ['muntador'], inicia: ['muntador'], instr: ['muntador'], fet: ['muntador'], desfet: ['muntador'], completa: ['muntador'],
         retorna: ['magatzem', 'muntador'],
-        verifica: ['qualitat'], resol: ['qualitat'],
+        verifica: ['qualitat'], resol: ['qualitat'], decideix: ['qualitat'],
+        defecte: ['magatzem', 'muntador', 'qualitat'],
         assigna: [], tanca: [], reobre: [],
         incidencia: ['magatzem', 'muntador', 'qualitat'], foto: ['magatzem', 'muntador', 'qualitat'], nota: ['magatzem', 'muntador', 'qualitat']
     };
@@ -72,6 +74,7 @@
         agafat: {}, instr: {}, fets: {}, estoc: {}, registre: [], fotos: {},
         omplert: {},        // clau de caixetí → { qty, mat, ts, op }
         mancants: {},       // clau de caixetí → { mat, falten, inicial, nota, ts, op, resolt: null | { ts, op } }
+        defectes: [],       // peces defectuoses o trencades: { id, clau, mat, conj, qty, origen, tipus, descripcio, ts, op, decisio }
         retornat: {},       // id de caixa / safata → { ts, op }
         inicis: {},         // conjunt → { ts, op } (inici del muntatge, per mesurar el temps)
         verificacions: {},  // conjunt → { resultat: 'ok'|'ko', motiu, checks, ts, op }
@@ -133,6 +136,22 @@
         }
     }
 
+    // ─── Peces defectuoses ───
+    // origen: 'arribada' (ja venia malament: és del proveïdor) o 'muntatge' (s'ha trencat o fet malbé al taller)
+    FO.ORIGENS_DEFECTE = {
+        arribada: { nom: 'Venia defectuosa', ico: '📦' },
+        muntatge: { nom: 'Trencada en muntar', ico: '🔧' }
+    };
+    FO.TIPUS_DEFECTE = ['Trencada', 'Mal fabricada / fora de mesura', 'Danyada en el transport', 'Peça equivocada', 'Ratllada o amb cops', 'Altres'];
+    // Què se'n fa (ho decideix Qualitat)
+    FO.DECISIONS_DEFECTE = {
+        retorn: { nom: 'Retornar al proveïdor', ico: '↩' },
+        ferralla: { nom: 'Ferralla', ico: '🗑' },
+        reparar: { nom: 'Reparar / recuperar', ico: '🛠' },
+        acceptada: { nom: 'Acceptar tal com està', ico: '✓' }
+    };
+    FO.defectesPendents = p => (p.defectes || []).filter(d => !d.decisio);
+
     // ─── Validació (regles del procés) ───
     // Retorna el motiu pel qual una operació no es pot fer, o '' si és correcta.
     // `usuari` = { nom, rols }; si no se sap (aparell sol), no es comproven permisos.
@@ -149,6 +168,12 @@
             if (o.resultat !== 'ko' && f.pendents && f.pendents.length) return 'Hi falten peces (mancants): no es pot aprovar fins que el pas estigui complet';
         }
         if (o.t === 'manca' && !(Number(o.falten) >= 0)) return 'Cal indicar quantes peces falten';
+        if (o.t === 'defecte' && (!o.clau || !(Number(o.qty) > 0))) return 'Cal indicar la peça i quantes són defectuoses';
+        if (o.t === 'decideix') {
+            const d = p.defectes.find(x => x.id === o.def);
+            if (!d) return 'Aquesta peça defectuosa no existeix';
+            if (!FO.DECISIONS_DEFECTE[o.decisio]) return 'Decisió desconeguda';
+        }
         if (o.t === 'completa' && !p.fets[o.conj]) return 'Aquest pas encara no està muntat';
         if (o.t === 'omple' && !(Number(o.qty) > 0)) return 'Cal una quantitat';
         return '';
@@ -211,6 +236,31 @@
                 Object.entries(f.consum || {}).forEach(([m, q]) => { p.estoc[m] = (p.estoc[m] || 0) + q; });
                 delete p.fets[o.conj];
                 delete p.verificacions[o.conj];
+                break;
+            }
+            case 'defecte': {
+                // Una peça defectuosa o trencada: es registra i en calen de noves (mancant del mateix caixetí).
+                // El taller no s'atura: el pas es pot muntar amb la resta i es completa quan arriba el recanvi.
+                const q = Math.max(1, Math.round(Number(o.qty)) || 1);
+                p.defectes.push({ id: o.id, clau: o.clau, mat: o.mat || '', conj: o.conj || '', qty: q, origen: o.origen === 'muntatge' ? 'muntatge' : 'arribada', tipus: o.tipus || '', descripcio: o.descripcio || '', ts, op: qui, decisio: null });
+                // les peces dolentes surten de la caixa (no tornen a l'estoc: no serveixen)
+                const om = p.omplert[o.clau];
+                if (om) om.qty = Math.max(0, om.qty - q);
+                const ant = p.mancants[o.clau];
+                actualitzaMancant(p, o.clau, o.mat, (ant && !ant.resolt ? ant.falten : 0) + q, ts, qui, `Recanvi de ${q} ${q > 1 ? 'peces' : 'peça'} (${o.tipus ? o.tipus.toLowerCase() : 'defectuosa'})`);
+                // si el pas ja estava muntat, torna a quedar pendent d'aquesta peça (i s'haurà de tornar a verificar)
+                const f = o.conj && p.fets[o.conj];
+                if (f) {
+                    const pe = (f.pendents || (f.pendents = [])).find(x => x.clau === o.clau);
+                    if (pe) pe.qty += q; else f.pendents.push({ clau: o.clau, mat: o.mat || '', qty: q });
+                    delete f.completat;
+                    delete p.verificacions[o.conj];
+                }
+                break;
+            }
+            case 'decideix': {
+                const d = p.defectes.find(x => x.id === o.def);
+                if (d) d.decisio = { tipus: o.decisio, nota: o.nota || '', ts, op: qui };
                 break;
             }
             case 'completa': {
