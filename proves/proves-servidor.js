@@ -155,6 +155,17 @@ const op = (t, dades) => Object.assign({ id: 'prova-' + (++n), t, ts: new Date()
         r = await ops(T.joan, [op('verifica', { conj: 'B', resultat: 'ok' })], 'qualitat');
         assert(r.cos.rebutjades.length === 1 && /altra persona/.test(r.cos.rebutjades[0].motiu), JSON.stringify(r.cos));
     });
+    await prova('traçabilitat: el servidor exigeix els números de sèrie i troba on ha anat cada lot', async () => {
+        let r = await ops(T.marc, [op('omple', { clau: 'B|M3', mat: 'M3', qty: 2, tracaTipus: 'serie', traca: [{ codi: 'SN-77', qty: 1 }] })]);
+        assert(r.cos.rebutjades.length === 1 && /sumar/.test(r.cos.rebutjades[0].motiu), 'falten números de sèrie: ' + JSON.stringify(r.cos));
+        r = await ops(T.marc, [op('omple', { clau: 'B|M3', mat: 'M3', qty: 2, tracaTipus: 'serie', traca: [{ codi: 'SN-77', qty: 1 }, { codi: 'SN-78', qty: 1 }] }),
+            op('omple', { clau: 'A|M4', mat: 'M4', qty: 5, tracaTipus: 'lot', traca: [{ codi: 'LOT-2026-09', qty: 5 }] })]);
+        assert(r.cos.aplicades === 2 && r.cos.estat.traca['B|M3'].length === 2, JSON.stringify(r.cos));
+        const c = await crida('GET', '/api/traca?codi=lot-2026-09', undefined, T.pau);
+        assert(c.codi === 200 && c.cos.length === 1 && c.cos[0].serie === 'SN-0002' && c.cos[0].clau === 'A|M4' && c.cos[0].qty === 5, JSON.stringify(c.cos));
+        assert((await crida('GET', '/api/traca?codi=NO-EXISTEIX', undefined, T.pau)).cos.length === 0);
+        assert((await crida('GET', '/api/traca?codi=SN-77')).codi === 401, 'cal sessió');
+    });
     await prova('un rebuig demana motiu i torna el pas al muntador', async () => {
         let r = await ops(T.pau, [op('verifica', { conj: 'B', resultat: 'ko' })]);
         assert(r.cos.rebutjades.length === 1, 'sense motiu s\'ha de rebutjar');

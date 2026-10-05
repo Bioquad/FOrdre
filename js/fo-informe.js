@@ -60,6 +60,23 @@
     FO.usaMagatzem = p => Object.keys(p.omplert).length > 0;
     FO.pasPreparat = (m, p, r) => r.entrades.every(e => p.fets[e.conj.id]) && (!FO.usaMagatzem(p) || m.aOmplir(r).every(e => p.omplert[e.clau]));
 
+    // ═══ Traçabilitat de components (ISO 9001, 8.5.2) ═══
+    // Per a cada caixetí d'un material traçable: quantes peces cal identificar i quines ho estan.
+    // `cal`: les que hi ha a la caixa (si el magatzem l'ha omplerta) o, si el pas ja s'ha muntat
+    // (o s'està a punt de muntar: perMuntar), les que porta el pas menys les que encara falten.
+    FO.tracaCaixeti = function (m, p, e, perMuntar) {
+        const tipus = e.caixeti.mat.tracabilitat, pas = m.pasDe(e), om = p.omplert[e.clau];
+        const mc = FO.esMancant(p, e.clau) ? p.mancants[e.clau].falten : 0;
+        const cal = om ? om.qty : (perMuntar || (pas && p.fets[pas])) ? Math.max(0, e.qty - mc) : 0;
+        const entrades = (p.traca || {})[e.clau] || [];
+        const te = entrades.reduce((a, x) => a + x.qty, 0);
+        return { e, tipus, pas, cal, te, entrades, falta: Math.max(0, cal - te) };
+    };
+    // Caixetins traçables d'un pas (o de tota l'ordre) i els que encara no estan identificats
+    FO.tracaPas = (m, p, r, perMuntar) => m.aOmplir(r).filter(e => e.caixeti.mat.tracabilitat).map(e => FO.tracaCaixeti(m, p, e, perMuntar));
+    FO.tracaOrdre = (m, p) => m.PLA.flatMap(r => FO.tracaPas(m, p, r));
+    FO.tracaPendents = (m, p) => FO.tracaOrdre(m, p).filter(x => x.falta > 0);
+
     // ═══ 2. Resum d'una ordre ═══
     const durada = (a, b) => (a && b ? Math.max(0, new Date(b) - new Date(a)) : 0);
     FO.textDurada = function (ms) {
@@ -130,6 +147,9 @@
             defectesArribada: (p.defectes || []).filter(d => d.origen === 'arribada').reduce((a, d) => a + d.qty, 0),
             defectesMuntatge: (p.defectes || []).filter(d => d.origen === 'muntatge').reduce((a, d) => a + d.qty, 0),
             defectesPendents: FO.defectesPendents(p).length,
+            // traçabilitat: caixetins de materials amb lot o número de sèrie, i els que encara no estan identificats
+            traca: FO.tracaOrdre(m, p),
+            tracaFalten: FO.tracaPendents(m, p).length,
             inici: hores[0] || '', final: p.tancada ? p.tancada.ts : hores[hores.length - 1] || '',
             tempsMuntatge, tancada: p.tancada,
             acabada: passos.length > 0 && verificats === passos.length
@@ -185,20 +205,27 @@ ${canviat ? `<div class="av">⚠ ${t('El projecte s\'ha modificat després de cr
  <div>${t('Incidències obertes')}<b>${res.incidenciesObertes}</b></div>
  <div>${t('Mancants oberts')}<b>${res.mancantsOberts} / ${res.mancants.length}</b></div>
  <div>${t('Peces defectuoses')}<b>${res.pecesDefectuoses}</b><span class="sub">${t('{a} d\'origen · {m} en muntar', { a: res.defectesArribada, m: res.defectesMuntatge })}</span></div>
+ <div>${t('Traçabilitat')}<b class="${res.tracaFalten ? 'ko' : 'ok'}">${res.traca.some(x => x.cal || x.te) ? (res.tracaFalten ? t('Falten {n}', { n: res.tracaFalten }) : '✓ ' + t('Completa')) : '—'}</b></div>
  <div>${t('Temps de muntatge')}<b>${FO.textDurada(res.tempsMuntatge)}</b></div>
  <div>${t('Inici → final')}<b style="font-size:13px">${data(res.inici)}<br>${data(res.final)}</b></div>
 </div>
 
 <h2>${t('Passos')}</h2>
 <table><tr><th>${t('Pas')}</th><th>${t('Conjunt')}</th><th>${t('Estat')}</th><th>${t('Muntat per')}</th><th class="n">${t('Durada')}</th><th>${t('Verificat per')}</th><th class="n">${t('Rebutjos')}</th></tr>
-${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.nom)}</td><td>${xip(x.estat)}${x.pendents.length ? `<div class="sub">${t('Falten:')} ${x.pendents.map(q => { const mt = mat(q.mat); return esc(mt ? mt.codi : q.mat) + ' ×' + q.qty; }).join(', ')}</div>` : ''}</td><td>${esc(x.muntador)}<div class="sub">${data(x.muntat)}</div></td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}${x.verificat ? `<div class="sub">${data(x.verificat)}</div>` : ''}</td><td class="n">${x.rebutjos.length || ''}</td></tr>`).join('')}
+${res.passos.map(x => `<tr><td>${x.pas}</td><td><b>${esc(x.codi)}</b> ${esc(x.nom)}</td><td>${xip(x.estat)}${x.pendents.length ? `<div class="sub">${t('Falten:')} ${x.pendents.map(q => { const mt = mat(q.mat); return esc(mt ? mt.codi : q.mat) + ' ×' + q.qty; }).join(', ')}</div>` : ''}</td><td>${esc(x.muntador)}<div class="sub">${data(x.muntat)}</div>${p.fets[x.id] && p.fets[x.id].instrument ? `<div class="sub">📏 ${esc(p.fets[x.id].instrument)}</div>` : ''}</td><td class="n">${FO.textDurada(x.durada)}</td><td>${esc(x.verificador)}${x.verificat ? `<div class="sub">${data(x.verificat)}</div>` : ''}</td><td class="n">${x.rebutjos.length || ''}</td></tr>`).join('')}
 </table>
+
+${res.traca.length ? `<h2>${t('Traçabilitat de components')} <span class="sub" style="font-weight:400">(ISO 9001 · 8.5.2)</span></h2>
+${res.tracaFalten ? `<div class="av">⚠ ${t('Hi ha {n} caixetins amb peces sense lot o número de sèrie anotat.', { n: res.tracaFalten })}</div>` : ''}
+<table><tr><th>${t('Pas')}</th><th>${t('Material')}</th><th>${t('Traçabilitat')}</th><th>${t('Lot / número de sèrie')}</th><th class="n">${t('Peces')}</th><th>${t('Anotat per')}</th></tr>
+${res.traca.map(x => { const r = m.perConj.get(x.pas), mt = x.e.caixeti.mat; return `<tr><td>${r ? r.pas + ' · ' + esc(r.conj.codi) : ''}</td><td><b>${esc(mt.codi)}</b> ${esc(mt.nom)}${mt.proveidor ? `<div class="sub">${esc(mt.proveidor)}</div>` : ''}</td><td>${esc(FO.TRACABILITAT[x.tipus])}</td><td>${x.entrades.map(y => `<b>${esc(y.codi)}</b>${x.tipus === 'lot' ? ' ×' + y.qty : ''}`).join(x.tipus === 'serie' ? ', ' : '<br>') || '—'}${x.falta ? `<div class="ko">${t('Falten {n}', { n: x.falta })}</div>` : ''}</td><td class="n">${x.te}${x.cal && x.cal !== x.te ? ' / ' + x.cal : ''}</td><td>${Array.from(new Set(x.entrades.map(y => y.op))).map(esc).join(', ')}<div class="sub">${x.entrades.length ? data(x.entrades[x.entrades.length - 1].ts) : ''}</div></td></tr>`; }).join('')}
+</table>` : ''}
 
 ${p.historial.length ? `<h2>${t('Rebutjos de qualitat')}</h2><table><tr><th>${t('Data')}</th><th>${t('Pas')}</th><th>${t('Motiu')}</th><th>${t('Muntador')}</th><th>${t('Qualitat')}</th></tr>
 ${p.historial.map(h => { const r = m.perConj.get(h.conj); return `<tr><td>${data(h.ts)}</td><td>${r ? esc(r.conj.codi) : esc(h.conj)}</td><td class="ko">${esc(h.motiu)}</td><td>${esc(h.muntador)}</td><td>${esc(h.op)}</td></tr>`; }).join('')}</table>` : ''}
 
 ${res.defectes.length ? `<h2>${t('Peces defectuoses')}</h2><table><tr><th>${t('Data')}</th><th>${t('Material')}</th><th class="n">${t('Peces')}</th><th>${t('Origen')}</th><th>${t('Què li passa')}</th><th>${t('Pas')}</th><th>${t('Decisió')}</th></tr>
-${res.defectes.map(d => { const mt = mat(d.mat), r = m.perConj.get(d.conj || m.pasDe(m.perClau.get(d.clau) || {})), o = FO.ORIGENS_DEFECTE[d.origen] || {}, dc = d.decisio && FO.DECISIONS_DEFECTE[d.decisio.tipus]; return `<tr><td>${data(d.ts)}<div class="sub">${esc(d.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}${mt.proveidor ? `<div class="sub">${esc(mt.proveidor)}</div>` : ''}` : esc(d.mat)}</td><td class="n">${d.qty}</td><td>${esc((o.ico || '') + ' ' + (o.nom || d.origen))}</td><td>${esc(tm(d.tipus))}${d.descripcio ? `<div class="sub">${esc(d.descripcio)}</div>` : ''}</td><td>${r ? esc(r.conj.codi) : ''}</td><td>${dc ? `${esc(dc.ico + ' ' + dc.nom)}${d.decisio.nota ? `<div class="sub">${esc(d.decisio.nota)}</div>` : ''}<div class="sub">${data(d.decisio.ts)} · ${esc(d.decisio.op)}</div>` : `<span class="ko">${t('Pendent')}</span>`}</td></tr>`; }).join('')}</table>` : ''}
+${res.defectes.map(d => { const mt = mat(d.mat), r = m.perConj.get(d.conj || m.pasDe(m.perClau.get(d.clau) || {})), o = FO.ORIGENS_DEFECTE[d.origen] || {}, dc = d.decisio && FO.DECISIONS_DEFECTE[d.decisio.tipus]; return `<tr><td>${data(d.ts)}<div class="sub">${esc(d.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}${mt.proveidor ? `<div class="sub">${esc(mt.proveidor)}</div>` : ''}` : esc(d.mat)}</td><td class="n">${d.qty}</td><td>${esc((o.ico || '') + ' ' + (o.nom || d.origen))}</td><td>${esc(tm(d.tipus))}${d.descripcio ? `<div class="sub">${esc(d.descripcio)}</div>` : ''}${(d.traca || []).length ? `<div class="sub">🔖 ${d.traca.map(y => esc(y.codi)).join(', ')}</div>` : ''}</td><td>${r ? esc(r.conj.codi) : ''}</td><td>${dc ? `${esc(dc.ico + ' ' + dc.nom)}${d.decisio.nota ? `<div class="sub">${esc(d.decisio.nota)}</div>` : ''}<div class="sub">${data(d.decisio.ts)} · ${esc(d.decisio.op)}</div>` : `<span class="ko">${t('Pendent')}</span>`}</td></tr>`; }).join('')}</table>` : ''}
 
 ${res.mancants.length ? `<h2>${t('Mancants')}</h2><table><tr><th>${t('Des de')}</th><th>${t('Material')}</th><th>${t('Caixetí')}</th><th>${t('Pas')}</th><th class="n">${t('Faltaven')}</th><th>${t('Nota')}</th><th>${t('Estat')}</th></tr>
 ${res.mancants.map(x => { const mt = mat(x.mat), r = m.perConj.get(x.pas); return `<tr><td>${data(x.ts)}<div class="sub">${esc(x.op)}</div></td><td>${mt ? `<b>${esc(mt.codi)}</b> ${esc(mt.nom)}` : esc(x.mat)}</td><td>${esc(x.clau)}</td><td>${r ? esc(r.conj.codi) : ''}</td><td class="n">${x.inicial || x.falten}</td><td>${esc(tm(x.nota))}</td><td>${x.resolt ? `<span class="ok">✓ ${t('Arribat')}</span><div class="sub">${data(x.resolt.ts)} · ${esc(x.resolt.op)}</div>` : `<span class="ko">${t('Falten {n}', { n: x.falten })}</span>`}</td></tr>`; }).join('')}</table>` : ''}

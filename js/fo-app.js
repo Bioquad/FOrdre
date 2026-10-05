@@ -221,7 +221,7 @@
         $('taulaMat').innerHTML = `<thead><tr><th></th><th>${t('Codi')}</th><th>${t('Nom')}</th><th class="n">${t('Mides')}</th><th class="n">${t('Total')}</th><th class="n">${t('Conj.')}</th></tr></thead><tbody>` +
             files.map(m => `<tr data-mat="${esc(m.id)}"${sel && sel.tipus === 'mat' && sel.id === m.id ? ' style="background:rgba(74,144,217,.22)"' : ''}>
                 <td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.col}"></span></td>
-                <td style="font-family:var(--mn)">${esc(m.codi)}</td><td>${esc(m.nom)}</td>
+                <td style="font-family:var(--mn)">${esc(m.codi)}</td><td>${esc(m.nom)}${m.tracabilitat ? ` <span class="bd" title="${esc(FO.TRACABILITAT[m.tracabilitat])}">${m.tracabilitat === 'serie' ? 'S/N' : 'LOT'}</span>` : ''}</td>
                 <td class="n">${fmt(m.x, 1)}×${fmt(m.y, 1)}×${fmt(m.z, 1)}</td><td class="n">${tot.get(m.id) || 0}</td><td class="n">${us.get(m.id) || 0}</td></tr>`).join('') +
             `</tbody><tfoot><tr><td colspan="6" style="padding:8px"><button class="b sm" id="bCompra">⬇ ${t('Llista de compra / preparació (CSV)')}</button> <button class="b sm" id="bNouMatCat">+ ${t('Material al catàleg')}</button></td></tr></tfoot>`;
     }
@@ -241,8 +241,8 @@
     function llistaCompra() {
         const tot = FO.totals(P);
         const q = v => /[";\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v;
-        const files = P.materials.map(m => [m.codi, m.nom, FO.TIPUS[m.tipus].nom, m.origen, m.proveidor, tot.get(m.id) || 0, m.x, m.y, m.z, m.pes, fmt((tot.get(m.id) || 0) * m.pes / 1000, 3)].map(q).join(';'));
-        descarrega(FO.nomFitxer(P.nom) + '_materials.csv', '﻿codi;nom;tipus;origen;proveidor;total;x;y;z;pes_g;pes_total_kg\n' + files.join('\n') + '\n', 'text/csv');
+        const files = P.materials.map(m => [m.codi, m.nom, FO.TIPUS[m.tipus].nom, m.origen, m.proveidor, m.tracabilitat, tot.get(m.id) || 0, m.x, m.y, m.z, m.pes, fmt((tot.get(m.id) || 0) * m.pes / 1000, 3)].map(q).join(';'));
+        descarrega(FO.nomFitxer(P.nom) + '_materials.csv', '﻿codi;nom;tipus;origen;proveidor;tracabilitat;total;x;y;z;pes_g;pes_total_kg\n' + files.join('\n') + '\n', 'text/csv');
     }
 
     // ─── Formularis ───
@@ -258,6 +258,7 @@
         ['maxApilat', t('Màx. unitats apilades'), 'num', null, t('0 = sense límit')],
         ['origen', t('Origen'), 'sel', () => ({ propi: t('Disseny propi'), comprat: t('Comprat') })],
         ['proveidor', t('Proveïdor / referència'), 'text', null, null, true],
+        ['tracabilitat', t('Traçabilitat (ISO 9001)'), 'sel', () => FO.TRACABILITAT, t('Què s\'ha d\'anotar de cada peça en posar-la a la caixa: el lot del proveïdor o el número de sèrie de cada unitat')],
         ['esd', t('Sensible a l\'electricitat estàtica (ESD)'), 'ck'], ['liquid', t('Conté líquids / fluids'), 'ck'],
         ['apilable', t('Es pot apilar'), 'ck'],
         ['notes', t('Notes'), 'area']

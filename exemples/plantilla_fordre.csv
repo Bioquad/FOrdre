@@ -1,8 +1,8 @@
-﻿conjunt;nom conjunt;pare;codi;nom;quantitat;x;y;z;pes;tipus;forma;esd;liquid;angle max;apilable;max apilat;fragil;disposicio;color;origen;proveidor;notes;parell;nota;instruccions;eines;tancament;format kit;material caixa;color caixa
-MAQ;Màquina completa;;;;1;;;;;;;;;;;;;;#4A90D9;;;fila de conjunt (sense codi de material);;;Muntatge final | Prova de funcionament;;;mixt;;
-XAS;Xassís;MAQ;PL-001;Placa base alumini;2;180;120;3;175;peca;box;0;0;90;1;;0;auto;#9AA5B1;propi;;;;;Presentar les plaques | Muntar els escaires | Collar en creu;Clau Allen 3 mm, clau dinamomètrica;llavi;;;
-XAS;Xassís;MAQ;CRG-M4x10;Cargol DIN912 M4x10;24;10;7;7;1.6;cargol;box;0;0;90;1;;0;granel;;comprat;Würth;;2.5;En creu;;;;;;
-XAS;Xassís;MAQ;CON-01;Frenafils 243;1;25;25;75;18;consumible;cylinder;0;1;30;0;;0;individual;#1565C0;comprat;;;;Una gota a cada cargol;;;;;PETG;#FDD835
-MOT;Grup motor;XAS;;;2;60;50;80;320;;;0;0;90;0;;3;;#FF7043;;;conjunt muntat: mides de la peça acabada, 2 unitats;;;Encarar el motor | Collar els 4 cargols;Clau Allen 2,5 mm;pressio;contenidor;;
-MOT;Grup motor;XAS;MT-050;Motor NEMA17;1;42;42;48;280;peca;box;0;0;90;0;;0;auto;#455A64;comprat;;;;;;;;;;
-ELE;Electrònica;MAQ;PCB-100;Placa de control;1;100;70;18;55;peca;box;1;0;90;0;;7;individual;#2E7D32;propi;;;;Manipular per les vores;Polsera antiestàtica | Muntar els separadors;Tornavís PH1;imants;;;
+﻿conjunt;nom conjunt;pare;codi;nom;quantitat;x;y;z;pes;tipus;forma;esd;liquid;angle max;apilable;max apilat;fragil;disposicio;color;origen;proveidor;notes;parell;nota;instruccions;eines;tancament;format kit;material caixa;color caixa;tracabilitat
+MAQ;Màquina completa;;;;1;;;;;;;;;;;;;;#4A90D9;;;fila de conjunt (sense codi de material);;;Muntatge final | Prova de funcionament;;;mixt;;;
+XAS;Xassís;MAQ;PL-001;Placa base alumini;2;180;120;3;175;peca;box;0;0;90;1;;0;auto;#9AA5B1;propi;;;;;Presentar les plaques | Muntar els escaires | Collar en creu;Clau Allen 3 mm, clau dinamomètrica;llavi;;;;
+XAS;Xassís;MAQ;CRG-M4x10;Cargol DIN912 M4x10;24;10;7;7;1.6;cargol;box;0;0;90;1;;0;granel;;comprat;Würth;;2.5;En creu;;;;;;;
+XAS;Xassís;MAQ;CON-01;Frenafils 243;1;25;25;75;18;consumible;cylinder;0;1;30;0;;0;individual;#1565C0;comprat;;;;Una gota a cada cargol;;;;;PETG;#FDD835;lot
+MOT;Grup motor;XAS;;;2;60;50;80;320;;;0;0;90;0;;3;;#FF7043;;;conjunt muntat: mides de la peça acabada, 2 unitats;;;Encarar el motor | Collar els 4 cargols;Clau Allen 2,5 mm;pressio;contenidor;;;
+MOT;Grup motor;XAS;MT-050;Motor NEMA17;1;42;42;48;280;peca;box;0;0;90;0;;0;auto;#455A64;comprat;;;;;;;;;;;serie
+ELE;Electrònica;MAQ;PCB-100;Placa de control;1;100;70;18;55;peca;box;1;0;90;0;;7;individual;#2E7D32;propi;;;;Manipular per les vores;Polsera antiestàtica | Muntar els separadors;Tornavís PH1;imants;;;;serie

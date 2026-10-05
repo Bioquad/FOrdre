@@ -21,13 +21,19 @@
 //                               decidir què es fa amb les peces DEFECTUOSES)
 //   Gestionar   → Responsable  (assignar, incidències, tancar l'ordre)
 //   Resultats   → tothom en pot consultar; l'informe el fa js/fo-informe.js
+//
+// Traçabilitat (ISO 9001, 8.5.2): dels materials que ho demanen es desa el
+// LOT o el NÚMERO DE SÈRIE de cada peça posada a cada caixetí (p.traca), i
+// de cada pas muntat amb parells de collada, l'INSTRUMENT de mesura que s'ha
+// fet servir (ISO 9001, 7.1.5). Així es pot saber quines peces concretes porta
+// cada màquina i, a l'inrevés, en quines màquines ha anat un lot.
 // Funciona al navegador i a Node (servidor).
 // ═══════════════════════════════════════════════════════════════
 (function (G) {
     'use strict';
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js (al servidor, sempre en català)
-    const MAX_VIST = 20000, MAX_REG = 5000;
+    const MAX_VIST = 20000, MAX_REG = 50000;   // registre: prou per a una màquina gran sense perdre res
 
     // ─── Rols ───
     FO.ROLS = {
@@ -43,7 +49,7 @@
         agafa: ['muntador'], inicia: ['muntador'], instr: ['muntador'], fet: ['muntador'], desfet: ['muntador'], completa: ['muntador'],
         retorna: ['magatzem', 'muntador'],
         verifica: ['qualitat'], resol: ['qualitat'], decideix: ['qualitat'],
-        defecte: ['magatzem', 'muntador', 'qualitat'],
+        defecte: ['magatzem', 'muntador', 'qualitat'], traca: ['magatzem', 'muntador', 'qualitat'],
         assigna: [], tanca: [], reobre: [],
         incidencia: ['magatzem', 'muntador', 'qualitat'], foto: ['magatzem', 'muntador', 'qualitat'], nota: ['magatzem', 'muntador', 'qualitat']
     };
@@ -82,6 +88,7 @@
         historial: [],      // rebutjos anteriors: { conj, motiu, ts, op }
         incidencies: [],    // { id, conj, clau, text, gravetat, ts, op, resolta }
         assignacions: {},   // conjunt → nom de la persona
+        traca: {},          // clau de caixetí → [{ codi, qty, mat, ts, op }]: lots o números de sèrie de les peces posades
         tancada: null,      // { ts, op } quan el Responsable tanca l'ordre
         rev: 0, vist: []
     });
@@ -155,6 +162,41 @@
     };
     FO.defectesPendents = p => (p.defectes || []).filter(d => !d.decisio);
 
+    // ─── Traçabilitat: lots i números de sèrie ───
+    // Neteja una llista d'entrades [{ codi, qty }] (codis sense espais als extrems; quantitats enteres)
+    const netTraca = l => (Array.isArray(l) ? l : []).map(e => ({ codi: String(e && e.codi || '').trim(), qty: Math.round(Number(e && e.qty)) }));
+    // Peces d'un caixetí que ja tenen lot o número de sèrie anotat
+    FO.tracaTotal = (p, clau) => ((p.traca || {})[clau] || []).reduce((a, e) => a + (e.qty || 0), 0);
+    // On és un lot o número de sèrie dins d'una ordre (caixetins i peces defectuoses). Compara sense majúscules.
+    FO.cercaTraca = function (p, codi) {
+        const c = String(codi || '').trim().toUpperCase();
+        if (!c) return [];
+        const r = [];
+        Object.entries(p.traca || {}).forEach(([clau, l]) => l.forEach(e => { if (e.codi.toUpperCase() === c) r.push({ clau, mat: e.mat || '', codi: e.codi, qty: e.qty, ts: e.ts, op: e.op, defectuosa: false }); }));
+        (p.defectes || []).forEach(d => (d.traca || []).forEach(e => { if (e.codi.toUpperCase() === c) r.push({ clau: d.clau, mat: d.mat, codi: e.codi, qty: e.qty, ts: d.ts, op: d.op, defectuosa: true, decisio: d.decisio ? d.decisio.tipus : '' }); }));
+        return r;
+    };
+    // Comprova una llista de lots o números de sèrie per a `qty` peces d'un material
+    function validaTraca(p, o, llista, qty) {
+        const l = netTraca(llista);
+        if (l.some(e => !e.codi)) return t('Falta algun lot o número de sèrie');
+        if (l.some(e => !(e.qty > 0))) return t('Cada lot ha de tenir una quantitat');
+        if (o.tracaTipus === 'serie') {
+            if (l.some(e => e.qty !== 1)) return t('Cada número de sèrie és d\'una sola peça');
+            const vist = new Set();
+            for (const e of l) {
+                const k = e.codi.toUpperCase();
+                if (vist.has(k)) return t('Número de sèrie repetit: {codi}', { codi: e.codi });
+                vist.add(k);
+                // un número de sèrie no pot ser a dos caixetins de la mateixa ordre
+                const altre = Object.entries(p.traca || {}).find(([clau, ll]) => clau !== o.clau && ll.some(x => x.mat === o.mat && x.codi.toUpperCase() === k));
+                if (altre) return t('El número de sèrie {codi} ja s\'ha fet servir en aquesta ordre ({clau})', { codi: e.codi, clau: altre[0] });
+            }
+        }
+        if (qty != null && l.reduce((a, e) => a + e.qty, 0) !== qty) return t('Els lots o números de sèrie han de sumar {n} peces', { n: qty });
+        return '';
+    }
+
     // ─── Validació (regles del procés) ───
     // Retorna el motiu pel qual una operació no es pot fer, o '' si és correcta.
     // `usuari` = { nom, rols }; si no se sap (aparell sol), no es comproven permisos.
@@ -179,6 +221,24 @@
         }
         if (o.t === 'completa' && !p.fets[o.conj]) return t('Aquest pas encara no està muntat');
         if (o.t === 'omple' && !(Number(o.qty) > 0)) return t('Cal una quantitat');
+        // traçabilitat: si el material la demana, cal el lot o el número de sèrie de cada peça
+        if (o.t === 'omple' && o.tracaTipus) {
+            if (!Array.isArray(o.traca) || !o.traca.length) return t('Aquest material necessita el lot o el número de sèrie');
+            const m = validaTraca(p, o, o.traca, Number(o.qty));
+            if (m) return m;
+        }
+        if (o.t === 'traca') {
+            if (!o.clau) return t('Cal indicar el caixetí');
+            const m = validaTraca(p, o, o.traca, o.qty != null ? Number(o.qty) : null);
+            if (m) return m;
+        }
+        if (o.t === 'defecte' && o.tracaTipus && (!Array.isArray(o.traca) || !o.traca.length)) return t('Indica el lot o el número de sèrie de la peça defectuosa');
+        if (o.t === 'defecte' && Array.isArray(o.traca) && o.traca.length) {
+            const m = validaTraca(Object.assign({}, p, { traca: {} }), o, o.traca, Number(o.qty));
+            if (m) return m;
+        }
+        // mesura (ISO 9001, 7.1.5): un pas amb parells de collada diu amb quin instrument s'han donat
+        if (o.t === 'fet' && o.calInstrument && !String(o.instrument || '').trim()) return t('Indica l\'instrument de mesura (per exemple, el número de la clau dinamomètrica)');
         return '';
     };
 
@@ -195,6 +255,7 @@
                 const ant = p.omplert[o.clau], q = Number(o.qty) || 0;
                 if (o.mat) p.estoc[o.mat] = (p.estoc[o.mat] || 0) - (q - (ant ? ant.qty : 0));   // el material surt del magatzem
                 p.omplert[o.clau] = { qty: q, mat: o.mat || '', ts, op: qui };
+                if (Array.isArray(o.traca)) p.traca[o.clau] = netTraca(o.traca).map(e => ({ codi: e.codi, qty: e.qty, mat: o.mat || '', ts, op: qui }));
                 // `cal` = quantitat que hi ha d'anar: si n'hi ha menys, la resta queda com a mancant
                 if (o.cal != null) actualitzaMancant(p, o.clau, o.mat, Number(o.cal) - q, ts, qui);
                 break;
@@ -208,10 +269,15 @@
                 if (!ant) return marca(p, o);
                 if (ant.mat) p.estoc[ant.mat] = (p.estoc[ant.mat] || 0) + ant.qty;             // torna al magatzem
                 delete p.omplert[o.clau];
+                delete p.traca[o.clau];                                                          // amb els seus lots
                 break;
             }
             case 'retorna':
                 p.retornat[o.obj] = { ts, op: qui };
+                break;
+            case 'traca':
+                // anota o corregeix els lots o números de sèrie d'un caixetí (substitueix els anteriors)
+                p.traca[o.clau] = netTraca(o.traca).filter(e => e.codi && e.qty > 0).map(e => ({ codi: e.codi, qty: e.qty, mat: o.mat || '', ts, op: qui }));
                 break;
             // — Utilitzar (Muntador) —
             case 'agafa':
@@ -229,7 +295,7 @@
                 if (p.fets[o.conj]) return marca(p, o);           // ja estava muntat: no es torna a consumir
                 Object.entries(o.consum || {}).forEach(([m, q]) => { p.estoc[m] = (p.estoc[m] || 0) - q; });
                 // `pendents`: peces que no s'han pogut posar perquè falten; el pas es completarà quan arribin
-                p.fets[o.conj] = { ts, op: qui, consum: o.consum || {}, pendents: Array.isArray(o.pendents) ? o.pendents : [] };
+                p.fets[o.conj] = { ts, op: qui, consum: o.consum || {}, pendents: Array.isArray(o.pendents) ? o.pendents : [], instrument: String(o.instrument || '').trim() };
                 if (!p.inicis[o.conj]) p.inicis[o.conj] = { ts, op: qui };
                 delete p.verificacions[o.conj];                   // un pas refet s'ha de tornar a verificar
                 break;
@@ -245,7 +311,16 @@
                 // Una peça defectuosa o trencada: es registra i en calen de noves (mancant del mateix caixetí).
                 // El taller no s'atura: el pas es pot muntar amb la resta i es completa quan arriba el recanvi.
                 const q = Math.max(1, Math.round(Number(o.qty)) || 1);
-                p.defectes.push({ id: o.id, clau: o.clau, mat: o.mat || '', conj: o.conj || '', qty: q, origen: o.origen === 'muntatge' ? 'muntatge' : 'arribada', tipus: o.tipus || '', descripcio: o.descripcio || '', ts, op: qui, decisio: null });
+                const tr = netTraca(o.traca).filter(e => e.codi && e.qty > 0);
+                p.defectes.push({ id: o.id, clau: o.clau, mat: o.mat || '', conj: o.conj || '', qty: q, origen: o.origen === 'muntatge' ? 'muntatge' : 'arribada', tipus: o.tipus || '', descripcio: o.descripcio || '', traca: tr, ts, op: qui, decisio: null });
+                // els seus lots o números de sèrie surten del caixetí (queden al registre de la peça defectuosa)
+                if (tr.length && p.traca[o.clau]) {
+                    tr.forEach(e => {
+                        const x = p.traca[o.clau].find(y => y.codi.toUpperCase() === e.codi.toUpperCase());
+                        if (x) x.qty -= e.qty;
+                    });
+                    p.traca[o.clau] = p.traca[o.clau].filter(y => y.qty > 0);
+                }
                 // les peces dolentes surten de la caixa (no tornen a l'estoc: no serveixen)
                 const om = p.omplert[o.clau];
                 if (om) om.qty = Math.max(0, om.qty - q);

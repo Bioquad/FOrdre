@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versió 1.7** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.8** · Instal·lació, configuració i ús, pas a pas
 
 *També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
@@ -41,7 +41,7 @@ Les tres eines funcionen **sense internet**. El servidor és opcional: sense ser
 1. **Definir.** El Responsable importa la llista de materials al configurador i ajusta les caixes.
 2. **Imprimir.** Descarrega els STL i les etiquetes, imprimeix les caixes i les etiqueta.
 3. **Publicar.** Publica el projecte al servidor del taller i obre una **ordre de fabricació** per a cada unitat que s'ha de fabricar.
-4. **Omplir.** El Magatzem posa el material a les caixes escanejant les etiquetes. El que no ha arribat va a la **llista de mancants**, i el que arriba malament es registra com a **defectuós**.
+4. **Omplir.** El Magatzem posa el material a les caixes escanejant les etiquetes i, de les peces que ho demanen, anota el **lot o el número de sèrie**. El que no ha arribat va a la **llista de mancants**, i el que arriba malament es registra com a **defectuós**.
 5. **Muntar.** El Muntador agafa les caixes i segueix els passos. Si falta alguna peça, munta la resta i ho completa quan arriba.
 6. **Comprovar.** Qualitat verifica cada pas amb una llista de comprovació i l'aprova, o el rebutja amb el motiu.
 7. **Resultats.** El Responsable tanca l'ordre i en treu l'**informe**: qui ha fet cada cosa, quant ha trigat, què ha faltat i què s'ha trencat.
@@ -61,6 +61,7 @@ Les tres eines funcionen **sense internet**. El servidor és opcional: sense ser
 | **Ordre de fabricació** | Una unitat concreta que es fabrica (per exemple, `OF-2026-002`, número de sèrie `DX1-0042`). Té el seu progrés, registre i informe. |
 | **Mancant** | Material que no ha arribat (o no n'hi ha prou). |
 | **Peça defectuosa** | Peça que ha arribat malament o que s'ha trencat en muntar. |
+| **Lot / número de sèrie** | La identificació d'una peça concreta: el **lot** del proveïdor (moltes peces iguals fabricades juntes) o el **número de sèrie** (una peça única). FOrdre els anota per a la **traçabilitat** (ISO 9001). |
 
 ---
 
@@ -171,7 +172,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.7.0
+  FOrdre · servidor del taller 1.8.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -542,6 +543,7 @@ Descarrega la plantilla amb el botó **Plantilla CSV** del configurador (o obre 
 | `format kit` | — | (Fila de conjunt) `fusionat`, `individual`, `contenidor` o `mixt`. | `contenidor` |
 | `material caixa` | — | Material d'impressió de la caixa d'aquest material. | `PETG` |
 | `color caixa` | — | Color de la caixa d'aquest material. | `#FDD835` |
+| `tracabilitat` | — | Què s'ha d'anotar de cada peça: `lot`, `serie` (número de sèrie) o buit (no cal). Vegeu el [punt 6.11](#611--traçabilitat-lots-números-de-sèrie-i-instruments-iso-9001). | `serie` |
 
 **Exemple complet** (és la plantilla, llegida com a taula):
 
@@ -666,7 +668,7 @@ La fitxa té aquestes parts:
 - **Etiqueta:** el format (per a tot el projecte), una vista prèvia, les dades del QR/RFID i **🏷 Imprimir aquesta**.
 - **Caixa individual d'aquest material:** material i color de la seva caixa (en formats amb caixes).
 - **Forma real de la peça (niu a mida):** carrega l'**STL** de la peça i el fons de la cel·la tindrà la seva forma. És ideal per a plaques amb components i peces corbades o fràgils.
-- **Material:** codi, nom, tipus, forma, mides (X, Y, Z en mm), pes (g/unitat), color, disposició, inclinació màxima, fragilitat, màxim d'unitats apilades, origen, proveïdor i les caselles *Sensible a l'ESD*, *Conté líquids* i *Es pot apilar*.
+- **Material:** codi, nom, tipus, forma, mides (X, Y, Z en mm), pes (g/unitat), color, disposició, inclinació màxima, fragilitat, màxim d'unitats apilades, origen, proveïdor, **Traçabilitat (ISO 9001)** (*No cal*, *Per lot* o *Per número de sèrie*) i les caselles *Sensible a l'ESD*, *Conté líquids* i *Es pot apilar*. Els materials traçables surten amb la marca **LOT** o **S/N** a la pestanya *Materials* i a l'app del taller.
 
 **Exemple:** el motor NEMA17 (`MT-050`) va en una sola capa, amb 2 cel·les (una per a cada grup motor), dins del contenidor `DX-1.1.1-C`.
 
@@ -1002,6 +1004,48 @@ Si un aparell perd la Wi-Fi, el punt de la capçalera es posa 🔴 i l'app **con
 - Si dues persones han treballat alhora, no es trepitgen: cada acció s'aplica una sola vegada i l'estoc se suma.
 - Si en tornar el servidor rebutja alguna acció (per exemple, perquè l'ordre s'ha tancat), l'app n'avisa amb el motiu.
 
+### 6.11 🔖 Traçabilitat: lots, números de sèrie i instruments (ISO 9001)
+
+La norma ISO 9001 (apartat 8.5.2) demana poder identificar el producte i, quan cal, saber **quines peces concretes porta cada unitat fabricada**. FOrdre ho fa així:
+
+**1. Decidir quins materials són traçables.** Al configurador, a la fitxa de cada material, el camp **Traçabilitat (ISO 9001)**:
+
+| Opció | Quan triar-la | Exemple |
+|---|---|---|
+| *No cal* | Cargoleria comuna, consumibles sense lot. | Cargols M3, brides. |
+| *Per lot* | Peces o productes que el proveïdor identifica per partides. | Frenafils, olis, mànegues, plaques d'una mateixa fornada. |
+| *Per número de sèrie* | Peces amb un número únic cadascuna. | Motors, plaques electròniques, sensors. |
+
+També es pot posar a la llista de materials, amb la columna `tracabilitat` (punt 4.1).
+
+**2. El Magatzem anota el lot o els números de sèrie en omplir.** En tocar (o escanejar) el caixetí d'un material traçable s'obre aquest formulari:
+
+![Lots i números de sèrie](imatges/t25-lots.jpg)
+
+- **Per número de sèrie:** un camp per peça. Cada número ha de ser diferent i no es pot repetir en tota l'ordre.
+- **Per lot:** el codi del lot i quantes peces en són. Si les peces venen de lots diferents, **+ Un altre lot**.
+- El codi es pot **escriure**, llegir amb un **lector USB o Bluetooth** (fa d'Intro i passa al camp següent) o **escanejar amb la càmera** amb el botó **⌖** de cada camp.
+- El total ha de coincidir amb les peces que es posen a la caixa. Si no, l'app no ho deixa desar.
+- **Omplir-ho tot** no omple els materials traçables: cal anotar-ne el lot un per un.
+- Per **corregir** un lot ja anotat, prem el botó **🔖** del caixetí. Queda al registre qui ho ha canviat i quan.
+
+**3. Mancants i peces defectuoses.** Si en arriben menys, només s'anoten les que es posen; quan arriba la resta, el formulari surt amb els números que ja hi ha i els camps nous buits. Si una peça és defectuosa, el formulari de peça defectuosa demana **quin número de sèrie o lot és**: surt de la caixa i queda a la llista de devolucions amb la seva identificació.
+
+**4. El Muntador.** Al pas veu els lots i números de sèrie de cada caixetí. Si alguna peça traçable no ha passat pel magatzem, l'app li demana el lot o el número de sèrie abans de marcar el pas com a muntat. Si el pas té **parells de collada**, cal escriure l'**instrument de mesura** amb què s'han donat (per exemple, el número de la clau dinamomètrica, `CD-07`). L'aparell el recorda per a la propera vegada.
+
+**5. Qualitat.** A la verificació hi ha l'apartat **🔖 Traçabilitat** amb els lots i números de sèrie i l'instrument de mesura, i un punt més a la llista de comprovació: *els lots i números de sèrie anotats coincideixen amb les peces muntades*. **No es pot aprovar** un pas amb peces traçables sense identificar (Qualitat les pot anotar amb **🔖 Anotar**).
+
+**6. La pantalla 🔖 Traçabilitat** (pestanya de Qualitat; per al Responsable, botó al Tauler):
+
+![Traçabilitat](imatges/t26-tracabilitat.jpg)
+
+- **Cerca inversa:** escriu o escaneja un lot o un número de sèrie i prem **Cercar**. Amb el servidor, la cerca abasta **totes les ordres de tots els projectes** del taller; sense servidor, les ordres guardades en aquell aparell. Cada resultat diu l'ordre, el **número de sèrie de la màquina**, el material, el caixetí, qui el va posar i quan, i si va ser una peça defectuosa.
+- **Peces d'aquesta ordre:** la genealogia de la màquina, pas a pas, amb el que falta per anotar.
+- **Instruments de mesura** de cada pas.
+- **⬇ Exportar CSV** amb tota la genealogia.
+
+**7. L'informe de l'ordre** porta la secció **Traçabilitat de components (ISO 9001 · 8.5.2)** i l'indicador *Traçabilitat* (✓ completa o quantes en falten). En tancar l'ordre, l'app avisa si hi ha peces sense identificar.
+
 ### 6.10 Sense servidor (un aparell sol)
 
 - Obre `muntatge.html` i toca **Projecte d'exemple**, o obre el fitxer `.fordre.json` del configurador (menú ⋮ › *Obrir fitxer de projecte*).
@@ -1071,6 +1115,15 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 2. Tots treballen sobre la mateixa ordre. El **registre**, els estats i els avisos surten a cadascú en el seu idioma.
 3. L'informe de l'ordre surt en l'idioma de qui l'obre. Les notes i els motius escrits a mà es mostren tal com es van escriure.
 
+### 7.9 Un proveïdor avisa d'un lot defectuós (retirada)
+
+> El proveïdor de frenafils avisa que el lot `LOC243-B7731` no compleix l'especificació.
+
+1. **Rosa (Responsable)** o **Pau (Qualitat):** 🔖 Traçabilitat › escriu `LOC243-B7731` › **Cercar**.
+2. L'app llista totes les ordres on s'ha fet servir, amb el **número de sèrie de cada màquina**, el pas i qui el va posar.
+3. Amb aquesta llista es decideix què cal fer amb cada màquina (revisar-la, avisar el client…) i es pot obrir una **incidència** a cada ordre afectada.
+4. Si encara hi ha caixes amb aquest lot al taller, el Magatzem les buida (el lot surt del caixetí) i n'omple de noves amb un lot bo.
+
 ---
 
 ## 8. Resolució de problemes
@@ -1093,6 +1146,10 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 | El configurador mostra una caixa amb un avís *«sobresurt»*. | La peça és més alta que el caixetí. | Revisa les mides del material, puja la *Fondària màxima* o fes servir tapa (la tapa porta un marc més alt). |
 | Les safates són massa grans per a la impressora. | La mida del llit no és la correcta. | ⚙ Configuració › Impressora › Llit X / Llit Y. |
 | Les tapes a pressió van massa justes o massa fluixes. | El joc no està calibrat. | Imprimeix la peça de calibratge (punt 3.2). |
+| *«Número de sèrie repetit»* o *«ja s'ha fet servir en aquesta ordre»*. | Aquest número de sèrie ja és en un altre caixetí de l'ordre. | Comprova l'etiqueta de la peça. Si estava mal anotat, corregeix-lo amb el botó 🔖 del caixetí on és. |
+| *«Els lots o números de sèrie han de sumar N peces»*. | El total no coincideix amb les peces que es posen. | Revisa les quantitats de cada lot, o afegeix o treu files. |
+| No deixa marcar el pas com a muntat: demana l'instrument de mesura. | El pas té parells de collada. | Escriu el número de la clau dinamomètrica (o l'instrument) que has fet servir. |
+| No deixa aprovar: *«Falta el lot o el número de sèrie d'algunes peces»*. | Hi ha peces traçables sense identificar. | Prem **🔖 Anotar** i escriu-los, o demana-ho al Magatzem. |
 | L'app surt en un idioma que no és el teu. | S'ha agafat l'idioma del navegador. | Menú ⋮ › **Idioma** (al configurador, el selector **CA / ES / EN**). L'aparell el recordarà. |
 
 ---
@@ -1136,6 +1193,7 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 | Verificar (aprovar o rebutjar) | | | ✓ | ✓ |
 | Decidir què es fa amb una peça defectuosa | | | ✓ | ✓ |
 | Resoldre incidències | | | ✓ | ✓ |
+| Anotar o corregir lots i números de sèrie | ✓ | ✓ | ✓ | ✓ |
 | Obrir incidències, fer fotos | ✓ | ✓ | ✓ | ✓ |
 | Assignar passos, obrir i tancar ordres, persones, publicar | | | | ✓ |
 
@@ -1160,6 +1218,24 @@ Menú ⋮ › **👤 Canviar de persona**. Si hi ha canvis sense enviar, l'app h
 | `Esc` | Tancar el diàleg obert. |
 
 A l'app del taller, un **lector de codis USB o Bluetooth** funciona sense configurar res: escaneja i el codi es processa sol.
+
+### 9.6 Correspondència amb la ISO 9001:2015
+
+Aquesta taula ajuda a preparar l'auditoria: on es troba, a FOrdre, l'evidència de cada requisit relacionat amb la fabricació.
+
+| Requisit ISO 9001 | Què hi aporta FOrdre | On es veu |
+|---|---|---|
+| 7.1.5 Recursos de seguiment i mesura | Cada pas amb parells de collada registra l'**instrument de mesura** que s'ha fet servir. | Pas › 3 · Final; verificació; informe; 🔖 Traçabilitat. |
+| 7.5 Informació documentada | Registre de cada acció amb data, hora, persona i rol; **informe de l'ordre** en PDF; versió exacta del projecte de cada ordre; còpies de seguretat de les dades. | Registre; informe; punt 2.9. |
+| 8.5.1 Control de la producció | Instruccions de muntatge, parells de collada, eines, imatge de referència, persones identificades amb PIN i rols. | Pas de muntatge; persones. |
+| 8.5.2 Identificació i traçabilitat | Etiquetes amb QR i codi de barres a cada caixa i caixetí; estat de cada pas i caixa; número de sèrie de la màquina a l'ordre; **lots i números de sèrie de cada peça**; **cerca inversa** de lots. | Etiquetes; 🔖 Traçabilitat; informe. |
+| 8.5.4 Preservació | Caixes a mida per a cada peça, peces ESD separades, líquids drets, caixes de guarda per als subconjunts. | Configurador. |
+| 8.6 Alliberament dels productes | Verificació de cada pas per Qualitat amb llista de comprovació i **regla dels quatre ulls**; tancament de l'ordre. | Verificar; informe. |
+| 8.7 Control de les sortides no conformes | Peces defectuoses amb el seu lot o número de sèrie i la **decisió** (retorn, ferralla, reparar, acceptar); rebutjos amb motiu; incidències. | 💥 Defectes; informe. |
+| 9.1 Seguiment, mesura, anàlisi i avaluació | Indicadors de cada ordre: bé a la primera, rebutjos, temps de muntatge, mancants i defectes. | Resultats; informe. |
+| 10.2 No conformitat i acció correctiva | Incidències amb gravetat i resolució. | Incidències; informe. |
+
+> **Important:** FOrdre aporta les **evidències** de la fabricació, però la certificació depèn de tot el sistema de gestió de l'empresa: procediments, calibratge periòdic dels instruments de mesura, auditories internes, revisió per la direcció, avaluació de proveïdors, accions correctives formals… Aquestes parts es gestionen fora de FOrdre.
 
 ### 9.5 Fitxers i llicència
 

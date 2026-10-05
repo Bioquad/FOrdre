@@ -581,15 +581,15 @@
     const NAV = {
         magatzem: [['omplir', '📦', 'Omplir'], ['mancants', '❗', 'Mancants'], ['estoc', '▦', 'Estoc'], ['compra', '🛒', 'Compra'], ['incidencies', '⚠', 'Incidències']],
         muntador: [['passos', '☰', 'Passos'], ['incidencies', '⚠', 'Incidències'], ['registre', '🕘', 'Registre']],
-        qualitat: [['verificar', '✅', 'Verificar'], ['defectes', '💥', 'Defectes'], ['incidencies', '⚠', 'Incidències'], ['registre', '🕘', 'Registre']],
+        qualitat: [['verificar', '✅', 'Verificar'], ['defectes', '💥', 'Defectes'], ['traca', '🔖', 'Traçabilitat'], ['incidencies', '⚠', 'Incidències'], ['registre', '🕘', 'Registre']],
         responsable: [['tauler', '📋', 'Tauler'], ['ordres', '🏭', 'Ordres'], ['mancants', '❗', 'Mancants'], ['incidencies', '⚠', 'Incidències'], ['resultats', '📊', 'Resultats']]
     };
     // Pantalles de detall i la pestanya a què tornen
-    const PARE = { pas: 'passos', caixa: 'omplir', verif: 'verificar', persones: 'tauler', defectes: 'mancants' };
+    const PARE = { pas: 'passos', caixa: 'omplir', verif: 'verificar', persones: 'tauler', defectes: 'mancants', traca: 'tauler' };
     function mostraNav(v) { $('peu').hidden = !v; document.body.classList.toggle('sense-peu', !v); }
     function pintaNav(actual) {
         // comptadors a les pestanyes: incidències i mancants oberts
-        const compta = { incidencies: prog ? prog.incidencies.filter(i => !i.resolta).length : 0, mancants: prog ? FO.mancantsOberts(prog).length : 0, defectes: prog ? FO.defectesPendents(prog).length : 0 };
+        const compta = { incidencies: prog ? prog.incidencies.filter(i => !i.resolta).length : 0, mancants: prog ? FO.mancantsOberts(prog).length : 0, defectes: prog ? FO.defectesPendents(prog).length : 0, traca: prog && M ? FO.tracaPendents(M, prog).length : 0 };
         $('peu').innerHTML = NAV[rol()].map(([r, ico, nom]) => `<button data-ruta="${r}" class="${r === actual || PARE[actual] === r ? 'on' : ''}"><i>${ico}</i>${t(nom)}${compta[r] ? ` (${compta[r]})` : ''}</button>`).join('');
         $('peu').querySelectorAll('button').forEach(b => b.onclick = () => { location.hash = '#/' + b.dataset.ruta; });
         mostraNav(true);
@@ -702,6 +702,86 @@
         $('vista').querySelectorAll('[data-caixa]').forEach(n => n.onclick = () => { location.hash = '#/caixa/' + encodeURIComponent(n.dataset.caixa); });
     };
 
+    // ═══ Traçabilitat (ISO 9001, 8.5.2): lots i números de sèrie ═══
+    // Dels materials marcats al configurador com a traçables, en posar-los a la caixa
+    // (o en muntar-los, si no han passat pel magatzem) s'anota el lot del proveïdor o
+    // el número de sèrie de cada peça. Es poden escriure, llegir amb un lector USB
+    // (fa de teclat) o escanejar amb la càmera (botó ⌖ de cada camp).
+    const tracaDe = clau => { const e = M.perClau.get(clau); return e ? e.caixeti.mat.tracabilitat : ''; };
+    const xipTraca = m => m.tracabilitat ? ` <span class="xip traca" title="${esc(FO.TRACABILITAT[m.tracabilitat])}">${m.tracabilitat === 'serie' ? 'S/N' : 'LOT'}</span>` : '';
+    const textTraca = (l, tipus) => (l || []).map(x => esc(x.codi) + (tipus === 'lot' ? ' ×' + x.qty : '')).join(', ');
+    // Línia amb els lots d'un caixetí (o l'avís que falten)
+    function liniaTraca(clau, cal) {
+        const tipus = tracaDe(clau);
+        if (!tipus) return '';
+        const l = prog.traca[clau] || [], te = FO.tracaTotal(prog, clau);
+        if (!l.length && !(cal > te)) return '';
+        return `<div class="ajuda traca">🔖 ${l.length ? textTraca(l, tipus) : ''}${cal > te ? ` <b class="falta">${t('Falta anotar {n}', { n: cal - te })}</b>` : ''}</div>`;
+    }
+    // Formulari per anotar el lot o el número de sèrie de `qty` peces d'un caixetí.
+    // opc.enviar(entrades) fa l'operació: si les regles no la deixen fer, el formulari queda obert.
+    function formTraca(clau, qty, opc) {
+        const e = M.perClau.get(clau), m = e.caixeti.mat, tipus = m.tracabilitat;
+        const ant = (prog.traca[clau] || []).map(x => ({ codi: x.codi, qty: x.qty }));
+        let files;
+        if (tipus === 'serie') files = Array.from({ length: qty }, (x, i) => ({ codi: ant[i] ? ant[i].codi : '', qty: 1 }));
+        else {
+            // els lots que ja hi ha, i la resta de peces en una fila nova
+            files = ant.slice();
+            const ja = files.reduce((a, f) => a + f.qty, 0);
+            if (ja > qty) files = [{ codi: files.length ? files[0].codi : '', qty }];
+            else if (ja < qty) files.push({ codi: files.length ? '' : '', qty: qty - ja });
+        }
+        const pinta = () => {
+            const cos = obreFull(`<h2>🔖 ${esc(m.codi)} · ${esc(m.nom)}</h2>
+                <p class="ajuda">${tipus === 'serie' ? t('Escriu o escaneja el número de sèrie de cada peça ({n}).', { n: qty }) : t('Escriu o escaneja el lot del proveïdor. Si les {n} peces són de lots diferents, afegeix-ne un per lot.', { n: qty })}</p>
+                <div id="trFiles">${files.map((f, i) => `<div class="tr-fila"><input class="tr-codi" data-i="${i}" value="${esc(f.codi)}" placeholder="${tipus === 'serie' ? t('Núm. de sèrie {i}', { i: i + 1 }) : t('Lot')}" autocomplete="off" autocapitalize="characters" enterkeyhint="next">${tipus === 'lot' ? `<input class="tr-qty" data-i="${i}" type="number" inputmode="numeric" min="1" value="${f.qty}" aria-label="${t('Peces')}">` : ''}<button class="bt-esc" data-esc="${i}" aria-label="${t('Escanejar')}">⌖</button>${tipus === 'lot' && files.length > 1 ? `<button class="bt-esc" data-treu="${i}" aria-label="${t('Treure')}">✕</button>` : ''}</div>`).join('')}</div>
+                ${tipus === 'lot' ? `<button class="bt" id="trMes">+ ${t('Un altre lot')}</button>` : ''}
+                <p class="ajuda" id="trSuma"></p>
+                <div class="fx"><button class="bt pr" id="trDesa">${opc.boto || t('Desar')}</button><button class="bt" id="trTanca">${t('Cancel·lar')}</button></div>`);
+            const llegeix = () => {
+                cos.querySelectorAll('.tr-codi').forEach(i => { files[+i.dataset.i].codi = i.value.trim(); });
+                cos.querySelectorAll('.tr-qty').forEach(i => { files[+i.dataset.i].qty = Math.round(FO.num(i.value, 0)); });
+            };
+            const suma = () => { llegeix(); $('trSuma').textContent = t('{s} de {n} peces identificades', { s: files.reduce((a, f) => a + (f.codi ? f.qty : 0), 0), n: qty }); };
+            const camps = Array.from(cos.querySelectorAll('.tr-codi'));
+            camps.forEach((inp, i) => {
+                inp.oninput = suma;
+                // Intro (també el del lector de codis) passa al camp següent; a l'últim, desa
+                inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); if (camps[i + 1]) camps[i + 1].focus(); else cos.querySelector('#trDesa').click(); } };
+            });
+            cos.querySelectorAll('.tr-qty').forEach(i => { i.oninput = suma; });
+            cos.querySelectorAll('[data-esc]').forEach(b => b.onclick = () => {
+                const i = +b.dataset.esc;
+                capturaCodi(v => { llegeix(); files[i].codi = v; pinta(); const seg = document.querySelectorAll('#trFiles .tr-codi')[i + 1]; if (seg) seg.focus(); });
+            });
+            cos.querySelectorAll('[data-treu]').forEach(b => b.onclick = () => { llegeix(); files.splice(+b.dataset.treu, 1); pinta(); });
+            if (cos.querySelector('#trMes')) cos.querySelector('#trMes').onclick = () => { llegeix(); files.push({ codi: '', qty: 1 }); pinta(); };
+            cos.querySelector('#trTanca').onclick = () => { tancaFull(); if (opc.cancel) opc.cancel(); };
+            cos.querySelector('#trDesa').onclick = () => {
+                llegeix();
+                const l = files.filter(f => f.codi);
+                if (l.reduce((a, f) => a + f.qty, 0) !== qty) { so(false); return avis(t('Els lots o números de sèrie han de sumar {n} peces', { n: qty }), 3500); }
+                if (opc.enviar(l.map(f => ({ codi: f.codi, qty: f.qty })))) { tancaFull(); so(true); }
+            };
+            suma();
+            const buit = camps.find(i => !i.value);
+            setTimeout(() => (buit || camps[0]).focus(), 50);
+        };
+        pinta();
+    }
+    // Corregeix els lots d'un caixetí ja omplert (queda al registre qui ho ha canviat)
+    function corregeixTraca(clau, qty, despres) {
+        const e = M.perClau.get(clau), m = e.caixeti.mat;
+        formTraca(clau, qty, {
+            enviar: l => {
+                const op = fer('traca', { clau, mat: m.id, qty, tracaTipus: m.tracabilitat, traca: l }, tc('🔖 {mat} a {caixa}: {codis}', { mat: m.codi, caixa: e.safata, codis: l.map(x => x.codi + (m.tracabilitat === 'lot' ? ' ×' + x.qty : '')).join(', ') }));
+                if (op && despres) despres();
+                return op;
+            }
+        });
+    }
+
     VISTES.caixa = function (id) {
         const c = M.caixes.find(x => x.id === id);
         if (!c) { location.hash = '#/omplir'; return; }
@@ -709,10 +789,12 @@
         const files = c.claus.map(k => {
             const e = M.perClau.get(k), m = e.caixeti.mat, om = prog.omplert[k], estoc = prog.estoc[m.id], mc = FO.esMancant(prog, k) && prog.mancants[k];
             return `<div class="fila${om && !mc ? ' fet' : ''}${mc ? ' mancant' : ''}" data-clau="${esc(k)}"><div class="chk">${mc ? '!' : '✓'}</div><span class="sw" style="background:${m.col}"></span>
-                <div class="txt"><div class="cd">${esc(m.codi)}${icones(m)}</div><div class="nm">${esc(m.nom)}</div>${c.o.forma === 'contenidor' ? `<div class="ajuda">${esc(e.safata)}</div>` : ''}
+                <div class="txt"><div class="cd">${esc(m.codi)}${xipTraca(m)}${icones(m)}</div><div class="nm">${esc(m.nom)}</div>${c.o.forma === 'contenidor' ? `<div class="ajuda">${esc(e.safata)}</div>` : ''}
+                ${om ? liniaTraca(k, om.qty) : ''}
                 ${om ? `<div class="ajuda">${t('Omplert')} ${esc(data(om.ts))}${om.op ? ' · ' + esc(om.op) : ''}${om.qty !== e.qty ? ` · ${t('<b>{n}</b> de {t}', { n: om.qty, t: e.qty })}` : ''}</div>` : ''}
                 ${mc ? `<div class="nota">❗ ${t('Falten {n}', { n: mc.falten })}${mc.nota ? ' · ' + esc(tm(mc.nota)) : ''} · ${t('toca quan arribi')}</div>` : ''}</div>
                 <div class="q">×${e.qty}${estoc != null ? `<small class="${estoc < e.qty && !om ? 'falta' : ''}">${t('estoc')} ${estoc}</small>` : ''}</div>
+                ${om && m.tracabilitat && !prog.tancada && pot('traca') ? `<button class="bt-falta traca" data-traca="${esc(k)}" title="${t('Anotar o corregir el lot o el número de sèrie')}" aria-label="${t('Anotar o corregir el lot o el número de sèrie')}">🔖</button>` : ''}
                 ${!prog.tancada ? `<button class="bt-falta" data-problema="${esc(k)}" title="${t('Problema: no ha arribat, o ha arribat defectuosa')}" aria-label="${t('Problema amb aquest caixetí')}">⚠</button>` : ''}</div>`;
         }).join('');
         $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.o.color}"><div class="sub">${t('Pas {n}', { n: c.r.pas })} · ${esc(c.r.conj.codi)} ${esc(c.r.conj.nom)}</div><h2>${esc(c.id)}</h2><div class="sub">${xipEstat(est, FO.ESTATS_CAIXA)}</div></div>
@@ -720,16 +802,27 @@
             <div class="fx"><button class="bt pr" id="cEsc">⌖ ${t('Escanejar')}</button><button class="bt" id="cTot">${t('Omplir-ho tot')}</button></div>
             <div class="objecte">${files}</div>
             <div class="fx"><button class="bt" id="cRet"${est === 'retornada' ? ' disabled' : ''}>↩ ${t('Caixa retornada al magatzem')}</button><button class="bt" id="cInc">⚠ ${t('Incidència')}</button></div>`;
-        $('vista').querySelectorAll('[data-clau]').forEach(f => f.onclick = () => { commutaOmplert(f.dataset.clau); VISTES.caixa(id); });
-        $('vista').querySelectorAll('[data-problema]').forEach(b => b.onclick = ev => { ev.stopPropagation(); triaProblema(b.dataset.problema, () => VISTES.caixa(id)); });
+        const repinta = () => VISTES.caixa(id);
+        $('vista').querySelectorAll('[data-clau]').forEach(f => f.onclick = () => { commutaOmplert(f.dataset.clau, repinta); repinta(); });
+        $('vista').querySelectorAll('[data-problema]').forEach(b => b.onclick = ev => { ev.stopPropagation(); triaProblema(b.dataset.problema, repinta); });
+        $('vista').querySelectorAll('[data-traca]').forEach(b => b.onclick = ev => { ev.stopPropagation(); corregeixTraca(b.dataset.traca, prog.omplert[b.dataset.traca].qty, repinta); });
         $('cEsc').onclick = () => obreEscaner();
-        // «Omplir-ho tot» no toca els mancants: aquells caixetins esperen el material
-        $('cTot').onclick = () => { c.claus.filter(k => !prog.omplert[k] && !FO.esMancant(prog, k)).forEach(k => omple(k, M.perClau.get(k).qty, true)); VISTES.caixa(id); };
+        // «Omplir-ho tot» no toca els mancants (esperen el material) ni els materials traçables (cal anotar-ne el lot un per un)
+        $('cTot').onclick = () => {
+            const buits = c.claus.filter(k => !prog.omplert[k] && !FO.esMancant(prog, k));
+            buits.filter(k => !tracaDe(k)).forEach(k => omple(k, M.perClau.get(k).qty, true));
+            const n = buits.filter(tracaDe).length;
+            if (n) avis(t('{n} caixetins necessiten el lot o el número de sèrie: toca\'ls un per un.', { n }), 4500);
+            repinta();
+        };
         $('cRet').onclick = () => { if (fer('retorna', { obj: c.id }, tc('{caixa}: caixa retornada al magatzem', { caixa: c.id }))) VISTES.caixa(id); };
         $('cInc').onclick = () => { obreIncidencia(c.r.conj.id, c.id); };
     };
     // Omple un caixetí. Si l'estoc no n'hi ha prou, pregunta quants se n'hi posen.
-    function omple(clau, qty, silenci) {
+    // Si el material és traçable, primer demana el lot o el número de sèrie de cada peça;
+    // aleshores l'operació es fa en desar el formulari i la funció torna 'form'.
+    // `despres` es crida quan el caixetí ja s'ha omplert.
+    function omple(clau, qty, silenci, despres) {
         const e = M.perClau.get(clau), m = e.caixeti.mat, estoc = prog.estoc[m.id];
         // Només es pregunta si es porta l'estoc i no n'hi ha prou. Amb 0 o menys (estoc no registrat,
         // o que ja ha quedat en negatiu) no es pregunta: qui omple la caixa té el material a la mà.
@@ -745,16 +838,25 @@
         const text = qty < e.qty ? tc('{mat} ×{q}: omplert a {caixa} (en falten {n}: mancant)', v)
             : eraMancant ? tc('{mat} ×{q}: ha arribat el que faltava, omplert a {caixa}', v)
             : tc('{mat} ×{q}: omplert a {caixa}', v);
-        return fer('omple', { clau, mat: m.id, qty, cal: e.qty }, text);
+        if (m.tracabilitat) {
+            formTraca(clau, qty, {
+                boto: t('Omplir'),
+                enviar: l => { const op = fer('omple', { clau, mat: m.id, qty, cal: e.qty, tracaTipus: m.tracabilitat, traca: l }, text); if (op && despres) despres(op); return op; }
+            });
+            return 'form';
+        }
+        const op = fer('omple', { clau, mat: m.id, qty, cal: e.qty }, text);
+        if (op && despres) despres(op);
+        return op;
     }
     // Tocar un caixetí: omplir-lo; si ja és ple, buidar-lo; si té un mancant, és que el material ha arribat
-    function commutaOmplert(clau) {
+    function commutaOmplert(clau, despres) {
         const e = M.perClau.get(clau);
         if (FO.esMancant(prog, clau)) {
             const mc = prog.mancants[clau];
-            if (confirm(t('Ha arribat {mat}? Es completarà el caixetí fins a {q} (hi faltaven {n}).', { mat: e.codi, q: e.qty, n: mc.falten }))) omple(clau, e.qty);
+            if (confirm(t('Ha arribat {mat}? Es completarà el caixetí fins a {q} (hi faltaven {n}).', { mat: e.codi, q: e.qty, n: mc.falten }))) omple(clau, e.qty, false, despres);
         } else if (prog.omplert[clau]) { if (confirm(t('Buidar {mat} de {caixa}? El material torna a l\'estoc.', { mat: e.codi, caixa: e.safata }))) fer('buida', { clau }, tc('{mat}: buidat de {caixa}', { mat: e.codi, caixa: e.safata })); }
-        else omple(clau, e.qty);
+        else omple(clau, e.qty, false, despres);
     }
     // «Problema» en un caixetí: no ha arribat (mancant) o ha arribat defectuós
     function triaProblema(clau, despres) {
@@ -764,7 +866,7 @@
             <button class="bt gran" id="prDefecte"><i>💥</i><span>${t('Ha arribat defectuosa')}<small>${t('No es pot muntar: es registra per retornar-la i se\'n demana recanvi.')}</small></span></button>
             <button class="bt" id="prTanca">${t('Cancel·lar')}</button>`);
         cos.querySelector('#prTanca').onclick = tancaFull;
-        cos.querySelector('#prFalta').onclick = () => { tancaFull(); marcaMancant(clau); despres(); };
+        cos.querySelector('#prFalta').onclick = () => { tancaFull(); marcaMancant(clau, despres); };
         cos.querySelector('#prDefecte').onclick = () => formDefecte({ claus: [clau], origen: 'arribada', despres });
     }
     // Formulari de peça defectuosa o trencada. `claus`: caixetins on pot ser (si n'hi ha més d'un, es tria)
@@ -774,6 +876,7 @@
         const cos = obreFull(`<h2>💥 ${t('Peça defectuosa o trencada')}</h2>
             <label class="camp">${t('Peça')}<select id="dfClau">${claus.map(k => { const e = M.perClau.get(k); return `<option value="${esc(k)}">${esc(e.codi)} · ${esc(e.nom)} (${esc(e.safata)})</option>`; }).join('')}</select></label>
             <label class="camp">${t('Quantes peces')}<input id="dfQty" type="number" inputmode="numeric" min="1" value="1"></label>
+            <div id="dfTraca"></div>
             <div class="camp">${t('Què ha passat')}
                 ${Object.entries(FO.ORIGENS_DEFECTE).map(([k, o]) => `<label class="ck"><input type="radio" name="dfOrigen" value="${k}"${k === opc.origen ? ' checked' : ''}> ${o.ico} ${esc(o.nom)}</label>`).join('')}</div>
             <label class="camp">${t('Què li passa')}<select id="dfTipus">${FO.TIPUS_DEFECTE.map(x => `<option value="${esc(x)}">${esc(t(x))}</option>`).join('')}</select></label>
@@ -781,13 +884,37 @@
             <p class="ajuda">${t('Se\'n demanarà recanvi automàticament (llista de mancants) i Qualitat decidirà què es fa amb la peça dolenta.')}</p>
             <div class="fx"><button class="bt pr" id="dfDesa">${t('Registrar i demanar recanvi')}</button><button class="bt" id="dfTanca">${t('Cancel·lar')}</button></div>`);
         cos.querySelector('#dfTanca').onclick = tancaFull;
+        // traçabilitat: quin lot o número de sèrie és la peça dolenta (per a la devolució al proveïdor)
+        const pintaTraca = () => {
+            const clau = cos.querySelector('#dfClau').value, tipus = tracaDe(clau), l = prog.traca[clau] || [], d = cos.querySelector('#dfTraca');
+            if (!tipus) { d.innerHTML = ''; return; }
+            d.innerHTML = tipus === 'serie'
+                ? (l.length ? `<div class="camp">🔖 ${t('Quins números de sèrie són defectuosos?')}${l.map(x => `<label class="ck"><input type="checkbox" name="dfSn" value="${esc(x.codi)}"> ${esc(x.codi)}</label>`).join('')}</div>`
+                    : `<label class="camp">🔖 ${t('Número de sèrie de la peça defectuosa (si n\'hi ha més d\'una, separa\'ls amb comes)')}<input id="dfSnText" autocomplete="off"></label>`)
+                : `<label class="camp">🔖 ${t('Lot de la peça defectuosa')}${l.length ? `<select id="dfLot">${l.map(x => `<option>${esc(x.codi)}</option>`).join('')}</select>` : '<input id="dfLotText" autocomplete="off">'}</label>`;
+            d.querySelectorAll('input[name=dfSn]').forEach(c => c.onchange = () => { const n = d.querySelectorAll('input[name=dfSn]:checked').length; if (n) cos.querySelector('#dfQty').value = n; });
+        };
+        cos.querySelector('#dfClau').onchange = pintaTraca;
+        pintaTraca();
         cos.querySelector('#dfDesa').onclick = () => {
             const clau = cos.querySelector('#dfClau').value, e = M.perClau.get(clau);
             const qty = Math.round(FO.num(cos.querySelector('#dfQty').value, 0));
             if (!(qty >= 1 && qty <= e.qty)) return avis(t('Han de ser entre 1 i {n} peces', { n: e.qty }));
             const origen = cos.querySelector('input[name=dfOrigen]:checked').value, tipus = cos.querySelector('#dfTipus').value, descripcio = cos.querySelector('#dfDesc').value.trim();
             const conj = M.pasDe(e) || '', m = e.caixeti.mat;
-            if (!fer('defecte', { clau, mat: m.id, conj, qty, origen, tipus, descripcio },
+            let traca;
+            if (m.tracabilitat === 'serie') {
+                const sel = Array.from(cos.querySelectorAll('input[name=dfSn]:checked')).map(x => x.value);
+                const txt = cos.querySelector('#dfSnText') ? cos.querySelector('#dfSnText').value.split(/[,;\s]+/).map(x => x.trim()).filter(Boolean) : [];
+                const l = sel.length ? sel : txt;
+                if (l.length !== qty) return avis(t('Indica el número de sèrie de cadascuna de les {n} peces defectuoses', { n: qty }), 3500);
+                traca = l.map(codi => ({ codi, qty: 1 }));
+            } else if (m.tracabilitat === 'lot') {
+                const camp = cos.querySelector('#dfLot') || cos.querySelector('#dfLotText'), codi = camp ? camp.value.trim() : '';
+                if (!codi) return avis(t('Indica el lot de la peça defectuosa'));
+                traca = [{ codi, qty }];
+            }
+            if (!fer('defecte', { clau, mat: m.id, conj, qty, origen, tipus, descripcio, tracaTipus: m.tracabilitat || undefined, traca },
                 tc(descripcio ? '💥 {mat} ×{q}: {origen} ({tipus}: {desc}) · es demana recanvi' : '💥 {mat} ×{q}: {origen} ({tipus}) · es demana recanvi',
                     { mat: m.codi, q: qty, origen: { arribada: 'venia defectuosa', muntatge: 'trencada en muntar' }[origen], tipus, desc: descripcio }))) return;
             tancaFull(); so(true);
@@ -796,16 +923,21 @@
         };
     }
     // «Falta»: el material no ha arribat o no n'hi ha prou. S'hi posa el que hi ha i la resta queda com a mancant.
-    function marcaMancant(clau) {
+    function marcaMancant(clau, despres) {
         const e = M.perClau.get(clau), m = e.caixeti.mat, ja = prog.omplert[clau] ? prog.omplert[clau].qty : 0;
+        const fi = () => { if (despres) despres(); };
         const r = prompt(`${m.codi} · ${m.nom}\n` + t('En calen {n}. Quants n\'has pogut posar a la caixa? (0 si no n\'ha arribat cap)', { n: e.qty }), String(ja));
-        if (r === null) return;
+        if (r === null) return fi();
         const posats = Math.max(0, Math.min(e.qty, Math.round(FO.num(r, 0))));
-        if (posats >= e.qty) { omple(clau, e.qty, true); return; }
+        if (posats >= e.qty) { if (omple(clau, e.qty, true, fi) !== 'form') fi(); return; }
         const nota = prompt(t('Nota per a la llista de mancants (proveïdor, data prevista…). Opcional:'), '') || '';
-        if (posats > ja) omple(clau, posats, true);
-        fer('manca', { clau, mat: m.id, falten: e.qty - posats, nota }, tc(nota ? '❗ Mancant: {mat} · falten {n} de {q} a {caixa} · {nota}' : '❗ Mancant: {mat} · falten {n} de {q} a {caixa}', { mat: m.codi, n: e.qty - posats, q: e.qty, caixa: e.safata, nota }));
-        avis(t('Afegit a la llista de mancants. El muntatge pot continuar amb la resta.'), 3500);
+        const manca = () => {
+            fer('manca', { clau, mat: m.id, falten: e.qty - posats, nota }, tc(nota ? '❗ Mancant: {mat} · falten {n} de {q} a {caixa} · {nota}' : '❗ Mancant: {mat} · falten {n} de {q} a {caixa}', { mat: m.codi, n: e.qty - posats, q: e.qty, caixa: e.safata, nota }));
+            avis(t('Afegit a la llista de mancants. El muntatge pot continuar amb la resta.'), 3500);
+            fi();
+        };
+        // el que ha arribat va a la caixa (amb el seu lot, si cal) i la resta queda com a mancant
+        if (posats > ja) omple(clau, posats, true, manca); else manca();
     }
 
     // ─── Estoc ───
@@ -1009,8 +1141,9 @@
         const c = e.caixeti, m = c.mat, it = itemDe(conjId, m.id), mc = FO.esMancant(prog, e.clau), fet = !mc && !!prog.agafat[e.clau];
         return `<div class="fila${fet ? ' fet' : ''}${mc ? ' mancant no' : ''}"${mc ? '' : ` data-clau="${esc(e.clau)}"`}>
             <div class="chk">${mc ? '!' : '✓'}</div><span class="sw" style="background:${m.col}"></span>
-            <div class="txt"><div class="cd">${esc(m.codi)}${it && it.parell ? `<span class="parell">${fmt(it.parell, 1)} N·m</span>` : ''}${icones(m)}</div>
+            <div class="txt"><div class="cd">${esc(m.codi)}${xipTraca(m)}${it && it.parell ? `<span class="parell">${fmt(it.parell, 1)} N·m</span>` : ''}${icones(m)}</div>
             <div class="nm">${esc(m.nom)}</div>${it && it.nota ? `<div class="nota">▸ ${esc(it.nota)}</div>` : ''}
+            ${m.tracabilitat && (prog.traca[e.clau] || []).length ? liniaTraca(e.clau, 0) : ''}
             ${mc ? `<div class="nota">❗ ${t('No ha arribat: en falten {n}. Munta la resta.', { n: prog.mancants[e.clau].falten })}</div>` : ''}</div>
             <div class="q">×${c.qty}</div></div>`;
     }
@@ -1078,6 +1211,8 @@
             <h3>${t('Fotos')}</h3><div class="fx"><button class="bt" id="pFoto">📷 ${t('Fer una foto')}</button><button class="bt" id="pInc">⚠ ${t('Incidència')}</button></div>
             ${M.aOmplir(r).length && !prog.tancada ? `<button class="bt" id="pDefecte">💥 ${t('Peça trencada o defectuosa')}</button>` : ''}<div class="fotos" id="pFotos"></div>
             <h3>3 · ${t('Final')}</h3>
+            ${parells.length && !f ? `<label class="camp">📏 ${t('Instrument de mesura dels parells (núm. de la clau dinamomètrica)')}<input id="pInstr" value="${esc(pref.instrument || '')}" autocomplete="off"></label>` : ''}
+            ${f && f.instrument ? `<div class="targeta">📏 ${t('Parells donats amb: <b>{i}</b>', { i: esc(f.instrument) })}</div>` : ''}
             ${guarda.length ? `<div class="targeta">${r.multiplicador > 1 ? t('Guarda les {n} unitats a:', { n: r.multiplicador }) : t('Guarda el conjunt a:')} <b>${guarda.map(o => esc(o.id)).join(', ')}</b></div>` : ''}
             ${pend.length ? `<button class="bt ok" id="pCompleta"${arribats.length ? '' : ' disabled'}>✓ ${t('Completar: he posat les peces que han arribat')}${arribats.length ? ` (${arribats.length})` : ''}</button>
                 <button class="bt" id="pCompletaTot">${t('Completar-ho tot (he trobat les peces)')}</button>` : ''}
@@ -1102,7 +1237,16 @@
         $('pFoto').onclick = () => { $('fFoto').dataset.pas = c.id; $('fFoto').click(); };
         $('pInc').onclick = () => { obreIncidencia(c.id); };
         if ($('pDefecte')) $('pDefecte').onclick = () => formDefecte({ claus: M.aOmplir(r).map(e => e.clau), origen: 'muntatge', despres: () => VISTES.pas(id) });
-        if ($('pFet')) $('pFet').onclick = () => marcaFet(r, agafats, llista.length, mancantsPas);
+        if ($('pFet')) $('pFet').onclick = () => {
+            // ISO 9001, 7.1.5: amb quin instrument s'han donat els parells de collada
+            let instrument = null;
+            if ($('pInstr')) {
+                instrument = $('pInstr').value.trim();
+                if (!instrument) { so(false); avis(t('Indica l\'instrument de mesura (per exemple, el número de la clau dinamomètrica)'), 4000); $('pInstr').focus(); return; }
+                pref.instrument = instrument; desaPref();
+            }
+            marcaFet(r, agafats, llista.length, mancantsPas, instrument);
+        };
         const completa = (claus, text) => { if (fer('completa', { conj: c.id, claus }, text)) { so(true); avis(claus ? t('Peces posades') : t('Pas complet ✓ · ara el verificarà Qualitat')); VISTES.pas(id); } };
         if ($('pCompleta')) $('pCompleta').onclick = () => {
             const claus = arribats.map(x => x.clau), tot = claus.length === pend.length;
@@ -1124,8 +1268,22 @@
         if (v && pas) iniciaSiCal(M.perConj.get(pas));
         fer('agafa', { clau, v }, v ? tc('{mat} ×{q}: agafat ({caixa})', { mat: e.codi, q: e.qty, caixa: e.safata }) : tc('{mat}: desmarcat', { mat: e.codi }));
     }
-    function marcaFet(r, agafats, total, mancantsPas) {
+    function marcaFet(r, agafats, total, mancantsPas, instrument) {
         mancantsPas = mancantsPas || [];
+        // traçabilitat: les peces traçables que es munten han de tenir el lot o el número de sèrie anotat
+        const falta = FO.tracaPas(M, prog, r, true).find(x => x.falta > 0);
+        if (falta) {
+            const mt = falta.e.caixeti.mat;
+            avis(t('Abans de muntar, anota el lot o el número de sèrie de {mat}', { mat: mt.codi }), 3500);
+            return formTraca(falta.e.clau, falta.cal, {
+                boto: t('Desar i continuar'),
+                enviar: l => {
+                    const op = fer('traca', { clau: falta.e.clau, mat: mt.id, qty: falta.cal, tracaTipus: mt.tracabilitat, traca: l }, tc('🔖 {mat} a {caixa}: {codis}', { mat: mt.codi, caixa: falta.e.safata, codis: l.map(x => x.codi + (mt.tracabilitat === 'lot' ? ' ×' + x.qty : '')).join(', ') }));
+                    if (op) setTimeout(() => marcaFet(r, agafats, total, mancantsPas, instrument), 80);   // quan el formulari ja s'ha tancat
+                    return op;
+                }
+            });
+        }
         // amb mancants: es munta la resta i el pas queda «muntat amb mancants», sense aturar el conjunt següent
         const pendents = mancantsPas.map(e => ({ clau: e.clau, mat: e.caixeti.mat.id, qty: prog.mancants[e.clau].falten }));
         if (pendents.length && !confirm(t('Falten {llista}.', { llista: pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ') }) + '\n' + t('Muntar el pas sense aquestes peces? Quedarà «muntat amb mancants» i el completaràs quan arribin.'))) return;
@@ -1141,7 +1299,7 @@
         iniciaSiCal(r);
         const vt = { n: r.pas, conj: r.conj.codi + ' ' + r.conj.nom + (r.multiplicador > 1 ? ' (×' + r.multiplicador + ')' : ''), llista: pendents.map(x => M.perClau.get(x.clau).codi + ' ×' + x.qty).join(', ') };
         const text = pendents.length ? tc('Pas {n} · {conj} muntat amb mancants: falten {llista}', vt) : tc('Pas {n} · {conj} muntat', vt);
-        if (!fer('fet', { conj: r.conj.id, consum, pendents }, text)) return;
+        if (!fer('fet', { conj: r.conj.id, consum, pendents, calInstrument: instrument != null, instrument: instrument || '' }, text)) return;
         so(true); avis(pendents.length ? t('Muntat amb mancants: el conjunt següent ja pot continuar') : t('Pas muntat ✓ · ara el verificarà Qualitat'), 3500);
         VISTES.pas(r.conj.id);
     }
@@ -1173,6 +1331,7 @@
         const n = c.items.reduce((a, i) => a + i.qty * r.multiplicador, 0);
         l.push(r.entrades.length ? t('Hi són totes les peces ({n} elements i {s} subconjunts)', { n, s: r.entrades.length }) : t('Hi són totes les peces ({n} elements)', { n }));
         l.push(t('Sense danys, restes ni peces soltes; zona neta'));
+        if (FO.tracaPas(M, prog, r).length) l.push(t('Els lots i números de sèrie anotats coincideixen amb les peces muntades'));
         return l;
     }
     VISTES.verif = function (id) {
@@ -1183,19 +1342,23 @@
         const meu = f && f.op && f.op === nomPersona() && !esResponsable();
         const pend = f && f.pendents ? f.pendents : [];   // muntat amb mancants: no es pot aprovar
         const rebutjos = prog.historial.filter(h => h.conj === id);
+        const traca = FO.tracaPas(M, prog, r), tracaFalta = f ? traca.filter(x => x.falta > 0) : [];
         $('vista').innerHTML = `${bannerTancada()}<div class="cap-pas" style="background:${c.col}"><div class="sub">${t('Verificació')} · ${t('pas {n}', { n: r.pas })}</div><h2>${esc(c.nom)}</h2><div class="sub">${esc(c.codi)} · ${xipEstat(estatDe(r), FO.ESTATS_PAS)}</div></div>
             ${!f ? `<div class="banner wr">${t('Aquest pas encara no està muntat')}${v && v.resultat === 'ko' ? ` (${t('rebutjat:')} ${esc(tm(v.motiu))})` : ''}.</div>` : `<div class="targeta">${t('Muntat per <b>{nom}</b>', { nom: esc(f.op || '?') })} · ${esc(data(f.ts))}${ini ? ` · ${t('durada')} ${FO.textDurada(new Date(f.ts) - new Date(ini.ts))}` : ''}</div>`}
             ${meu ? `<div class="banner er">⚠ ${t('Aquest pas l\'has muntat tu: l\'ha de verificar una altra persona (regla dels quatre ulls).')}</div>` : ''}
             ${v && v.resultat === 'ok' && f ? `<div class="banner ok">✓ ${t('Verificat per {nom}', { nom: esc(v.op) })} · ${esc(data(v.ts))}</div>` : ''}
             ${rebutjos.length ? `<div class="targeta"><b>${t('Rebutjos anteriors:')}</b>${rebutjos.map(h => `<div class="ajuda">${esc(data(h.ts))} · ${esc(h.op)}: ${esc(tm(h.motiu))}</div>`).join('')}</div>` : ''}
             ${c.imatge ? `<img class="imatge" src="${esc(c.imatge)}" alt="${t('Resultat esperat')}">` : ''}
+            ${f && f.instrument ? `<div class="targeta">📏 ${t('Parells donats amb: <b>{i}</b>', { i: esc(f.instrument) })}</div>` : ''}
+            ${traca.length ? `<h3>🔖 ${t('Traçabilitat')}</h3><div class="targeta">${traca.map(x => `<div class="fx" style="align-items:flex-start"><div style="flex:1"><b>${esc(x.e.caixeti.mat.codi)}</b> ${esc(x.e.caixeti.mat.nom)}${liniaTraca(x.e.clau, x.cal)}</div>${x.falta && pot('traca') && !prog.tancada ? `<button class="bt" style="width:auto;min-height:36px;margin:0" data-anota="${esc(x.e.clau)}">🔖 ${t('Anotar')}</button>` : ''}</div>`).join('')}</div>` : ''}
+            ${tracaFalta.length ? `<div class="banner er">🔖 ${t('Falta el lot o el número de sèrie d\'algunes peces: no es pot aprovar fins que estigui anotat.')}</div>` : ''}
             <h3>${t('Llista de comprovació')} (${marcats.size}/${llista.length})</h3>
             <div class="objecte">${llista.map((x, i) => `<div class="fila${marcats.has(i) ? ' fet' : ''}" data-chk="${i}"><div class="chk">✓</div><div class="txt"><div class="nm">${esc(x)}</div></div></div>`).join('')}</div>
             <h3>${t('Fotos')}</h3><div class="fx"><button class="bt" id="vFoto">📷 ${t('Fer una foto')}</button><button class="bt" id="vInc">⚠ ${t('Incidència')}</button></div>
             ${M.aOmplir(r).length && !prog.tancada ? `<button class="bt" id="vDefecte">💥 ${t('Peça defectuosa')}</button>` : ''}<div class="fotos" id="pFotos"></div>
             ${f && !(v && v.resultat === 'ok') ? `<h3>${t('Resultat')}</h3>
             ${pend.length ? `<div class="banner er">❗ ${t('Muntat amb mancants: hi falten {llista}. Es podrà aprovar quan el muntador ho completi.', { llista: pend.map(x => { const e = M.perClau.get(x.clau); return esc(e ? e.codi : x.mat) + ' ×' + x.qty; }).join(', ') })}</div>` : ''}
-            <button class="bt ok" id="vOk"${marcats.size < llista.length || meu || pend.length ? ' disabled' : ''}>✓ ${t('Aprovar')}${pend.length ? ' (' + t('hi falten peces') + ')' : marcats.size < llista.length ? ` (${t('falten {n} comprovacions', { n: llista.length - marcats.size })})` : ''}</button>
+            <button class="bt ok" id="vOk"${marcats.size < llista.length || meu || pend.length || tracaFalta.length ? ' disabled' : ''}>✓ ${t('Aprovar')}${pend.length ? ' (' + t('hi falten peces') + ')' : marcats.size < llista.length ? ` (${t('falten {n} comprovacions', { n: llista.length - marcats.size })})` : ''}</button>
             <label class="camp">${t('Motiu del rebuig')}<textarea id="vMotiu" placeholder="${t('Què s\'ha de corregir?')}"></textarea></label>
             <button class="bt perill" id="vKo"${meu ? ' disabled' : ''}>✗ ${t('Rebutjar i tornar-lo al muntador')}</button>` : ''}`;
         $('vista').querySelectorAll('[data-chk]').forEach(n => n.onclick = () => {
@@ -1206,6 +1369,10 @@
         $('vFoto').onclick = () => { $('fFoto').dataset.pas = id; $('fFoto').click(); };
         $('vInc').onclick = () => { obreIncidencia(id); };
         if ($('vDefecte')) $('vDefecte').onclick = () => formDefecte({ claus: M.aOmplir(r).map(e => e.clau), origen: 'muntatge', despres: () => VISTES.verif(id) });
+        $('vista').querySelectorAll('[data-anota]').forEach(b => b.onclick = () => {
+            const x = traca.find(y => y.e.clau === b.dataset.anota);
+            corregeixTraca(x.e.clau, x.cal, () => VISTES.verif(id));
+        });
         if ($('vOk')) $('vOk').onclick = () => {
             if (!fer('verifica', { conj: id, resultat: 'ok', checks: Array.from(marcats) }, tc('Pas {n} · {conj}: verificat ✓', { n: r.pas, conj: c.codi }))) return;
             delete verifChecks[id]; so(true); avis(t('Pas verificat ✓'));
@@ -1289,9 +1456,10 @@
                 <div>${t('Per verificar')}<b>${res.muntats}</b></div><div>${t('Rebutjats')}<b>${res.rebutjats}</b></div>
                 <div>${t('Caixes plenes')}<b>${plenes} / ${cx.length}</b></div><div>${t('Incidències obertes')}<b>${res.incidenciesObertes}</b></div>
                 <div>${t('Mancants oberts')}<b>${res.mancantsOberts}</b></div><div>${t('Muntats amb mancants')}<b>${res.parcials}</b></div>
-                <div>${t('Peces defectuoses')}<b>${res.pecesDefectuoses}</b></div><div>${t('Defectes per decidir')}<b>${res.defectesPendents}</b></div></div>
+                <div>${t('Peces defectuoses')}<b>${res.pecesDefectuoses}</b></div><div>${t('Defectes per decidir')}<b>${res.defectesPendents}</b></div>
+                ${res.traca.length ? `<div>${t('Traçabilitat')}<b class="${res.tracaFalten ? 'falta' : ''}">${res.tracaFalten ? t('Falten {n}', { n: res.tracaFalten }) : '✓'}</b></div>` : ''}</div>
             <div class="barra"><div style="width:${res.total ? res.verificats / res.total * 100 : 0}%"></div></div>
-            <div class="fx" style="margin-top:8px">${srv.url ? `<button class="bt" id="tPers">👥 ${t('Persones')}</button>` : ''}<button class="bt" id="tRes">📊 ${t('Resultats')}</button><button class="bt" id="tDef">💥 ${t('Defectes')}${res.defectesPendents ? ` (${res.defectesPendents})` : ''}</button></div>
+            <div class="fx" style="margin-top:8px">${srv.url ? `<button class="bt" id="tPers">👥 ${t('Persones')}</button>` : ''}<button class="bt" id="tRes">📊 ${t('Resultats')}</button><button class="bt" id="tDef">💥 ${t('Defectes')}${res.defectesPendents ? ` (${res.defectesPendents})` : ''}</button><button class="bt" id="tTraca">🔖 ${t('Traçabilitat')}${res.tracaFalten ? ` (${res.tracaFalten})` : ''}</button></div>
             ${prog.tancada ? `<button class="bt" id="tReobre">🔓 ${t('Reobrir l\'ordre')}</button>` : `<button class="bt${res.acabada ? ' ok' : ''}" id="tTanca">🔒 ${t('Tancar l\'ordre')}${res.acabada ? '' : ' (' + t('encara no està acabada') + ')'}</button>`}
             <h3>${t('Passos')}</h3>
             ${res.passos.map(x => `<div class="targeta"><div class="fx"><b style="flex:1"><a href="#/pas/${encodeURIComponent(x.id)}">${x.pas} · ${esc(x.codi)}</a> ${esc(x.nom)}</b>${xipEstat(x.estat, FO.ESTATS_PAS)}</div>
@@ -1306,10 +1474,12 @@
         if ($('tPers')) $('tPers').onclick = () => { location.hash = '#/persones'; };
         $('tRes').onclick = () => { location.hash = '#/resultats'; };
         $('tDef').onclick = () => { location.hash = '#/defectes'; };
+        $('tTraca').onclick = () => { location.hash = '#/traca'; };
         if ($('tTanca')) $('tTanca').onclick = () => {
             if (!res.acabada && !confirm(t('Només hi ha {n} de {t} passos verificats. Tancar igualment l\'ordre?', { n: res.verificats, t: res.total }))) return;
             if (res.incidenciesObertes && !confirm(t('Hi ha {n} incidències obertes. Tancar igualment?', { n: res.incidenciesObertes }))) return;
             if (res.mancantsOberts && !confirm(t('Hi ha {n} mancants oberts (material que no ha arribat). Tancar igualment?', { n: res.mancantsOberts }))) return;
+            if (res.tracaFalten && !confirm(t('Hi ha {n} caixetins amb peces sense lot o número de sèrie anotat. Tancar igualment?', { n: res.tracaFalten }))) return;
             if (res.defectesPendents && !confirm(t('Hi ha {n} peces defectuoses sense decidir què se\'n fa. Tancar igualment?', { n: res.defectesPendents }))) return;
             if (fer('tanca', {}, tc('Ordre {codi} tancada', { codi: ORD.codi }))) { avis(t('Ordre tancada')); ruta(); }
         };
@@ -1345,6 +1515,56 @@
             } catch (e) { avis(e.message, 4000); }
         };
         if (enXarxa()) carregaProjectesSrv();
+    };
+
+    // ─── Traçabilitat (ISO 9001, 8.5.2) ───
+    // Genealogia de l'ordre (quines peces concretes porta la màquina) i cerca inversa
+    // (en quines ordres ha anat un lot o un número de sèrie). Amb el servidor, la cerca
+    // abasta tots els projectes i ordres del taller; sense, les ordres d'aquest aparell.
+    let tracaCerca = '';
+    VISTES.traca = function () {
+        const files = FO.tracaOrdre(M, prog), falten = files.filter(x => x.falta > 0);
+        const instr = M.PLA.filter(r => prog.fets[r.conj.id] && prog.fets[r.conj.id].instrument);
+        $('vista').innerHTML = `${bannerTancada()}<h2>🔖 ${t('Traçabilitat')} · ${esc(ORD.codi)}${ORD.serie ? ' · ' + esc(ORD.serie) : ''}</h2>
+            <p class="ajuda">${t('Lots i números de sèrie de les peces d\'aquesta ordre (ISO 9001, 8.5.2). Cerca un lot o un número de sèrie per saber a quines màquines ha anat.')}</p>
+            <div class="fx" style="flex-wrap:nowrap"><input class="cerca" id="tcCodi" style="flex:1 1 auto;width:auto;min-width:0;margin:0" placeholder="${t('Lot o número de sèrie…')}" value="${esc(tracaCerca)}" autocomplete="off" enterkeyhint="search"><button class="bt-esc" id="tcEsc" aria-label="${t('Escanejar')}">⌖</button><button class="bt pr" style="flex:0 0 auto;width:auto;min-width:0;margin:0;padding:0 16px" id="tcBusca">${t('Cercar')}</button></div>
+            <div id="tcRes"></div>
+            ${falten.length ? `<div class="banner er">🔖 ${t('Hi ha {n} caixetins amb peces sense lot o número de sèrie anotat.', { n: falten.length })}</div>` : ''}
+            <h3>${t('Peces d\'aquesta ordre')}</h3>
+            ${files.length ? M.PLA.map(r => {
+                const l = files.filter(x => x.pas === r.conj.id);
+                if (!l.length) return '';
+                return `<div class="targeta"><b>${t('Pas {n}', { n: r.pas })} · ${esc(r.conj.codi)} ${esc(r.conj.nom)}</b>${l.map(x => `<div class="fx" style="align-items:flex-start;margin-top:6px"><div style="flex:1"><b>${esc(x.e.caixeti.mat.codi)}</b> ${esc(x.e.caixeti.mat.nom)} <span class="ajuda">· ${esc(FO.TRACABILITAT[x.tipus])}</span>${liniaTraca(x.e.clau, x.cal)}${!x.entrades.length && !x.cal ? `<div class="ajuda">${t('Encara no s\'ha posat a la caixa')}</div>` : ''}</div>${x.falta && pot('traca') && !prog.tancada ? `<button class="bt" style="width:auto;min-height:36px;margin:0" data-anota="${esc(x.e.clau)}">🔖 ${t('Anotar')}</button>` : ''}</div>`).join('')}</div>`;
+            }).join('') : `<div class="buit">${t('Cap material d\'aquest projecte demana lot ni número de sèrie. Es marca a la fitxa del material, al configurador.')}</div>`}
+            ${instr.length ? `<h3>📏 ${t('Instruments de mesura')}</h3><div class="targeta">${instr.map(r => `<div>${t('Pas {n}', { n: r.pas })} · ${esc(r.conj.codi)}: <b>${esc(prog.fets[r.conj.id].instrument)}</b> <span class="ajuda">· ${esc(prog.fets[r.conj.id].op)} · ${esc(data(prog.fets[r.conj.id].ts))}</span></div>`).join('')}</div>` : ''}
+            ${files.length ? `<div class="fx"><button class="bt" id="tcCSV">⬇ ${t('Exportar CSV')}</button></div>` : ''}`;
+        const busca = async () => {
+            tracaCerca = $('tcCodi').value.trim();
+            const res = $('tcRes');
+            if (!tracaCerca) { res.innerHTML = ''; return; }
+            res.innerHTML = `<p class="ajuda">${t('Carregant…')}</p>`;
+            let l = [];
+            try {
+                if (enXarxa()) l = await api('/api/traca?codi=' + encodeURIComponent(tracaCerca));
+                else {
+                    // sense servidor: les ordres d'aquest projecte guardades en aquest aparell
+                    const mats = new Map(P.materials.map(m => [m.id, m]));
+                    ORDRES.forEach(o => {
+                        const p = o.id === ORD.id ? prog : llegeix(`fordre.muntatge.progres.${P.id}.${o.id}`);
+                        if (p) FO.cercaTraca(FO.normalitzaProgres(p), tracaCerca).forEach(x => l.push(Object.assign(x, { projecteNom: P.nom, ordre: o.id, ordreCodi: o.codi, serie: o.serie, matCodi: (mats.get(x.mat) || {}).codi || x.mat, matNom: (mats.get(x.mat) || {}).nom || '' })));
+                    });
+                }
+            } catch (e) { res.innerHTML = `<div class="banner er">${esc(FO.tMissatge(e.message))}</div>`; return; }
+            res.innerHTML = l.length ? `<div class="targeta"><b>${l.length === 1 ? t('«{codi}» és en 1 lloc:', { codi: esc(tracaCerca) }) : t('«{codi}» és a {n} llocs:', { codi: esc(tracaCerca), n: l.length })}</b>${l.map(x => `<div style="margin-top:6px">🏭 <b>${esc(x.ordreCodi)}</b>${x.serie ? ' · ' + t('Núm. de sèrie') + ' <b>' + esc(x.serie) + '</b>' : ''} · ${esc(x.projecteNom)}<div class="ajuda">${esc(x.matCodi)} ${esc(x.matNom)} ×${x.qty} · ${esc(x.clau)} · ${esc(x.op)} · ${esc(data(x.ts))}${x.defectuosa ? ' · 💥 ' + t('peça defectuosa') : ''}</div></div>`).join('')}</div>`
+                : `<div class="banner wr">${t('No s\'ha trobat «{codi}» en cap ordre.', { codi: esc(tracaCerca) })}</div>`;
+        };
+        $('tcBusca').onclick = busca;
+        $('tcCodi').onkeydown = e => { if (e.key === 'Enter') busca(); };
+        $('tcEsc').onclick = () => capturaCodi(v => { $('tcCodi').value = v; busca(); });
+        $('vista').querySelectorAll('[data-anota]').forEach(b => b.onclick = () => { const x = files.find(y => y.e.clau === b.dataset.anota); corregeixTraca(x.e.clau, x.cal, () => VISTES.traca()); });
+        if ($('tcCSV')) $('tcCSV').onclick = () => baixa(`tracabilitat_${FO.nomFitxer(P.nom)}_${ORD.codi}.csv`, csv('ordre;serie_maquina;pas;conjunt;material;nom;proveidor;tracabilitat;lot_o_serie;peces;anotat_per;data',
+            files.flatMap(x => (x.entrades.length ? x.entrades : [{ codi: '', qty: 0, op: '', ts: '' }]).map(y => { const r = M.perConj.get(x.pas), m = x.e.caixeti.mat; return [ORD.codi, ORD.serie || '', r ? r.pas : '', r ? r.conj.codi : '', m.codi, m.nom, m.proveidor || '', x.tipus, y.codi, y.qty, y.op, y.ts]; }))), 'text/csv');
+        if (tracaCerca) busca();
     };
 
     // ─── Resultats ───
@@ -1426,12 +1646,14 @@
             setTimeout(() => $('codiManual').focus(), 100);
         }
     }
-    function tancaEscaner() {
-        esc_.actiu = false;
+    function tancaEscaner(senseRepintar) {
+        esc_.actiu = false; esc_.captura = null;
         if (esc_.stream) esc_.stream.getTracks().forEach(tr => tr.stop());
         esc_.stream = null; $('escaner').hidden = true;
-        ruta();
+        if (!senseRepintar) ruta();
     }
+    // Llegeix un sol codi (un lot o un número de sèrie) i el passa a `fn`, sense interpretar-lo
+    function capturaCodi(fn) { esc_.captura = fn; obreEscaner(); }
     async function bucleEscaner() {
         if (!esc_.actiu) return;
         const v = $('video');
@@ -1462,6 +1684,7 @@
         const ara = Date.now();
         if (valor === esc_.ultim && ara - esc_.tUltim < 2500) return;   // la càmera llegeix el mateix codi molts cops
         esc_.ultim = valor; esc_.tUltim = ara;
+        if (esc_.captura) { const fn = esc_.captura; tancaEscaner(true); so(true); fn(valor); return; }
         const r0 = rol();
         // tapa: només informa de quina caixa és
         if (valor.startsWith('FO1|') && valor.endsWith('|TAPA')) {
@@ -1497,6 +1720,12 @@
             if (caixaActual && c && c.id !== caixaActual) { so(false); return resultat('er', `✗ ${t('No és d\'aquesta caixa')}<br>${t('{mat} va a {caixa}', { mat: esc(e.codi), caixa: esc(c.id) })}`); }
             const arriba = FO.esMancant(prog, e.clau);   // escanejar un mancant = el material ha arribat
             if (prog.omplert[e.clau] && !arriba) { so(true); return resultat('ok', `${t('Ja estava omplert:')} ${esc(e.codi)} ×${prog.omplert[e.clau].qty}<br><small>${esc(e.safata)}</small>`); }
+            if (m.tracabilitat) {
+                // material traçable: es tanca l'escàner i es demana el lot o el número de sèrie
+                tancaEscaner();
+                omple(e.clau, e.qty, false, () => { avis(`✓ ${t('Omplert:')} ${e.codi} ×${e.qty}`); ruta(); });
+                return;
+            }
             if (!omple(e.clau, e.qty)) return resultat('er', t('No s\'ha omplert'));
             if (arriba && !FO.esMancant(prog, e.clau)) { so(true); return resultat('ok', `✓ ${t('Ha arribat:')} ${esc(e.codi)} ×${e.qty}<br><small>${t('Mancant resolt · {caixa}. El muntador ja ho pot completar.', { caixa: esc(e.safata) })}</small>`); }
             so(true);
