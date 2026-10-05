@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versión 1.7** · Instalación, configuración y uso, paso a paso
+**Versión 1.8** · Instalación, configuración y uso, paso a paso
 
 *También en: [Català](MANUAL.md) · [English](MANUAL.en.md)*
 
@@ -43,7 +43,7 @@ Las tres herramientas funcionan **sin internet**. El servidor es opcional: sin s
 1. **Definir.** El Responsable importa la lista de materiales en el configurador y ajusta las cajas.
 2. **Imprimir.** Descarga los STL y las etiquetas, imprime las cajas y las etiqueta.
 3. **Publicar.** Publica el proyecto en el servidor del taller y abre una **orden de fabricación** para cada unidad que hay que fabricar.
-4. **Llenar.** El Almacén pone el material en las cajas escaneando las etiquetas. Lo que no ha llegado va a la **lista de faltantes**, y lo que llega mal se registra como **defectuoso**.
+4. **Llenar.** El Almacén pone el material en las cajas escaneando las etiquetas y, de las piezas que lo piden, anota el **lote o el número de serie**. Lo que no ha llegado va a la **lista de faltantes**, y lo que llega mal se registra como **defectuoso**.
 5. **Montar.** El Montador coge las cajas y sigue los pasos. Si falta alguna pieza, monta el resto y lo completa cuando llega.
 6. **Comprobar.** Calidad verifica cada paso con una lista de comprobación y lo aprueba, o lo rechaza con el motivo.
 7. **Resultados.** El Responsable cierra la orden y saca el **informe**: quién ha hecho cada cosa, cuánto ha tardado, qué ha faltado y qué se ha roto.
@@ -63,6 +63,7 @@ Las tres herramientas funcionan **sin internet**. El servidor es opcional: sin s
 | **Orden de fabricación** | Una unidad concreta que se fabrica (por ejemplo, `OF-2026-002`, número de serie `DX1-0042`). Tiene su progreso, registro e informe. |
 | **Faltante** | Material que no ha llegado (o no hay suficiente). |
 | **Pieza defectuosa** | Pieza que ha llegado mal o que se ha roto al montar. |
+| **Lote / número de serie** | La identificación de una pieza concreta: el **lote** del proveedor (muchas piezas iguales fabricadas juntas) o el **número de serie** (una pieza única). FOrdre los anota para la **trazabilidad** (ISO 9001). |
 
 ---
 
@@ -173,7 +174,7 @@ journalctl -u fordre -f           # muestra el registro y el QR (Ctrl+C para sal
 En el registro verás algo así (los mensajes de la consola del servidor están en catalán):
 
 ```
-  FOrdre · servidor del taller 1.7.0
+  FOrdre · servidor del taller 1.8.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -546,6 +547,7 @@ Descarga la plantilla con el botón **Plantilla CSV** del configurador: las cabe
 | `formato kit` | — | (Fila de conjunto) `fusionado`, `individual`, `contenedor` o `mixto`. | `contenedor` |
 | `material caja` | — | Material de impresión de la caja de este material. | `PETG` |
 | `color caja` | — | Color de la caja de este material. | `#FDD835` |
+| `trazabilidad` | — | Qué hay que anotar de cada pieza: `lote`, `serie` (número de serie) o vacío (no hace falta). Vea el [punto 6.11](#611--trazabilidad-lotes-números-de-serie-e-instrumentos-iso-9001). | `serie` |
 
 Los valores también se entienden en catalán e inglés (por ejemplo, `peca`/`part`, `cargol`/`screw`, `llavi`/`lip`).
 
@@ -674,7 +676,7 @@ La ficha tiene estas partes:
 - **Etiqueta:** el formato (para todo el proyecto), una vista previa, los datos del QR/RFID e **Imprimir esta**.
 - **Caja individual de este material:** material y color de su caja (en formatos con cajas).
 - **Forma real de la pieza (nido a medida):** carga el **STL** de la pieza y el fondo de la celda tendrá su forma. Es ideal para placas con componentes y piezas curvadas o frágiles.
-- **Material:** código, nombre, tipo, forma, medidas (X, Y, Z en mm), peso (g/unidad), color, disposición, inclinación máxima, fragilidad, máximo de unidades apiladas, origen, proveedor y las casillas *Sensible a la electricidad estática (ESD)*, *Contiene líquidos / fluidos* y *Se puede apilar*.
+- **Material:** código, nombre, tipo, forma, medidas (X, Y, Z en mm), peso (g/unidad), color, disposición, inclinación máxima, fragilidad, máximo de unidades apiladas, origen, proveedor **Trazabilidad (ISO 9001)** (*No hace falta*, *Por lote* o *Por número de serie*) y las casillas *Sensible a la electricidad estática (ESD)*, *Contiene líquidos / fluidos* y *Se puede apilar*. Los materiales trazables salen con la marca **LOT** o **S/N** en la pestaña *Materiales* y en la app del taller.
 
 **Ejemplo:** el motor NEMA17 (`MT-050`) va en una sola capa, con 2 celdas (una para cada grupo motor), dentro del contenedor `DX-1.1.1-C`.
 
@@ -1010,6 +1012,48 @@ Si un aparato pierde la Wi-Fi, el punto de la cabecera se pone 🔴 y la app **s
 - Si dos personas han trabajado a la vez, no se pisan: cada acción se aplica una sola vez y el stock se suma.
 - Si al volver el servidor rechaza alguna acción (por ejemplo, porque la orden se ha cerrado), la app avisa con el motivo.
 
+### 6.11 🔖 Trazabilidad: lotes, números de serie e instrumentos (ISO 9001)
+
+La norma ISO 9001 (apartado 8.5.2) pide poder identificar el producto y, cuando hace falta, saber **qué piezas concretas lleva cada unidad fabricada**. FOrdre lo hace así:
+
+**1. Decidir qué materiales son trazables.** En el configurador, en la ficha de cada material, el campo **Trazabilidad (ISO 9001)**:
+
+| Opción | Cuándo elegirla | Ejemplo |
+|---|---|---|
+| *No hace falta* | Tornillería común, consumibles sin lote. | Tornillos M3, bridas. |
+| *Por lote* | Piezas o productos que el proveedor identifica por partidas. | Fijador de roscas, aceites, mangueras, placas de una misma hornada. |
+| *Por número de serie* | Piezas con un número único cada una. | Motores, placas electrónicas, sensores. |
+
+También se puede poner en la lista de materiales, con la columna `trazabilidad` (punto 4.1).
+
+**2. El Almacén anota el lote o los números de serie al llenar.** Al tocar (o escanear) el cajetín de un material trazable se abre este formulario:
+
+![Lotes y números de serie](imatges/es/t25-lots.jpg)
+
+- **Por número de serie:** un campo por pieza. Cada número debe ser diferente y no se puede repetir en toda la orden.
+- **Por lote:** el código del lote y cuántas piezas son. Si las piezas vienen de lotes diferentes, **+ Otro lote**.
+- El código se puede **escribir**, leer con un **lector USB o Bluetooth** (hace de Intro y pasa al campo siguiente) o **escanear con la cámara** con el botón **⌖** de cada campo.
+- El total debe coincidir con las piezas que se ponen en la caja. Si no, la app no deja guardarlo.
+- **Llenarlo todo** no llena los materiales trazables: hay que anotar su lote uno por uno.
+- Para **corregir** un lote ya anotado, pulsa el botón **🔖** del cajetín. Queda en el registro quién lo ha cambiado y cuándo.
+
+**3. Faltantes y piezas defectuosas.** Si llegan menos, solo se anotan las que se ponen; cuando llega el resto, el formulario sale con los números que ya hay y los campos nuevos vacíos. Si una pieza es defectuosa, el formulario de pieza defectuosa pide **qué número de serie o lote es**: sale de la caja y queda en la lista de devoluciones con su identificación.
+
+**4. El Montador.** En el paso ve los lotes y números de serie de cada cajetín. Si alguna pieza trazable no ha pasado por el almacén, la app le pide el lote o el número de serie antes de marcar el paso como montado. Si el paso tiene **pares de apriete**, hay que escribir el **instrumento de medida** con el que se han dado (por ejemplo, el número de la llave dinamométrica, `CD-07`). El aparato lo recuerda para la próxima vez.
+
+**5. Calidad.** En la verificación está el apartado **🔖 Trazabilidad** con los lotes y números de serie y el instrumento de medida, y un punto más en la lista de comprobación: *los lotes y números de serie anotados coinciden con las piezas montadas*. **No se puede aprobar** un paso con piezas trazables sin identificar (Calidad las puede anotar con **🔖 Anotar**).
+
+**6. La pantalla 🔖 Trazabilidad** (pestaña de Calidad; para el Responsable, botón en el Panel):
+
+![Trazabilidad](imatges/es/t26-tracabilitat.jpg)
+
+- **Búsqueda inversa:** escribe o escanea un lote o un número de serie y pulsa **Buscar**. Con el servidor, la búsqueda abarca **todas las órdenes de todos los proyectos** del taller; sin servidor, las órdenes guardadas en ese aparato. Cada resultado dice la orden, el **número de serie de la máquina**, el material, el cajetín, quién lo puso y cuándo, y si fue una pieza defectuosa.
+- **Piezas de esta orden:** la genealogía de la máquina, paso a paso, con lo que falta por anotar.
+- **Instrumentos de medida** de cada paso.
+- **⬇ Exportar CSV** con toda la genealogía.
+
+**7. El informe de la orden** lleva la sección **Trazabilidad de componentes (ISO 9001 · 8.5.2)** y el indicador *Trazabilidad* (✓ completa o cuántas faltan). Al cerrar la orden, la app avisa si hay piezas sin identificar.
+
 ### 6.10 Sin servidor (un aparato solo)
 
 - Abre `muntatge.html` y toca **Proyecto de ejemplo**, o abre el archivo `.fordre.json` del configurador (menú ⋮ › *Abrir archivo de proyecto*).
@@ -1079,6 +1123,15 @@ Menú ⋮ › **👤 Cambiar de persona**. Si hay cambios sin enviar, la app lo 
 2. Todos trabajan sobre la misma orden. El **registro**, los estados y los avisos salen a cada uno en su idioma.
 3. El informe de la orden sale en el idioma de quien lo abre. Las notas y los motivos escritos a mano se muestran tal como se escribieron.
 
+### 7.9 Un proveedor avisa de un lote defectuoso (retirada)
+
+> El proveedor del fijador de roscas avisa de que el lote `LOC243-B7731` no cumple la especificación.
+
+1. **Rosa (Responsable)** o **Pau (Calidad):** 🔖 Trazabilidad › escribe `LOC243-B7731` › **Buscar**.
+2. La app lista todas las órdenes donde se ha usado, con el **número de serie de cada máquina**, el paso y quién lo puso.
+3. Con esta lista se decide qué hacer con cada máquina (revisarla, avisar al cliente…) y se puede abrir una **incidencia** en cada orden afectada.
+4. Si todavía hay cajas con este lote en el taller, el Almacén las vacía (el lote sale del cajetín) y las llena de nuevo con un lote bueno.
+
 ---
 
 ## 8. Resolución de problemas
@@ -1101,6 +1154,10 @@ Menú ⋮ › **👤 Cambiar de persona**. Si hay cambios sin enviar, la app lo 
 | El configurador muestra una caja con un aviso *«sobresale»*. | La pieza es más alta que el cajetín. | Revisa las medidas del material, sube la *Profundidad máxima* o usa tapa (la tapa lleva un marco más alto). |
 | Las bandejas son demasiado grandes para la impresora. | El tamaño de la cama no es el correcto. | ⚙ Configuración › Impresora 3D › Cama X / Cama Y. |
 | Las tapas a presión van demasiado justas o demasiado flojas. | La holgura no está calibrada. | Imprime la pieza de calibración (punto 3.2). |
+| *«Número de serie repetido»* o *«ya se ha usado en esta orden»*. | Ese número de serie ya está en otro cajetín de la orden. | Comprueba la etiqueta de la pieza. Si estaba mal anotado, corrígelo con el botón 🔖 del cajetín donde está. |
+| *«Los lotes o números de serie deben sumar N piezas»*. | El total no coincide con las piezas que se ponen. | Revisa las cantidades de cada lote, o añade o quita filas. |
+| No deja marcar el paso como montado: pide el instrumento de medida. | El paso tiene pares de apriete. | Escribe el número de la llave dinamométrica (o el instrumento) que has usado. |
+| No deja aprobar: *«Falta el lote o el número de serie de algunas piezas»*. | Hay piezas trazables sin identificar. | Pulsa **🔖 Anotar** y escríbelos, o pídelo al Almacén. |
 | La app sale en un idioma que no es el tuyo. | Se ha tomado el idioma del navegador. | Menú ⋮ › **Idioma** (en el configurador, el selector **CA / ES / EN**). El aparato lo recordará. |
 
 ---
@@ -1144,6 +1201,7 @@ Menú ⋮ › **👤 Cambiar de persona**. Si hay cambios sin enviar, la app lo 
 | Verificar (aprobar o rechazar) | | | ✓ | ✓ |
 | Decidir qué se hace con una pieza defectuosa | | | ✓ | ✓ |
 | Resolver incidencias | | | ✓ | ✓ |
+| Anotar o corregir lotes y números de serie | ✓ | ✓ | ✓ | ✓ |
 | Abrir incidencias, hacer fotos | ✓ | ✓ | ✓ | ✓ |
 | Asignar pasos, abrir y cerrar órdenes, personas, publicar | | | | ✓ |
 
@@ -1168,6 +1226,24 @@ Menú ⋮ › **👤 Cambiar de persona**. Si hay cambios sin enviar, la app lo 
 | `Esc` | Cerrar el diálogo abierto. |
 
 En la app del taller, un **lector de códigos USB o Bluetooth** funciona sin configurar nada: escanea y el código se procesa solo.
+
+### 9.6 Correspondencia con la ISO 9001:2015
+
+Esta tabla ayuda a preparar la auditoría: dónde está, en FOrdre, la evidencia de cada requisito relacionado con la fabricación.
+
+| Requisito ISO 9001 | Qué aporta FOrdre | Dónde se ve |
+|---|---|---|
+| 7.1.5 Recursos de seguimiento y medición | Cada paso con pares de apriete registra el **instrumento de medida** que se ha usado. | Paso › 3 · Final; verificación; informe; 🔖 Trazabilidad. |
+| 7.5 Información documentada | Registro de cada acción con fecha, hora, persona y rol; **informe de la orden** en PDF; versión exacta del proyecto de cada orden; copias de seguridad de los datos. | Registro; informe; punto 2.9. |
+| 8.5.1 Control de la producción | Instrucciones de montaje, pares de apriete, herramientas, imagen de referencia, personas identificadas con PIN y roles. | Paso de montaje; personas. |
+| 8.5.2 Identificación y trazabilidad | Etiquetas con QR y código de barras en cada caja y cajetín; estado de cada paso y caja; número de serie de la máquina en la orden; **lotes y números de serie de cada pieza**; **búsqueda inversa** de lotes. | Etiquetas; 🔖 Trazabilidad; informe. |
+| 8.5.4 Preservación | Cajas a medida para cada pieza, piezas ESD separadas, líquidos de pie, cajas de guarda para los subconjuntos. | Configurador. |
+| 8.6 Liberación de los productos | Verificación de cada paso por Calidad con lista de comprobación y **regla de los cuatro ojos**; cierre de la orden. | Verificar; informe. |
+| 8.7 Control de las salidas no conformes | Piezas defectuosas con su lote o número de serie y la **decisión** (devolución, chatarra, reparar, aceptar); rechazos con motivo; incidencias. | 💥 Defectos; informe. |
+| 9.1 Seguimiento, medición, análisis y evaluación | Indicadores de cada orden: bien a la primera, rechazos, tiempo de montaje, faltantes y defectos. | Resultados; informe. |
+| 10.2 No conformidad y acción correctiva | Incidencias con gravedad y resolución. | Incidencias; informe. |
+
+> **Importante:** FOrdre aporta las **evidencias** de la fabricación, pero la certificación depende de todo el sistema de gestión de la empresa: procedimientos, calibración periódica de los instrumentos de medida, auditorías internas, revisión por la dirección, evaluación de proveedores, acciones correctivas formales… Estas partes se gestionan fuera de FOrdre.
 
 ### 9.5 Archivos y licencia
 

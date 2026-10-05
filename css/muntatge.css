@@ -175,3 +175,13 @@ main a { color: var(--ac) }
 /* Selector d'idioma a les pantalles d'entrada (sota la llista) */
 .idioma-peu { margin-top: 18px; text-align: center }
 .idioma-peu select { height: 40px; border-radius: 10px; border: 1px solid var(--bd); background: var(--p2); color: var(--tx); padding: 0 10px; font-size: 15px }
+
+/* Traçabilitat: lots i números de sèrie */
+.xip.traca { background: #5E35B1; color: #fff; font-size: 11px; margin-left: 6px; vertical-align: middle }
+.ajuda.traca { font-family: var(--mn, monospace); word-break: break-word }
+.ajuda.traca .falta, b.falta { color: var(--er) }
+.tr-fila { display: flex; gap: 6px; margin: 6px 0 }
+.tr-fila input { flex: 1; min-width: 0; height: 44px; border-radius: 10px; border: 1px solid var(--bd); background: var(--p2); padding: 0 12px; color: var(--tx); font-size: 16px }
+.tr-fila .tr-qty { flex: 0 0 76px; text-align: right }
+.bt-esc { flex: 0 0 44px; height: 44px; border-radius: 10px; border: 1px solid var(--bd); background: var(--p3); color: var(--tx); font-size: 18px; cursor: pointer }
+.bt-falta.traca { background: #5E35B1; border-color: #5E35B1; color: #fff }

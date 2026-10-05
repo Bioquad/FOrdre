@@ -403,6 +403,51 @@ console.log('Processos: rols, ordres i resultats');
         const res = FO.resumOrdre(m, pr);
         assert(res.pecesDefectuoses === 1 && res.defectesArribada === 1 && /Peces defectuoses/.test(FO.informeHTML(m, pr, { codi: 'OF' })));
     });
+    // ─── Traçabilitat (ISO 9001) ───
+    const eTraca = tipus => m.aOmplir(m.PLA.find(r => m.aOmplir(r).some(e => e.caixeti.mat.tracabilitat === tipus))).find(e => e.caixeti.mat.tracabilitat === tipus);
+    prova('traçabilitat: un material per número de sèrie no s\'omple sense un número per peça, ni repetit', () => {
+        const pr = nova(), e = eTraca('serie'), mat = e.caixeti.mat.id, q = e.qty;
+        assert(q >= 2, 'cal un exemple amb 2 o més peces');
+        const base = { clau: e.clau, mat, qty: q, cal: q, tracaTipus: 'serie' };
+        assert(/necessita/.test(fes(pr, 'omple', base, 'Marc', ['magatzem'])), 'sense números');
+        assert(/sumar/.test(fes(pr, 'omple', Object.assign({ traca: [{ codi: 'SN1', qty: 1 }] }, base), 'Marc', ['magatzem'])), 'menys números que peces');
+        assert(/repetit/.test(fes(pr, 'omple', Object.assign({ traca: [{ codi: 'SN1', qty: 1 }, { codi: 'sn1', qty: 1 }] }, base), 'Marc', ['magatzem'])), 'repetit');
+        const series = Array.from({ length: q }, (x, i) => ({ codi: 'SN-' + (i + 1), qty: 1 }));
+        assert(!fes(pr, 'omple', Object.assign({ traca: series }, base), 'Marc', ['magatzem']));
+        assert(FO.tracaTotal(pr, e.clau) === q && pr.traca[e.clau][0].op === 'Marc');
+        // el mateix número no pot anar a un altre caixetí de la mateixa ordre
+        assert(/ja s'ha fet servir/.test(FO.validaOp(pr, FO.creaOp('t', 999, 'traca', { clau: 'ALTRE', mat, tracaTipus: 'serie', traca: [{ codi: 'SN-1', qty: 1 }] }), null)));
+    });
+    prova('traçabilitat: lots, correcció, buidar i cerca inversa', () => {
+        const pr = nova(), e = eTraca('lot'), mat = e.caixeti.mat.id, q = e.qty;
+        const l1 = q > 1 ? [{ codi: 'L-A', qty: q - 1 }, { codi: 'L-B', qty: 1 }] : [{ codi: 'L-A', qty: 1 }];
+        assert(!fes(pr, 'omple', { clau: e.clau, mat, qty: q, cal: q, tracaTipus: 'lot', traca: l1 }, 'Marc', ['magatzem']));
+        assert(FO.cercaTraca(pr, 'l-a').length === 1 && FO.cercaTraca(pr, 'X').length === 0);
+        assert(!fes(pr, 'traca', { clau: e.clau, mat, qty: q, tracaTipus: 'lot', traca: [{ codi: 'L-C', qty: q }] }, 'Pau', ['qualitat']), 'correcció');
+        assert(pr.traca[e.clau].length === 1 && pr.traca[e.clau][0].codi === 'L-C' && pr.traca[e.clau][0].op === 'Pau');
+        assert(FO.potFer(['responsable'], 'traca') && FO.potFer(['muntador'], 'traca') && !FO.potFer([], 'traca'), 'qui pot anotar lots');
+        assert(!fes(pr, 'buida', { clau: e.clau }, 'Marc', ['magatzem']) && !pr.traca[e.clau], 'buidar treu els lots');
+    });
+    prova('traçabilitat: una peça defectuosa s\'emporta el seu número de sèrie i en cal un de nou', () => {
+        const pr = nova(), e = eTraca('serie'), mat = e.caixeti.mat.id, q = e.qty;
+        const series = Array.from({ length: q }, (x, i) => ({ codi: 'M-' + (i + 1), qty: 1 }));
+        fes(pr, 'omple', { clau: e.clau, mat, qty: q, cal: q, tracaTipus: 'serie', traca: series }, 'Marc', ['magatzem']);
+        assert(/lot o el número de sèrie/.test(fes(pr, 'defecte', { clau: e.clau, mat, qty: 1, origen: 'arribada', tipus: 'Trencada', tracaTipus: 'serie' }, 'Marc', ['magatzem'])));
+        assert(!fes(pr, 'defecte', { clau: e.clau, mat, qty: 1, origen: 'arribada', tipus: 'Trencada', tracaTipus: 'serie', traca: [{ codi: 'M-1', qty: 1 }] }, 'Marc', ['magatzem']));
+        assert(FO.tracaTotal(pr, e.clau) === q - 1 && pr.defectes[0].traca[0].codi === 'M-1');
+        const on = FO.cercaTraca(pr, 'M-1');
+        assert(on.length === 1 && on[0].defectuosa, 'el número defectuós es troba igualment');
+        // arriba el recanvi: s'omple amb els números que queden i el nou
+        const nous = series.filter(x => x.codi !== 'M-1').concat([{ codi: 'M-NOU', qty: 1 }]);
+        assert(!fes(pr, 'omple', { clau: e.clau, mat, qty: q, cal: q, tracaTipus: 'serie', traca: nous }, 'Marc', ['magatzem']));
+        assert(FO.tracaTotal(pr, e.clau) === q && !FO.esMancant(pr, e.clau));
+    });
+    prova('traçabilitat: un pas amb parells de collada diu amb quin instrument s\'han donat', () => {
+        const pr = nova();
+        assert(/instrument/.test(fes(pr, 'fet', { conj: c0, calInstrument: true }, 'Anna', ['muntador'])));
+        assert(!fes(pr, 'fet', { conj: c0, calInstrument: true, instrument: 'CD-07' }, 'Anna', ['muntador']));
+        assert(pr.fets[c0].instrument === 'CD-07');
+    });
     prova('resultats: rendiment a la primera, temps i persones', () => {
         const pr = nova(), t0 = Date.parse('2026-01-01T10:00:00Z');
         const at = min => new Date(t0 + min * 60000).toISOString();
@@ -504,7 +549,7 @@ prova('FO.tMissatge: tradueix missatges del servidor i del registre ja omplerts'
 });
 prova('plantilla CSV en castellà i anglès: l\'importador en reconeix totes les columnes', () => {
     for (const L of ['es', 'en']) {
-        const capcal = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'pes', 'tipus', 'forma', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes', 'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa'].map(c => FO.t('csv:' + c, null, L).replace(/^csv:/, ''));
+        const capcal = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'pes', 'tipus', 'forma', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes', 'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa', 'tracabilitat'].map(c => FO.t('csv:' + c, null, L).replace(/^csv:/, ''));
         const map = FO.detectaColumnes(capcal);
         assert(Object.keys(map).length === capcal.length, `${L}: ${Object.keys(map).length}/${capcal.length} · ${capcal.filter((c, i) => !Object.values(map).includes(i)).join(', ')}`);
     }

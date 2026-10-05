@@ -15,7 +15,7 @@
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.7.0';
+    FO.VERSIO = '1.8.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -152,6 +152,12 @@
 
     FO.FORMES = { box: t('Prisma'), cylinder: t('Cilindre') };
 
+    // Traçabilitat de cada material (ISO 9001, 8.5.2): què cal anotar en posar-lo a la caixa o muntar-lo
+    //   ''    no cal (cargoleria comuna, consumibles sense lot…)
+    //   lot   número de lot o de partida del proveïdor (un caixetí pot tenir peces de diversos lots)
+    //   serie número de sèrie de cada unitat (un per peça, únic dins l'ordre)
+    FO.TRACABILITAT = { '': t('No cal'), lot: t('Per lot'), serie: t('Per número de sèrie') };
+
     // Paleta per assignar colors quan no n'hi ha
     FO.PALETA = ['#4A90D9', '#E8A838', '#4CAF50', '#9C27B0', '#E53935', '#00ACC1',
         '#FF7043', '#8D6E63', '#5C6BC0', '#C0CA33', '#EC407A', '#26A69A'];
@@ -187,6 +193,7 @@
             disposicio: FO.DISPOSICIONS[m.disposicio] ? m.disposicio : 'auto',
             origen: m.origen === 'comprat' ? 'comprat' : 'propi',
             proveidor: String(m.proveidor || ''),
+            tracabilitat: m.tracabilitat === 'lot' || m.tracabilitat === 'serie' ? m.tracabilitat : '',
             caixaMaterial: FO.MATERIALS_IMPRESSIO[m.caixaMaterial] ? m.caixaMaterial : '',   // '' = per defecte
             caixaColor: /^#[0-9a-f]{6}$/i.test(m.caixaColor) ? m.caixaColor : '',            // '' = segons l'esquema
             // perfil de la cara de sota (des del seu STL) per fer un niu a mida; null = sense forma real
@@ -336,18 +343,18 @@
                 M('FV-010', t('Tapa fibra de vidre'), 'peca', 150, 90, 12, 60, { col: '#E0D6A8', fragil: 6, apilable: false }),
                 M('3D-021', t('Suport motor (PETG imprès)'), 'peca', 55, 45, 30, 22, { col: '#FF7043' }),
                 M('3D-022', t('Guia cable (PLA imprès)'), 'peca', 60, 12, 10, 4, { col: '#26A69A', disposicio: 'capa' }),
-                M('PCB-100', t('Placa de control'), 'peca', 100, 70, 18, 55, { col: '#2E7D32', esd: true, fragil: 7, apilable: false }),
+                M('PCB-100', t('Placa de control'), 'peca', 100, 70, 18, 55, { col: '#2E7D32', esd: true, fragil: 7, apilable: false, tracabilitat: 'serie' }),
                 M('PCB-101', t('Mòdul sensor de pressió'), 'peca', 30, 20, 8, 6, { col: '#388E3C', esd: true, fragil: 6 }),
-                M('MT-050', t('Motor pas a pas NEMA17'), 'peca', 42, 42, 48, 280, { col: '#455A64', apilable: false }),
-                M('HID-200', t('Mànega pressió 6 mm (tram)'), 'peca', 120, 14, 14, 18, { col: '#1E88E5', disposicio: 'capa' }),
+                M('MT-050', t('Motor pas a pas NEMA17'), 'peca', 42, 42, 48, 280, { col: '#455A64', apilable: false, tracabilitat: 'serie' }),
+                M('HID-200', t('Mànega pressió 6 mm (tram)'), 'peca', 120, 14, 14, 18, { col: '#1E88E5', disposicio: 'capa', tracabilitat: 'lot' }),
                 M('HID-201', t('Racord ràpid 1/4"'), 'cargol', 22, 14, 14, 9, { col: '#FBC02D' }),
-                M('HID-210', t('Dipòsit d\'oli precarregat'), 'peca', 40, 40, 70, 95, { col: '#6D4C41', forma: 'cylinder', liquid: true, angleMax: 10 }),
+                M('HID-210', t('Dipòsit d\'oli precarregat'), 'peca', 40, 40, 70, 95, { col: '#6D4C41', forma: 'cylinder', liquid: true, angleMax: 10, tracabilitat: 'lot' }),
                 M('CRG-M4x10', t('Cargol DIN912 M4×10'), 'cargol', 10, 7, 7, 1.6, { col: '#78909C' }),
                 M('CRG-M3x8', t('Cargol DIN7985 M3×8'), 'cargol', 8, 6, 6, 0.8, { col: '#90A4AE' }),
                 M('FEM-M4', t('Femella autoblocant M4'), 'cargol', 7, 7, 5, 1.1, { col: '#607D8B' }),
                 M('VOL-M4', t('Volandera DIN125 M4'), 'cargol', 9, 9, 1, 0.3, { col: '#B0BEC5' }),
                 M('SEP-M3', t('Separador M3×10 niló'), 'cargol', 6, 6, 10, 0.2, { col: '#ECEFF1' }),
-                M('CON-01', t('Frenafils Loctite 243 (10 ml)'), 'consumible', 25, 25, 75, 18, { col: '#1565C0', forma: 'cylinder', liquid: true, angleMax: 30, caixaMaterial: 'PETG', caixaColor: '#FDD835' }),
+                M('CON-01', t('Frenafils Loctite 243 (10 ml)'), 'consumible', 25, 25, 75, 18, { col: '#1565C0', forma: 'cylinder', liquid: true, angleMax: 30, caixaMaterial: 'PETG', caixaColor: '#FDD835', tracabilitat: 'lot' }),
                 M('CON-02', t('Brides 100 mm'), 'consumible', 100, 3, 1.2, 0.3, { col: '#212121' }),
                 M('CON-03', t('Etiquetes de cable'), 'consumible', 60, 40, 5, 10, { col: '#FFFFFF' }),
                 M('CON-04', t('Cola epoxi bicomponent'), 'consumible', 30, 20, 100, 30, { col: '#8E24AA', liquid: true, angleMax: 45 })

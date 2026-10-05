@@ -168,6 +168,21 @@ function desaProgres(id, ordre) {
     clearTimeout(pendentsDesar.get(k));
     pendentsDesar.set(k, setTimeout(() => { escriuAtomic(fitxerProg(id, ordre), JSON.stringify(progres(id, ordre))); pendentsDesar.delete(k); }, 250));
 }
+// Traçabilitat inversa (ISO 9001, 8.5.2): en quines ordres (i màquines) ha anat un lot o número de sèrie
+function cercaTraca(codi) {
+    const r = [];
+    fs.readdirSync(path.join(DADES, 'projectes')).filter(f => f.endsWith('.json')).forEach(f => {
+        let proj;
+        try { proj = JSON.parse(fs.readFileSync(path.join(DADES, 'projectes', f), 'utf8')); } catch (e) { return; }
+        const mats = new Map((proj.materials || []).map(m => [m.id, m]));
+        ordres(proj.id).forEach(o => FO.cercaTraca(progres(proj.id, o.id), codi).forEach(x => {
+            const m = mats.get(x.mat) || {};
+            r.push(Object.assign(x, { projecte: proj.id, projecteNom: proj.nom || '', ordre: o.id, ordreCodi: o.codi, serie: o.serie || '', matCodi: m.codi || x.mat, matNom: m.nom || '', proveidor: m.proveidor || '' }));
+        }));
+    });
+    return r;
+}
+
 function llistaProjectes() {
     return fs.readdirSync(path.join(DADES, 'projectes')).filter(f => f.endsWith('.json')).map(f => {
         try {
@@ -323,6 +338,13 @@ async function api(req, res, url) {
             console.log(`📦 Projecte publicat: ${proj.nom} (${id})`);
             return json(req, res, 200, { ok: true, id });
         }
+    }
+
+    // ─── Traçabilitat: on ha anat un lot o número de sèrie (totes les ordres de tots els projectes) ───
+    if (p[1] === 'traca' && req.method === 'GET') {
+        const codi = String(url.searchParams.get('codi') || '').trim();
+        if (!codi) return json(req, res, 400, { error: 'Cal un lot o número de sèrie' });
+        return json(req, res, 200, cercaTraca(codi));
     }
 
     // ─── Ordres de fabricació ───

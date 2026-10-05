@@ -52,7 +52,8 @@
         tancament: { nom: t('Tancament (conjunt)'), sin: ['tancament', 'cierre', 'closure', 'tapa', 'lid'] },
         formatKit: { nom: t('Format del kit (conjunt)'), sin: ['format kit', 'format del kit', 'formato kit', 'kit format', 'format'] },
         caixaMaterial: { nom: t('Material de la caixa'), sin: ['material caixa', 'material de la caixa', 'material caja', 'box material', 'filament'] },
-        caixaColor: { nom: t('Color de la caixa'), sin: ['box colour', 'color caixa', 'color de la caixa', 'color caja', 'box color'] }
+        caixaColor: { nom: t('Color de la caixa'), sin: ['box colour', 'color caixa', 'color de la caixa', 'color caja', 'box color'] },
+        tracabilitat: { nom: t('Traçabilitat (lot / sèrie)'), sin: ['tracabilitat', 'traçabilitat', 'trazabilidad', 'traceability', 'tracking', 'lot/serie', 'lot / serie', 'lote/serie', 'lot/serial', 'serialitzat', 'serializado', 'serialized'] }
     };
 
     const net = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -169,6 +170,9 @@
         if (ori) m.origen = /compr|buy|purch|compra/.test(ori) ? 'comprat' : 'propi';
         if (v('proveidor')) m.proveidor = v('proveidor');
         if (v('notes')) m.notes = v('notes');
+        // traçabilitat: «serie» (S/N, serial, sèrie) o «lot» (lot, lote, batch, partida); res = no cal
+        const tr = net(v('tracabilitat'));
+        if (tr) m.tracabilitat = /seri|s\/?n\b|^sn$/.test(tr) ? 'serie' : /lot|batch|partid/.test(tr) ? 'lot' : '';
         const cm = String(v('caixaMaterial') || '').trim().toUpperCase().replace(/\s+/g, '-');
         if (cm && FO.MATERIALS_IMPRESSIO) { const k = Object.keys(FO.MATERIALS_IMPRESSIO).find(x => x.toUpperCase() === cm || cm.startsWith(x.toUpperCase())); if (k) m.caixaMaterial = k; }
         const cc = String(v('caixaColor') || '').trim();
@@ -373,16 +377,16 @@
     FO.plantillaCSV = function () {
         // capçaleres en l'idioma triat: l'importador les reconeix en català, castellà i anglès
         const cap = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'x', 'y', 'z', 'pes', 'tipus', 'forma', 'esd', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes',
-            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa'].map(c => t('csv:' + c).replace(/^csv:/, ''));
+            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa', 'tracabilitat'].map(c => t('csv:' + c).replace(/^csv:/, ''));
         const buit = n => Array(n).fill('');
         const f = [
-            ['MAQ', t('Màquina completa'), '', '', '', '1', ...buit(13), '#4A90D9', '', '', t('fila de conjunt (sense codi de material)'), '', '', t('Muntatge final | Prova de funcionament'), '', '', 'mixt', '', ''],
-            ['XAS', t('Xassís'), 'MAQ', 'PL-001', t('Placa base alumini'), '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', t('Presentar les plaques | Muntar els escaires | Collar en creu'), t('Clau Allen 3 mm, clau dinamomètrica'), 'llavi', '', '', ''],
-            ['XAS', t('Xassís'), 'MAQ', 'CRG-M4x10', t('Cargol DIN912 M4x10'), '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', t('En creu'), '', '', '', '', '', ''],
-            ['XAS', t('Xassís'), 'MAQ', 'CON-01', t('Frenafils 243'), '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', t('Una gota a cada cargol'), '', '', '', '', 'PETG', '#FDD835'],
-            ['MOT', t('Grup motor'), 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', t('conjunt muntat: mides de la peça acabada, 2 unitats'), '', '', t('Encarar el motor | Collar els 4 cargols'), t('Clau Allen 2,5 mm'), 'pressio', 'contenidor', '', ''],
-            ['MOT', t('Grup motor'), 'XAS', 'MT-050', t('Motor NEMA17'), '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', ''],
-            ['ELE', t('Electrònica'), 'MAQ', 'PCB-100', t('Placa de control'), '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', t('Manipular per les vores'), t('Polsera antiestàtica | Muntar els separadors'), t('Tornavís PH1'), 'imants', '', '', '']
+            ['MAQ', t('Màquina completa'), '', '', '', '1', ...buit(13), '#4A90D9', '', '', t('fila de conjunt (sense codi de material)'), '', '', t('Muntatge final | Prova de funcionament'), '', '', 'mixt', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'PL-001', t('Placa base alumini'), '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', t('Presentar les plaques | Muntar els escaires | Collar en creu'), t('Clau Allen 3 mm, clau dinamomètrica'), 'llavi', '', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'CRG-M4x10', t('Cargol DIN912 M4x10'), '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', t('En creu'), '', '', '', '', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'CON-01', t('Frenafils 243'), '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', t('Una gota a cada cargol'), '', '', '', '', 'PETG', '#FDD835', 'lot'],
+            ['MOT', t('Grup motor'), 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', t('conjunt muntat: mides de la peça acabada, 2 unitats'), '', '', t('Encarar el motor | Collar els 4 cargols'), t('Clau Allen 2,5 mm'), 'pressio', 'contenidor', '', '', ''],
+            ['MOT', t('Grup motor'), 'XAS', 'MT-050', t('Motor NEMA17'), '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', '', 'serie'],
+            ['ELE', t('Electrònica'), 'MAQ', 'PCB-100', t('Placa de control'), '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', t('Manipular per les vores'), t('Polsera antiestàtica | Muntar els separadors'), t('Tornavís PH1'), 'imants', '', '', '', 'serie']
         ];
         return '﻿' + [cap].concat(f).map(r => r.join(';')).join('\n') + '\n';
     };

@@ -1,6 +1,6 @@
 # FOrdre Manual
 
-**Version 1.7** · Installation, configuration and use, step by step
+**Version 1.8** · Installation, configuration and use, step by step
 
 *Also in: [Català](MANUAL.md) · [Español](MANUAL.es.md)*
 
@@ -43,7 +43,7 @@ All three tools work **without internet**. The server is optional: without a ser
 1. **Define.** The Manager imports the bill of materials into the configurator and adjusts the boxes.
 2. **Print.** Download the STL files and labels, print the boxes and label them.
 3. **Publish.** Publish the project to the workshop server and open a **production order** for each unit to be built.
-4. **Fill.** The Warehouse puts the material into the boxes by scanning the labels. Whatever has not arrived goes to the **shortage list**, and whatever arrives damaged is logged as **defective**.
+4. **Fill.** The Warehouse puts the material into the boxes by scanning the labels and, for the parts that require it, records the **lot or serial number**. Whatever has not arrived goes to the **shortage list**, and whatever arrives damaged is logged as **defective**.
 5. **Assemble.** The Assembler picks the boxes and follows the steps. If a part is missing, they assemble the rest and complete it when the part arrives.
 6. **Check.** Quality verifies each step against a checklist and approves it, or rejects it with a reason.
 7. **Results.** The Manager closes the order and produces the **report**: who did each thing, how long it took, what was missing and what broke.
@@ -63,6 +63,7 @@ All three tools work **without internet**. The server is optional: without a ser
 | **Production order** | One specific unit being built (for example, `OF-2026-002`, serial number `DX1-0042`). It has its own progress, log and report. |
 | **Shortage** | Material that has not arrived (or not enough of it). |
 | **Defective part** | A part that arrived damaged or broke during assembly. |
+| **Lot / serial number** | The identification of a specific part: the supplier's **lot** (many identical parts made together) or the **serial number** (a unique part). FOrdre records them for **traceability** (ISO 9001). |
 
 ---
 
@@ -173,7 +174,7 @@ journalctl -u fordre -f           # shows the log and the QR (Ctrl+C to exit)
 In the log you will see something like this (the server console messages are in Catalan):
 
 ```
-  FOrdre · servidor del taller 1.7.0
+  FOrdre · servidor del taller 1.8.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -548,6 +549,7 @@ Download the template with the configurator's **CSV template** button: the heade
 | `kit format` | — | (Assembly row) `fused`, `individual`, `container` or `mixed`. | `container` |
 | `box material` | — | Print material of this material's box. | `PETG` |
 | `box colour` | — | Colour of this material's box. | `#FDD835` |
+| `traceability` | — | What must be recorded for each part: `lot`, `serial` (serial number) or empty (not required). See [section 6.11](#611--traceability-lots-serial-numbers-and-instruments-iso-9001). | `serial` |
 
 Values are also understood in Catalan and Spanish (for example, `peca`/`pieza`, `cargol`/`tornillo`, `llavi`/`labio`).
 
@@ -676,7 +678,7 @@ The card has these parts:
 - **Label:** the format (for the whole project), a preview, the QR/RFID data and **Print this one**.
 - **Individual box for this material:** material and colour of its box (in formats with boxes).
 - **Real shape of the part (custom nest):** load the part's **STL** and the bottom of the cell will follow its shape. Ideal for boards with components and curved or fragile parts.
-- **Material:** code, name, type, shape, dimensions (X, Y, Z in mm), weight (g/unit), colour, layout, maximum tilt, fragility, maximum stacked units, source, supplier and the *Sensitive to static electricity (ESD)*, *Contains liquids / fluids* and *Stackable* checkboxes.
+- **Material:** code, name, type, shape, dimensions (X, Y, Z in mm), weight (g/unit), colour, layout, maximum tilt, fragility, maximum stacked units, source, supplier, **Traceability (ISO 9001)** (*Not required*, *By lot* or *By serial number*) and the *Sensitive to static electricity (ESD)*, *Contains liquids / fluids* and *Stackable* checkboxes. Traceable materials carry the **LOT** or **S/N** mark in the *Materials* tab and in the workshop app.
 
 **Example:** the NEMA17 motor (`MT-050`) goes in a single layer, with 2 cells (one for each motor unit), inside container `DX-1.1.1-C`.
 
@@ -1012,6 +1014,48 @@ If a device loses Wi-Fi, the header dot turns 🔴 and the app **keeps working**
 - If two people worked at the same time, they do not overwrite each other: each action is applied only once and stock adds up.
 - If on reconnecting the server rejects an action (for example, because the order has been closed), the app shows the reason.
 
+### 6.11 🔖 Traceability: lots, serial numbers and instruments (ISO 9001)
+
+ISO 9001 (clause 8.5.2) requires being able to identify the product and, where needed, to know **which specific parts went into each unit built**. FOrdre does it like this:
+
+**1. Decide which materials are traceable.** In the configurator, on each material's card, the **Traceability (ISO 9001)** field:
+
+| Option | When to choose it | Example |
+|---|---|---|
+| *Not required* | Common hardware, consumables without a lot. | M3 screws, cable ties. |
+| *By lot* | Parts or products the supplier identifies by batch. | Threadlocker, oils, hoses, boards from the same run. |
+| *By serial number* | Parts that each have a unique number. | Motors, electronic boards, sensors. |
+
+It can also be set in the bill of materials, with the `traceability` column (section 4.1).
+
+**2. The Warehouse records the lot or serial numbers when filling.** Tapping (or scanning) the compartment of a traceable material opens this form:
+
+![Lots and serial numbers](imatges/en/t25-lots.jpg)
+
+- **By serial number:** one field per part. Each number must be different and cannot be repeated anywhere in the order.
+- **By lot:** the lot code and how many parts belong to it. If the parts come from different lots, **+ Another lot**.
+- The code can be **typed**, read with a **USB or Bluetooth reader** (it sends Enter and moves to the next field) or **scanned with the camera** with each field's **⌖** button.
+- The total must match the parts put in the box. Otherwise the app will not save it.
+- **Fill everything** does not fill traceable materials: their lots must be recorded one by one.
+- To **correct** a lot already recorded, press the compartment's **🔖** button. The log keeps who changed it and when.
+
+**3. Shortages and defective parts.** If fewer arrive, only the ones put in are recorded; when the rest arrive, the form shows the numbers already there and new empty fields. If a part is defective, the defective part form asks **which serial number or lot it is**: it leaves the box and stays on the returns list with its identification.
+
+**4. The Assembler.** In the step they see the lots and serial numbers of each compartment. If a traceable part did not go through the warehouse, the app asks for its lot or serial number before the step can be marked as assembled. If the step has **tightening torques**, they must enter the **measuring instrument** used (for example, the torque wrench number, `CD-07`). The device remembers it for next time.
+
+**5. Quality.** The verification has a **🔖 Traceability** section with the lots, serial numbers and measuring instrument, and one more checklist item: *the recorded lots and serial numbers match the parts fitted*. A step with unidentified traceable parts **cannot be approved** (Quality can record them with **🔖 Record**).
+
+**6. The 🔖 Traceability screen** (a Quality tab; for the Manager, a button on the Board):
+
+![Traceability](imatges/en/t26-tracabilitat.jpg)
+
+- **Reverse search:** type or scan a lot or serial number and press **Search**. With the server, the search covers **every order of every project** in the workshop; without a server, the orders stored on that device. Each result shows the order, the **machine's serial number**, the material, the compartment, who put it in and when, and whether it was a defective part.
+- **Parts in this order:** the machine's genealogy, step by step, with what is still to be recorded.
+- **Measuring instruments** for each step.
+- **⬇ Export CSV** with the whole genealogy.
+
+**7. The order report** has a **Component traceability (ISO 9001 · 8.5.2)** section and a *Traceability* indicator (✓ complete, or how many are missing). When closing the order, the app warns if any parts are unidentified.
+
 ### 6.10 Without a server (a single device)
 
 - Open `muntatge.html` and tap **Example project**, or open the configurator's `.fordre.json` file (menu ⋮ › *Open project file*).
@@ -1081,6 +1125,15 @@ Menu ⋮ › **👤 Switch person**. If there are unsent changes, the app warns 
 2. They all work on the same order. The **log**, the statuses and the warnings appear to each person in their language.
 3. The order report is shown in the language of whoever opens it. Handwritten notes and reasons are shown as they were written.
 
+### 7.9 A supplier reports a defective lot (recall)
+
+> The threadlocker supplier reports that lot `LOC243-B7731` does not meet the specification.
+
+1. **Rosa (Manager)** or **Pau (Quality):** 🔖 Traceability › type `LOC243-B7731` › **Search**.
+2. The app lists every order where it was used, with **each machine's serial number**, the step and who put it in.
+3. With this list you decide what to do with each machine (inspect it, inform the customer…) and an **issue** can be opened on each affected order.
+4. If there are still boxes with this lot in the workshop, the Warehouse empties them (the lot leaves the compartment) and refills them with a good lot.
+
 ---
 
 ## 8. Troubleshooting
@@ -1103,6 +1156,10 @@ Menu ⋮ › **👤 Switch person**. If there are unsent changes, the app warns 
 | The configurator shows a box with a *"sticks out"* warning. | The part is taller than the compartment. | Check the material's dimensions, raise the *Maximum depth* or use a lid (the lid gets a taller frame). |
 | The trays are too large for the printer. | The bed size is wrong. | ⚙ Settings › 3D printer › Bed X / Bed Y. |
 | Press-fit lids are too tight or too loose. | The clearance is not calibrated. | Print the calibration piece (section 3.2). |
+| *"Duplicate serial number"* or *"has already been used in this order"*. | That serial number is already in another compartment of the order. | Check the part's label. If it was recorded wrongly, correct it with the 🔖 button of the compartment where it is. |
+| *"The lots or serial numbers must add up to N parts"*. | The total does not match the parts being put in. | Check the quantity of each lot, or add or remove rows. |
+| The step cannot be marked as assembled: it asks for the measuring instrument. | The step has tightening torques. | Enter the number of the torque wrench (or instrument) you used. |
+| It cannot be approved: *"Some parts are missing their lot or serial number"*. | There are unidentified traceable parts. | Press **🔖 Record** and enter them, or ask the Warehouse. |
 | The app appears in a language that is not yours. | The browser's language was used. | Menu ⋮ › **Language** (in the configurator, the **CA / ES / EN** selector). The device will remember it. |
 
 ---
@@ -1146,6 +1203,7 @@ Menu ⋮ › **👤 Switch person**. If there are unsent changes, the app warns 
 | Verify (approve or reject) | | | ✓ | ✓ |
 | Decide what to do with a defective part | | | ✓ | ✓ |
 | Resolve issues | | | ✓ | ✓ |
+| Record or correct lots and serial numbers | ✓ | ✓ | ✓ | ✓ |
 | Open issues, take photos | ✓ | ✓ | ✓ | ✓ |
 | Assign steps, open and close orders, people, publish | | | | ✓ |
 
@@ -1170,6 +1228,24 @@ Menu ⋮ › **👤 Switch person**. If there are unsent changes, the app warns 
 | `Esc` | Close the open dialog. |
 
 In the workshop app, a **USB or Bluetooth barcode reader** works without any setup: scan and the code is processed automatically.
+
+### 9.6 Mapping to ISO 9001:2015
+
+This table helps prepare the audit: where, in FOrdre, the evidence for each manufacturing-related requirement is found.
+
+| ISO 9001 requirement | What FOrdre provides | Where it is seen |
+|---|---|---|
+| 7.1.5 Monitoring and measuring resources | Each step with tightening torques records the **measuring instrument** used. | Step › 3 · Finish; verification; report; 🔖 Traceability. |
+| 7.5 Documented information | Log of every action with date, time, person and role; **order report** as PDF; exact project version of each order; data backups. | Log; report; section 2.9. |
+| 8.5.1 Control of production | Assembly instructions, tightening torques, tools, reference image, people identified by PIN and roles. | Assembly step; people. |
+| 8.5.2 Identification and traceability | QR and barcode labels on every box and compartment; status of each step and box; machine serial number on the order; **lots and serial numbers of each part**; **reverse search** of lots. | Labels; 🔖 Traceability; report. |
+| 8.5.4 Preservation | Made-to-measure boxes for each part, separate ESD parts, liquids upright, storage boxes for sub-assemblies. | Configurator. |
+| 8.6 Release of products | Each step verified by Quality with a checklist and the **four-eyes rule**; order closing. | Verify; report. |
+| 8.7 Control of nonconforming outputs | Defective parts with their lot or serial number and the **decision** (return, scrap, repair, accept); rejections with reasons; issues. | 💥 Defects; report. |
+| 9.1 Monitoring, measurement, analysis and evaluation | Indicators for each order: right first time, rejections, assembly time, shortages and defects. | Results; report. |
+| 10.2 Nonconformity and corrective action | Issues with severity and resolution. | Issues; report. |
+
+> **Important:** FOrdre provides the **evidence** of manufacturing, but certification depends on the company's whole management system: procedures, periodic calibration of measuring instruments, internal audits, management review, supplier evaluation, formal corrective actions… Those parts are managed outside FOrdre.
 
 ### 9.5 Files and licence
 
