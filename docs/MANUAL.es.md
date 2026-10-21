@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versión 1.8** · Instalación, configuración y uso, paso a paso
+**Versión 1.9** · Instalación, configuración y uso, paso a paso
 
 *También en: [Català](MANUAL.md) · [English](MANUAL.en.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # muestra el registro y el QR (Ctrl+C para sal
 En el registro verás algo así (los mensajes de la consola del servidor están en catalán):
 
 ```
-  FOrdre · servidor del taller 1.8.0
+  FOrdre · servidor del taller 1.9.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -358,6 +358,17 @@ Pulsa **⚙ Configuración** en la barra de arriba del configurador. Los cambios
 | Asas en los lados cortos | Sí | |
 | QR grabado en las tapas | Sí | Se lee mejor si lo repasas con un rotulador. |
 
+**Fijación de las cajas al contenedor**
+
+| Campo | Por defecto | Límites | Notas |
+|---|---|---|---|
+| Fijación | Sin fijación | — | *Sin fijación*, *Lámina de acero en la base* o *Imanes emparejados* (vea el [punto 3.3](#33-formatos-de-kit-y-cierres)). |
+| Grosor de la lámina de acero (mm) | 0,5 | 0,2–3 | Solo con lámina. |
+| Diámetro del disco de acero (mm) | 10 | 3–30 | Solo con imanes emparejados. Una arandela DIN 125 M5 mide 10 × 1 mm. |
+| Grosor del disco de acero (mm) | 1 | 0,3–5 | Solo con imanes emparejados. |
+
+![Fijación de las cajas en la configuración](imatges/es/c15-fixacio.jpg)
+
 **Identificación y ergonomía**
 
 - Código grabado en relieve en la cara frontal.
@@ -410,6 +421,30 @@ Cada impresora imprime un poco diferente. La pieza de calibración ajusta las ta
 | **Labio interior** (0–5 mm) | Un borde que entra hacia el centro de cada cajetín y retiene las piezas. | Por defecto: no hace falta imprimir tapa. |
 | **Tapa a presión** | Tapa con una faldilla que encaja por dentro. | Para transportar. Calibra la holgura (punto 3.2). |
 | **Tapa con imanes** | Imanes de disco en las esquinas de la caja y de la tapa. | Se abre y se cierra muy deprisa. Las paredes se hacen más gruesas para alojarlos. |
+
+**Fijación de las cajas al contenedor**
+
+Con los formatos *Cajas + contenedor* y *Mixto*, las cajas pueden quedar sujetas a la base del contenedor para que no se muevan ni se caigan al llevarlo o inclinarlo, y a la vez se sacan con la mano sin herramientas. En ⚙ Configuración → *Fijación de las cajas al contenedor* hay dos opciones:
+
+| Fijación | Cómo es | Cuándo elegirla |
+|---|---|---|
+| **Sin fijación** | Las cajas solo las sujetan las paredes del contenedor. | Por defecto. Kits que no se mueven mucho. |
+| **Lámina de acero en la base** | El suelo del contenedor lleva un rebaje donde encaja una lámina fina de acero (0,5 mm por defecto). Cada caja lleva imanes en la cara de abajo. | Las cajas se pegan en cualquier lugar de la base: se pueden cambiar de sitio. Hay que cortar una lámina por contenedor (la medida sale en el resumen). |
+| **Imanes emparejados** | Cada caja lleva imanes debajo y, en el suelo del contenedor, justo debajo de cada imán, un alojamiento para un disco o arandela de acero. | Cada caja encuentra sola su sitio y queda centrada. No hay que cortar ninguna lámina: basta con arandelas. |
+
+- Los **imanes de las cajas** son los mismos que los de las tapas (diámetro y altura de *Cierre de cajas y bandejas*). Cada caja lleva **2 en diagonal**, o **4 en las esquinas** si la caja llena pesa más de 250 g o va girada dentro del contenedor.
+- Los alojamientos están abiertos **por abajo** (se imprimen sin soportes) y miden 0,3 mm más que el imán. El imán debe quedar **a ras** de la cara de abajo: fíjalo con una gota de cianoacrilato.
+- FOrdre hace más grueso el **suelo de las cajas** (como mínimo la altura del imán + 1 mm) y el **suelo del contenedor** (el grosor de la lámina o del disco + 0,9 mm), para que siempre quede plástico por encima.
+- Usa **acero normal o galvanizado**: el acero inoxidable y el aluminio no se pegan a los imanes. La polaridad de los imanes no importa.
+- El **resumen del proyecto** (cuando no hay nada seleccionado) y el archivo **LEEME** del ZIP de los STL dicen cuántos imanes y discos hay que comprar y la medida de cada lámina.
+
+![Imanes emparejados: discos de acero en el suelo del contenedor e imanes debajo de la caja](imatges/c17-fixacio-imants.jpg)
+
+![Lámina de acero encastrada en el suelo del contenedor](imatges/c18-fixacio-xapa.jpg)
+
+![Material necesario en el resumen del proyecto](imatges/es/c16-fixacio-resum.jpg)
+
+> **Consejo:** imprime primero una caja pequeña y comprueba que el imán entra justo. Si queda demasiado flojo o demasiado estrecho, cambia un poco el *Diámetro del imán* (por ejemplo 6,1 o 5,9 mm) y vuelve a generar los STL.
 
 ### 3.4 Etiquetas
 

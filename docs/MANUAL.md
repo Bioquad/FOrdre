@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versió 1.8** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.9** · Instal·lació, configuració i ús, pas a pas
 
 *També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
@@ -172,7 +172,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.8.0
+  FOrdre · servidor del taller 1.9.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -356,6 +356,17 @@ Prem **⚙ Configuració** a la barra de dalt del configurador. Els canvis s'apl
 | Nanses als costats curts | Sí | |
 | QR gravat a les tapes | Sí | Es llegeix millor si el repasses amb un retolador. |
 
+**Fixació de les caixes al contenidor**
+
+| Camp | Per defecte | Límits | Notes |
+|---|---|---|---|
+| Fixació | Sense fixació | — | *Sense fixació*, *Làmina d'acer a la base* o *Imants aparellats* (vegeu el [punt 3.3](#33-formats-de-kit-i-tancaments)). |
+| Gruix de la làmina d'acer (mm) | 0,5 | 0,2–3 | Només amb làmina. |
+| Diàmetre del disc d'acer (mm) | 10 | 3–30 | Només amb imants aparellats. Una volandera DIN 125 M5 fa 10 × 1 mm. |
+| Gruix del disc d'acer (mm) | 1 | 0,3–5 | Només amb imants aparellats. |
+
+![Fixació de les caixes a la configuració](imatges/c15-fixacio.jpg)
+
 **Identificació i ergonomia**
 
 - Codi gravat en relleu a la cara frontal.
@@ -408,6 +419,30 @@ Cada impressora imprimeix una mica diferent. La peça de calibratge ajusta les t
 | **Llavi interior** (0–5 mm) | Una vora que entra cap al centre de cada caixetí i reté les peces. | Per defecte: no cal imprimir tapa. |
 | **Tapa a pressió** | Tapa amb una faldilla que encaixa per dins. | Per transportar. Calibra el joc (punt 3.2). |
 | **Tapa amb imants** | Imants de disc a les cantonades de la caixa i de la tapa. | S'obre i es tanca molt de pressa. Les parets es fan més gruixudes per allotjar-los. |
+
+**Fixació de les caixes al contenidor**
+
+Amb els formats *Caixes + contenidor* i *Mixt*, les caixes poden quedar subjectes a la base del contenidor perquè no es moguin ni caiguin quan el portes o l'inclines, i alhora es treuen amb la mà sense eines. A ⚙ Configuració → *Fixació de les caixes al contenidor* hi ha dues opcions:
+
+| Fixació | Com és | Quan triar-la |
+|---|---|---|
+| **Sense fixació** | Les caixes només les aguanten les parets del contenidor. | Per defecte. Kits que no es mouen gaire. |
+| **Làmina d'acer a la base** | El terra del contenidor porta un rebaix on encaixa una làmina prima d'acer (0,5 mm per defecte). Cada caixa porta imants a la cara de sota. | Les caixes s'enganxen a qualsevol lloc de la base: es poden canviar de lloc. Cal tallar una làmina per contenidor (la mida surt al resum). |
+| **Imants aparellats** | Cada caixa porta imants a sota i, al terra del contenidor, just a sota de cada imant, un allotjament per a un disc o volandera d'acer. | Cada caixa troba sola el seu lloc i hi queda centrada. No cal tallar cap làmina: n'hi ha prou amb volanderes. |
+
+- Els **imants de les caixes** són els mateixos que els de les tapes (diàmetre i alçada de *Tancament de caixes i safates*). Cada caixa en porta **2 en diagonal**, o **4 a les cantonades** si la caixa plena pesa més de 250 g o va girada dins el contenidor.
+- Els allotjaments són oberts **per sota** (s'imprimeixen sense suports) i fan 0,3 mm més que l'imant. L'imant ha de quedar **a ras** de la cara de sota: fixa'l amb una gota de cianoacrilat.
+- FOrdre fa més gruixut el **terra de les caixes** (com a mínim l'alçada de l'imant + 1 mm) i el **terra del contenidor** (el gruix de la làmina o del disc + 0,9 mm), perquè sempre quedi plàstic per sobre.
+- Fes servir **acer normal o galvanitzat**: l'acer inoxidable i l'alumini no s'enganxen als imants. La polaritat dels imants no importa.
+- El **resum del projecte** (quan no hi ha res seleccionat) i el fitxer **LLEGEIX-ME** del ZIP dels STL diuen quants imants i discs cal comprar i la mida de cada làmina.
+
+![Imants aparellats: discs d'acer al terra del contenidor i imants a sota de la caixa](imatges/c17-fixacio-imants.jpg)
+
+![Làmina d'acer encastada al terra del contenidor](imatges/c18-fixacio-xapa.jpg)
+
+![Material necessari al resum del projecte](imatges/c16-fixacio-resum.jpg)
+
+> **Consell:** imprimeix primer una caixa petita i comprova que l'imant entra just. Si queda massa fluix o massa estret, canvia una mica el *Diàmetre de l'imant* (per exemple 6,1 o 5,9 mm) i torna a generar els STL.
 
 ### 3.4 Etiquetes
 

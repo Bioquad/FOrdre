@@ -234,6 +234,38 @@ prova('contenidors apilables: mateixa planta, peu encastat i nanses tancades', (
         assert(c.caixes.every(q => q.x >= FO.ZONA_NANSA), c.id + ': caixes a la zona de la nansa');
     });
 });
+prova('fixació de les caixes: làmina d\'acer o imants aparellats, sòlids tancats i alineats', () => {
+    for (const fx of ['xapa', 'imants']) {
+        const { q, pla: pl } = variant('cap', 'contenidor', { fixacio: fx });
+        const cfg = q.config, conts = pl.flatMap(r => r.safates.filter(x => x.forma === 'contenidor'));
+        assert(conts.length, fx + ': sense contenidors');
+        conts.forEach(c => {
+            const f = FO.fixacioContenidor(c, cfg);
+            assert(f && f.tipus === fx && f.imants.length >= 2 * c.caixes.length, c.id + ' imants');
+            // el terra del contenidor encasta la làmina o els discs i encara li queden 0,8 mm
+            const enc = fx === 'xapa' ? cfg.xapaGruix + 0.1 : cfg.discH + 0.2;
+            assert(c.fons >= enc + 0.8 - 1e-6, c.id + ' fons ' + c.fons);
+            assert(esTancada(FO.mallaSafata(c, cfg)), c.id + ' tancat');
+            c.caixes.forEach(k => {
+                // la caixa té terra per a l'imant, i cada imant cau dins la seva planta
+                assert(k.obj.caixetins.every(z => z.z >= cfg.imantH + 0.2 + 0.8 - 1e-6), k.obj.id + ' terra');
+                assert(esTancada(FO.mallaSafata(k.obj, cfg)), k.obj.id + ' tancada');
+                const w = k.girat ? k.obj.D : k.obj.W, d = k.girat ? k.obj.W : k.obj.D;
+                f.imants.filter(m => m.caixa === k.obj.id).forEach(m => assert(m.x > k.x && m.x < k.x + w && m.y > k.y && m.y < k.y + d, k.obj.id + ' imant fora'));
+            });
+            if (fx === 'xapa') assert(f.xapa.w > 0 && f.xapa.w <= c.W - 2 * c.paret && f.xapa.d <= c.D - 2 * c.paret, 'mida làmina');
+        });
+        const r = FO.resumFixacio(pl, cfg);
+        assert(r.imants > 0 && (fx === 'imants' ? r.discs === r.imants && !r.xapes.length : !r.discs && r.xapes.length === conts.length), fx + ' resum');
+    }
+    // una caixa pesada porta 4 imants; una de lleugera, 2 en diagonal
+    const cfg = FO.exemple().config, k = { W: 80, D: 60, paret: 1.6 };
+    assert(FO.posImantsFons(Object.assign({ pes: 100 }, k), cfg).length === 2, '2 imants');
+    assert(FO.posImantsFons(Object.assign({ pes: 400 }, k), cfg).length === 4, '4 imants');
+    // sense fixació, res no canvia
+    const { pla: pl0 } = variant('cap', 'contenidor');
+    assert(pl0.flatMap(r => r.safates).every(c => !FO.fixacioContenidor(c, cfg) || c.forma !== 'contenidor'), 'cap');
+});
 prova('QR gravat a les tapes: es llegeix des de la malla', () => {
     const { q, pla: pl } = variant('pressio', 'individual');
     let gravats = 0;

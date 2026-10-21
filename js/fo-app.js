@@ -374,6 +374,18 @@
         renderResum(el);
     }
 
+    // Material per fixar les caixes al contenidor (imants, discs o làmines d'acer)
+    function liniesFixacio() {
+        const c = cfg();
+        if (!c.fixacio || c.fixacio === 'cap') return [];
+        const r = FO.resumFixacio(PLA, c);
+        if (!r.imants) return [];
+        const l = [t('{n} imants de {d} × {h} mm a sota de les caixes, a ras i amb una gota de cianoacrilat', { n: r.imants, d: c.imantD, h: c.imantH })];
+        if (r.discs) l.push(t('{n} discs o volanderes d\'acer de {d} × {h} mm encastats al terra dels contenidors', { n: r.discs, d: c.discD, h: c.discH }));
+        r.xapes.forEach(x => l.push(t('Làmina d\'acer de {w} × {d} × {g} mm per al contenidor {id} (pas {p})', { w: fmt(x.w, 1), d: fmt(x.d, 1), g: x.gruix, id: x.id, p: x.pas })));
+        return l;
+    }
+
     function taulaFilament() {
         const f = FO.resumFilament(PLA, cfg());
         if (!f.length) return `<div class="ajuda">${t('Res a imprimir.')}</div>`;
@@ -397,7 +409,8 @@
             ${FO.validaProjecte(P).map(a => `<div class="av er">⚠ ${esc(a)}</div>`).join('')}</div>
             ${(P.revisions || []).length ? `<div class="ps"><div class="ps-t">${t('Revisions de la llista de materials')}</div>${P.revisions.slice().reverse().map(r => `<details style="margin-bottom:4px"><summary style="cursor:pointer">${esc(new Date(r.data).toLocaleString(FO.locale()))}${r.origen ? ' · ' + esc(r.origen) : ''} · ${t('{n} a imprimir', { n: r.reimprimir.length })}</summary><ul style="margin:4px 0 0 18px;font-size:11px">${r.canvis.map(x => `<li>${esc(FO.tMissatge(x))}</li>`).join('')}</ul></details>`).join('')}</div>` : ''}
             <div class="ps"><div class="ps-t">${t('Filament necessari')}</div>${taulaFilament()}
-            <div class="ajuda" style="margin-top:4px">${t('Estimació amb un {p} % de plàstic real (parets + farciment). Es pot ajustar a la configuració.', { p: Math.round(cfg().factorPes * 100) })}</div></div>`;
+            <div class="ajuda" style="margin-top:4px">${t('Estimació amb un {p} % de plàstic real (parets + farciment). Es pot ajustar a la configuració.', { p: Math.round(cfg().factorPes * 100) })}</div></div>
+            ${liniesFixacio().length ? `<div class="ps"><div class="ps-t">${t('Fixació de les caixes')} · ${esc(FO.FIXACIONS[cfg().fixacio].nom)}</div><ul style="margin:0 0 0 18px;font-size:12px">${liniesFixacio().map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}`;
         $('pNom').addEventListener('input', function () { P.nom = this.value; $('nomProjecte').textContent = P.nom; desaLocal(); });
     }
 
@@ -806,6 +819,8 @@
         linies.push('', t('FILAMENT NECESSARI (estimació)'));
         FO.resumFilament(PLA, cfg()).forEach(e => linies.push(`   ${nomMat(e.material).padEnd(26)} ${e.color}  ${String(e.peces).padStart(3)} ${t('peces')}  ≈ ${Math.round(e.grams)} g`));
         if (cfg().tancament === 'imants' || P.conjunts.some(c => c.tancament === 'imants')) linies.push('', t('IMANTS: disc de {d} × {h} mm, fixats amb una gota de cianoacrilat. Compte amb la polaritat entre caixa i tapa.', { d: cfg().imantD, h: cfg().imantH }));
+        if (liniesFixacio().length) linies.push('', t('FIXACIÓ DE LES CAIXES') + ' · ' + FO.FIXACIONS[cfg().fixacio].nom, ...liniesFixacio().map(x => '   ' + x),
+            '   ' + t('Acer normal o galvanitzat (no inoxidable ni alumini). La polaritat no importa: els imants s\'enganxen a l\'acer.'));
         linies.push('', t('Els noms dels fitxers porten el material i el color: NN_ID_MATERIAL_COLOR.stl (les tapes acaben en _tapa: s\'imprimeixen amb la placa a sota).'), t('Recomanació: 2-3 perímetres, 10-15 % de farciment, sense suports.'));
         fitxers.push({ nom: t('LLEGEIX-ME') + '.txt', dades: linies.join('\r\n') });
         fitxers.push({ nom: FO.nomFitxer(P.nom) + '.fordre.json', dades: JSON.stringify(P) });
@@ -1103,6 +1118,12 @@
             <label class="ck"><input type="checkbox" data-cfgck="nanses"${c.nanses ? ' checked' : ''}> ${t('Nanses als costats curts dels contenidors')}</label>
             <label class="ck"><input type="checkbox" data-cfgck="qrRelleu"${c.qrRelleu ? ' checked' : ''}> ${t('QR gravat a les tapes (i a la cara posterior de les caixes sense tapa, si hi cap). Es llegeix millor si el repasses amb un retolador.')}</label>
             <div class="fx" style="margin-top:6px"><button class="b sm" id="bCalibratge">📐 ${t('Peça de calibratge…')}</button></div></div>
+            <div><div class="ps-t">${t('Fixació de les caixes al contenidor')}</div><div class="fg3">
+                <div class="fi"><label>${t('Fixació')}</label><select data-cfgsel="fixacio">${Object.entries(FO.FIXACIONS).map(([k, x]) => `<option value="${k}"${c.fixacio === k ? ' selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></div>
+                ${c.fixacio === 'xapa' ? camp(['xapaGruix', 'Gruix de la làmina d\'acer (mm)']) : ''}
+                ${c.fixacio === 'imants' ? [['discD', 'Diàmetre del disc d\'acer (mm)'], ['discH', 'Gruix del disc d\'acer (mm)']].map(camp).join('') : ''}
+            </div>
+            <div class="ajuda" style="margin-top:6px">${Object.values(FO.FIXACIONS).map(x => `<b>${esc(x.nom)}</b>: ${esc(x.desc)}`).join('<br>')}<br>${t('Només afecta les caixes que van dins un contenidor (formats contenidor i mixt). Els imants de les caixes són els mateixos de les tapes (diàmetre i alçada de dalt); en porten 2 en diagonal, o 4 si la caixa plena pesa més de {g} g.', { g: FO.PES_QUATRE_IMANTS })}</div></div>
             <div><div class="ps-t">${t('Identificació i ergonomia')}</div>
                 <label class="ck"><input type="checkbox" data-cfgck="relleu"${c.relleu ? ' checked' : ''}> ${t('Codi gravat en relleu a la cara frontal')}</label>
                 <label class="ck"><input type="checkbox" data-cfgck="rebaixEtiqueta"${c.rebaixEtiqueta ? ' checked' : ''}> ${t('Rebaix per a l\'etiqueta adhesiva (a la cara posterior si ja hi ha relleu al davant)')}</label>
@@ -1148,7 +1169,10 @@
         });
         $('bCalibratge').addEventListener('click', obreCalibratge);
         $('cfgCos').querySelectorAll('[data-cfgck]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgck] = i.checked; recalcula(); }));
-        $('cfgCos').querySelectorAll('[data-cfgsel]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgsel] = i.value; $('cartell').dataset.clau = ''; recalcula(); }));
+        $('cfgCos').querySelectorAll('[data-cfgsel]').forEach(i => i.addEventListener('change', () => {
+            c[i.dataset.cfgsel] = i.value; $('cartell').dataset.clau = ''; recalcula();
+            if (i.dataset.cfgsel === 'fixacio') renderConfig();   // els camps depenen del tipus de fixació
+        }));
         $('cfgCos').querySelectorAll('[data-cfgcol]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgcol] = i.value; recalcula(); }));
         $('cfgCos').querySelectorAll('[data-fil]').forEach(i => i.addEventListener('change', () => { c.filaments[+i.dataset.fil] = i.value; recalcula(); }));
         $('cfgCos').querySelectorAll('[data-filx]').forEach(b => b.addEventListener('click', () => { c.filaments.splice(+b.dataset.filx, 1); renderConfig(); recalcula(); }));

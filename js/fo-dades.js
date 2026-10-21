@@ -15,7 +15,7 @@
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.8.0';
+    FO.VERSIO = '1.9.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -62,6 +62,10 @@
         nanses: true,               // nanses als costats curts del contenidor
         qrRelleu: true,             // QR gravat a la tapa (i a la cara posterior si no hi ha tapa ni rebaix)
         imantD: 6, imantH: 2,       // imant de disc (diàmetre × alçada)
+        // ─── Fixació de les caixes a la base del contenidor ───
+        fixacio: 'cap',             // cap | xapa (làmina d'acer a la base) | imants (imant a la caixa + disc d'acer a la base)
+        xapaGruix: 0.5,             // gruix de la làmina d'acer (mm)
+        discD: 10, discH: 1,        // disc o volandera d'acer de la base (p. ex. volandera DIN125 M5: 10 × 1 mm)
         // ─── Identificació física i ergonomia ───
         relleu: true,               // codi gravat a la cara frontal
         rebaixEtiqueta: false,      // rebaix per a l'etiqueta adhesiva (cara frontal o posterior)
@@ -80,11 +84,22 @@
         minCaixeti: [5, 200], profMax: [5, 500], retencio: [0.1, 1], granel: [0.2, 0.9], omplert: [0.3, 1],
         llavi: [0, 20], inclinacio: [0, 45], areaPetit: [0, 1e6], jocCaixes: [0, 5], alcadaContenidor: [0.2, 1],
         factorPes: [0.1, 1], llaviAmple: [0, 5], jocTapa: [0, 1.5], gruixTapa: [0.8, 6], imantD: [2, 30], imantH: [0.5, 10],
+        xapaGruix: [0.2, 3], discD: [3, 30], discH: [0.3, 5],
         cabal: [1, 60], separacioTanda: [1, 50]
     };
     FO.limita = function (k, v) {
         const r = FO.RANGS[k]; if (!r) return v;
         return Math.min(r[1], Math.max(r[0], v));
+    };
+
+    // Com es fixen les caixes de dins a la base del contenidor (perquè no es moguin ni caiguin en girar-lo).
+    // Cada caixa porta imants de disc encastats a la cara de sota; a la base hi va:
+    //   xapa:   una làmina d'acer encastada al terra (les caixes s'enganxen a qualsevol lloc)
+    //   imants: un disc o volandera d'acer just a sota de cada imant (cada caixa troba el seu lloc)
+    FO.FIXACIONS = {
+        cap: { nom: t('Sense fixació'), desc: t('Les caixes només les aguanten les parets del contenidor.') },
+        xapa: { nom: t('Làmina d\'acer a la base'), desc: t('Una làmina prima d\'acer encastada al terra del contenidor i imants a sota de cada caixa: les caixes s\'enganxen a qualsevol lloc.') },
+        imants: { nom: t('Imants aparellats'), desc: t('Imants a sota de cada caixa i, a la base, un disc o volandera d\'acer just a sota de cadascun: cada caixa troba el seu lloc i no cal vigilar la polaritat.') }
     };
 
     FO.TANCAMENTS = {
@@ -245,6 +260,7 @@
         cfg.llit = Object.assign({}, FO.CONFIG_DEFECTE.llit, (p.config || {}).llit || {});
         if (!FO.FORMATS_KIT[cfg.formatKit]) cfg.formatKit = FO.CONFIG_DEFECTE.formatKit;
         if (!FO.TANCAMENTS[cfg.tancament]) cfg.tancament = FO.CONFIG_DEFECTE.tancament;
+        if (!FO.FIXACIONS[cfg.fixacio]) cfg.fixacio = 'cap';
         Object.keys(FO.RANGS).forEach(k => {
             const [a, b] = k.split('.');
             if (b) cfg[a][b] = FO.limita(k, num(cfg[a][b], FO.CONFIG_DEFECTE[a][b]));

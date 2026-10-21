@@ -69,6 +69,7 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
    - **Tapa a pressió**: una faldilla que encaixa per dins de les parets (el joc es calibra).
    - **Tapa amb imants**: allotjaments per a imants de disc a la part de dalt de les parets i a la tapa; les parets es fan prou gruixudes per contenir-los.
    Si hi ha peces que sobresurten, la tapa porta un marc que la fa més alta. Amb contenidor, les caixes de dins també poden portar tapa.
+   **Fixació de les caixes al contenidor** (formats contenidor i mixt): una **làmina prima d'acer** encastada al terra del contenidor, o **imants aparellats** amb un disc o volandera d'acer just a sota de cada imant. Les caixes porten els imants encastats a la cara de sota (2 en diagonal, o 4 si pesen més de 250 g) i el resum diu quants imants, discs i quina làmina cal.
 9. **Identificació i ergonomia:** codi **gravat en relleu** a la cara frontal, **rebaix** per a l'etiqueta adhesiva, **codi gravat al fons** de cada caixetí i **fons arrodonit** als caixetins de cargoleria per treure les peces fent lliscar el dit.
 10. **Límits de fabricació:** parets d'1 a 10 mm, llit de 150 a 2.000 mm (X i Y) i de 50 a 2.000 mm (Z).
 11. **Calibratge:** una peça de prova amb forats de diferents folgances i un tac; tries el forat que encaixa i FOrdre ajusta el joc de les tapes i de les caixes.

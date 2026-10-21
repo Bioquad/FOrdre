@@ -316,13 +316,68 @@
         o.W = r05(W); o.D = r05(D); c.w = o.W - 2 * p; c.d = o.D - 2 * p;
     }
 
+    // ─── Fixació de les caixes a la base del contenidor ───
+    // Les caixes porten imants encastats a la cara de sota (allotjaments oberts per sota,
+    // s'imprimeixen sense suports i l'imant queda a ras per tocar l'acer).
+    FO.PES_QUATRE_IMANTS = 250;   // g: per sobre, 4 imants per caixa; per sota, 2 en diagonal
+    const hImantFons = cfg => cfg.imantH + 0.2;
+    // Terra mínim d'una caixa que porta imants a sota
+    const terraAmbImants = cfg => Math.max(cfg.terra, Math.ceil((hImantFons(cfg) + 0.8) * 10) / 10);
+    // Posicions dels imants a la cara de sota d'una caixa (coordenades de la caixa)
+    // (totes: sense reduir a la diagonal; es fa servir quan la caixa va girada dins el contenidor,
+    // perquè el patró sigui el mateix tant si es mira girat com no)
+    FO.posImantsFons = function (o, cfg, totes) {
+        const s = cfg.imantD + 0.3, m = Math.max(o.paret || 1, 1) + s / 2 + 0.5;
+        const xs = o.W >= 2 * m + s + 1 ? [m, o.W - m] : [o.W / 2];
+        const ys = o.D >= 2 * m + s + 1 ? [m, o.D - m] : [o.D / 2];
+        const tots = [];
+        xs.forEach(x => ys.forEach(y => tots.push([x, y])));
+        if (totes || (o.pes || 0) > FO.PES_QUATRE_IMANTS || tots.length <= 2) return tots;
+        return [tots[0], tots[tots.length - 1]];   // 2 en diagonal
+    };
+    // Fixació d'un contenidor: imants de cada caixa (en coordenades del contenidor) i
+    // la zona de la làmina d'acer (rebaix del terra, amb 0,5 mm de joc per banda)
+    FO.fixacioContenidor = function (cont, cfg) {
+        const tipus = cont.fixacio || 'cap';
+        if (tipus === 'cap') return null;
+        // una caixa girada dins el contenidor té la planta transposada (W↔D); amb el patró
+        // complet (sense diagonal) el girat i el transposat coincideixen
+        const planta = q => q.girat ? { w: q.obj.D, d: q.obj.W } : { w: q.obj.W, d: q.obj.D };
+        const imants = cont.caixes.flatMap(q => FO.posImantsFons(q.obj, cfg, !!q.girat)
+            .map(([x, y]) => q.girat ? [y, x] : [x, y])
+            .map(([x, y]) => ({ x: q.x + x, y: q.y + y, caixa: q.obj.id })));
+        // zona de la làmina: les caixes +1 mm per banda, sense entrar a les parets
+        const pw = cont.paret;
+        const x0 = Math.max(pw, Math.min(...cont.caixes.map(q => q.x)) - 1), y0 = Math.max(pw, Math.min(...cont.caixes.map(q => q.y)) - 1);
+        const x1 = Math.min(cont.W - pw, Math.max(...cont.caixes.map(q => q.x + planta(q).w)) + 1);
+        const y1 = Math.min(cont.D - pw, Math.max(...cont.caixes.map(q => q.y + planta(q).d)) + 1);
+        const r = v => Math.floor(v * 2) / 2;
+        return { tipus, imants, rebaix: { x0, y0, x1, y1 }, xapa: tipus === 'xapa' ? { w: r(x1 - x0 - 1), d: r(y1 - y0 - 1), gruix: cfg.xapaGruix } : null };
+    };
+    // Material per fixar totes les caixes d'un pla: imants, discs d'acer i làmines
+    FO.resumFixacio = function (pla, cfg) {
+        const r = { imants: 0, discs: 0, xapes: [] };
+        pla.forEach(p => p.safates.filter(s => s.forma === 'contenidor').forEach(c => {
+            const f = FO.fixacioContenidor(c, cfg);
+            if (!f) return;
+            r.imants += f.imants.length;
+            if (f.tipus === 'imants') r.discs += f.imants.length;
+            if (f.xapa) r.xapes.push(Object.assign({ id: c.id, pas: p.pas }, f.xapa));
+        }));
+        return r;
+    };
+
     // ─── Contenidor general obert per dalt que agrupa caixes ───
     FO.PEU_APILABLE = 3;    // alçada del peu encastat (mm)
     FO.ZONA_NANSA = 30;     // espai de cada nansa als costats curts (mm)
     function contenidors(conj, objs, cfg, prefix) {
         const j = cfg.jocCaixes, pc = cfg.paretContenidor;
         const zona = cfg.nanses ? FO.ZONA_NANSA : 0;
-        const fons = cfg.terra + (cfg.contenidorsApilables ? FO.PEU_APILABLE : 0);
+        let fons = cfg.terra + (cfg.contenidorsApilables ? FO.PEU_APILABLE : 0);
+        // amb fixació, el terra ha de poder encastar la làmina o els discs d'acer
+        if (cfg.fixacio === 'xapa') fons = Math.max(fons, cfg.xapaGruix + 0.1 + 0.8);
+        if (cfg.fixacio === 'imants') fons = Math.max(fons, cfg.discH + 0.2 + 0.8);
+        fons = Math.ceil(fons * 10) / 10;
         // les nanses ocupen espai als costats: el llit útil per a les caixes és més estret
         const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j, llit: Object.assign({}, cfg.llit, { x: cfg.llit.x - 2 * zona }) });
         const items = objs.map(o => ({
@@ -353,7 +408,8 @@
             if ((cfg.inclinacio || 0) > angle) avisos.push(t('inclinació limitada a {a}° per peces que no es poden tombar', { a: angle }));
             const cont = {
                 id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j) + 2 * zona), D: r05(dist.D + 2 * (pc + j)), H,
-                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0)
+                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0),
+                fixacio: cfg.fixacio || 'cap'
             };
             caixes.forEach(c => { c.obj.pare = cont; c.obj.pos = { x: c.x, y: c.y, girat: c.girat }; });
             return cont;
@@ -441,13 +497,15 @@
         else if (format === 'individual') safates = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
         else {
             let objs;
+            // les caixes que van dins el contenidor amb imants a sota necessiten un terra prou gruixut
+            const cfgDins = cfg.fixacio && cfg.fixacio !== 'cap' ? Object.assign({}, cfg, { terra: terraAmbImants(cfg) }) : cfg;
             if (format === 'mixt') {
                 const petit = c => c.W * c.D <= cfg.areaPetit && !c.o.dreta; // els que van drets, sempre en caixa pròpia
                 const petits = caix.filter(petit), grans = caix.filter(c => !petit(c));
-                const blocs = petits.length > 1 ? agrupa(conj, petits, Object.assign({}, cfg, { llavi: 0 }), '-P') : [];
+                const blocs = petits.length > 1 ? agrupa(conj, petits, Object.assign({}, cfgDins, { llavi: 0 }), '-P') : [];
                 blocs.forEach(b => { b.bloc = true; });
-                objs = blocs.concat((petits.length > 1 ? grans : caix).map(c => caixaIndividual(idCaixa(c), c, cfg, conj)));
-            } else objs = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
+                objs = blocs.concat((petits.length > 1 ? grans : caix).map(c => caixaIndividual(idCaixa(c), c, cfgDins, conj)));
+            } else objs = caix.map(c => caixaIndividual(idCaixa(c), c, cfgDins, conj));
             safates = contenidors(conj, objs, cfg, '-C');
         }
         // Entrades: subconjunts que ja s'han d'haver muntat abans
