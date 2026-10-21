@@ -1,6 +1,6 @@
 # FOrdre Manual
 
-**Version 1.8** · Installation, configuration and use, step by step
+**Version 1.9** · Installation, configuration and use, step by step
 
 *Also in: [Català](MANUAL.md) · [Español](MANUAL.es.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # shows the log and the QR (Ctrl+C to exit)
 In the log you will see something like this (the server console messages are in Catalan):
 
 ```
-  FOrdre · servidor del taller 1.8.0
+  FOrdre · servidor del taller 1.9.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -360,6 +360,17 @@ Press **⚙ Settings** on the configurator's top bar. Changes apply instantly an
 | Handles on the short sides | Yes | |
 | QR engraved on the lids | Yes | It reads better if you go over it with a marker. |
 
+**Fixing the boxes to the container**
+
+| Field | Default | Limits | Notes |
+|---|---|---|---|
+| Fixing | No fixing | — | *No fixing*, *Steel sheet in the base* or *Paired magnets* (see [section 3.3](#33-kit-formats-and-closures)). |
+| Steel sheet thickness (mm) | 0.5 | 0.2–3 | Only with a sheet. |
+| Steel disc diameter (mm) | 10 | 3–30 | Only with paired magnets. A DIN 125 M5 washer is 10 × 1 mm. |
+| Steel disc thickness (mm) | 1 | 0.3–5 | Only with paired magnets. |
+
+![Box fixing in the configuration](imatges/en/c15-fixacio.jpg)
+
 **Identification and ergonomics**
 
 - Code embossed on the front face.
@@ -412,6 +423,30 @@ Every printer prints slightly differently. The calibration piece adapts the lids
 | **Inner lip** (0–5 mm) | An edge that protrudes towards the centre of each compartment and holds the parts in. | Default: no lid needs printing. |
 | **Press-fit lid** | A lid with a skirt that fits inside. | For transport. Calibrate the clearance (section 3.2). |
 | **Magnetic lid** | Disc magnets in the corners of the box and the lid. | Opens and closes very quickly. The walls are made thicker to house them. |
+
+**Fixing the boxes to the container**
+
+With the *Boxes + container* and *Mixed* formats, the boxes can be held to the container base so they don't shift or fall out when you carry or tilt it, while still coming out by hand without tools. In ⚙ Configuration → *Fixing the boxes to the container* there are two options:
+
+| Fixing | What it is | When to choose it |
+|---|---|---|
+| **No fixing** | The boxes are held only by the container walls. | Default. Kits that don't move much. |
+| **Steel sheet in the base** | The container floor has a recess where a thin steel sheet fits (0.5 mm by default). Each box has magnets on its underside. | The boxes stick anywhere on the base: they can be moved around. One sheet must be cut per container (the size is shown in the summary). |
+| **Paired magnets** | Each box has magnets underneath and, in the container floor, right below each magnet, a pocket for a steel disc or washer. | Each box finds its own place and stays centred. No sheet to cut: washers are enough. |
+
+- The **box magnets** are the same as the lid ones (diameter and height from *Closure of boxes and trays*). Each box gets **2 on a diagonal**, or **4 in the corners** if the full box weighs more than 250 g or is rotated inside the container.
+- The pockets are open **from below** (they print without supports) and are 0.3 mm larger than the magnet. The magnet must sit **flush** with the underside: fix it with a drop of cyanoacrylate.
+- FOrdre makes the **box floor** thicker (at least the magnet height + 1 mm) and the **container floor** thicker (the sheet or disc thickness + 0.9 mm), so there is always plastic above.
+- Use **plain or galvanised steel**: stainless steel and aluminium don't stick to magnets. Magnet polarity doesn't matter.
+- The **project summary** (when nothing is selected) and the **README** file in the STL ZIP say how many magnets and discs to buy and the size of each sheet.
+
+![Paired magnets: steel discs in the container floor and magnets under the box](imatges/c17-fixacio-imants.jpg)
+
+![Steel sheet recessed into the container floor](imatges/c18-fixacio-xapa.jpg)
+
+![Material needed in the project summary](imatges/en/c16-fixacio-resum.jpg)
+
+> **Tip:** print a small box first and check that the magnet goes in snugly. If it is too loose or too tight, change the *Magnet diameter* slightly (for example 6.1 or 5.9 mm) and generate the STL files again.
 
 ### 3.4 Labels
 

@@ -357,6 +357,15 @@
                 const b = pw + 0.6;
                 ops.push(OP(0, 0, o.W, b, 0, peu, 0), OP(0, o.D - b, o.W, o.D, 0, peu, 0), OP(0, 0, b, o.D, 0, peu, 0), OP(o.W - b, 0, o.W, o.D, 0, peu, 0));
             }
+            // Fixació de les caixes: rebaix per a la làmina d'acer o allotjaments per als discs
+            const fx = FO.fixacioContenidor && FO.fixacioContenidor(o, cfg);
+            if (fx && fx.tipus === 'xapa') {
+                const r = fx.rebaix;
+                ops.push(OP(r.x0, r.y0, r.x1, r.y1, fons - cfg.xapaGruix - 0.1, fons, 0));
+            } else if (fx && fx.tipus === 'imants') {
+                const s = cfg.discD + 0.3, h = cfg.discH + 0.2;
+                fx.imants.forEach(m => ops.push(OP(m.x - s / 2, m.y - s / 2, m.x + s / 2, m.y + s / 2, fons - h, fons, 0)));
+            }
         } else {
             // alçada dels divisors: sense vora alta; amb tapa a pressió, per sota de la faldilla
             const cims = H - Math.max(cfg.llavi, tanc === 'pressio' ? 4.5 : 0);
@@ -381,6 +390,12 @@
                 if (cfg.codiFons) gravaFons(ops, c, c.mat.codi);
                 if (tanc === 'llavi') llavi(ops, c, c.llavi || 0, H);
             });
+        }
+        // Caixa dins un contenidor amb fixació: imants encastats a la cara de sota (oberts per sota)
+        if (o.pare && o.pare.fixacio && o.pare.fixacio !== 'cap' && FO.posImantsFons) {
+            const s = cfg.imantD + 0.3, h = cfg.imantH + 0.2;
+            const gir = !!(o.pos && o.pos.girat);
+            FO.posImantsFons(o, cfg, gir).forEach(([x, y]) => ops.push(OP(x - s / 2, y - s / 2, x + s / 2, y + s / 2, 0, h, 0)));
         }
         if (tanc === 'imants') {
             const s = cfg.imantD + 0.3, h = cfg.imantH + 0.2;

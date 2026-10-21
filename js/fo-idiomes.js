@@ -1244,7 +1244,25 @@
         ["Cal indicar el caixetí", "Hay que indicar el cajetín", "The compartment must be given"],
         ["Indica el lot o el número de sèrie de la peça defectuosa", "Indica el lote o el número de serie de la pieza defectuosa", "Give the lot or serial number of the defective part"],
         ["Cal un lot o número de sèrie", "Hace falta un lote o número de serie", "A lot or serial number is required"],
-        ["csv:tracabilitat", "csv:trazabilidad", "csv:traceability"]
+        ["csv:tracabilitat", "csv:trazabilidad", "csv:traceability"],
+        ["Sense fixació", "Sin fijación", "No fixing"],
+        ["Les caixes només les aguanten les parets del contenidor.", "Las cajas solo las sujetan las paredes del contenedor.", "The boxes are held only by the container walls."],
+        ["Làmina d'acer a la base", "Lámina de acero en la base", "Steel sheet in the base"],
+        ["Una làmina prima d'acer encastada al terra del contenidor i imants a sota de cada caixa: les caixes s'enganxen a qualsevol lloc.", "Una lámina fina de acero encastrada en el suelo del contenedor e imanes debajo de cada caja: las cajas se pegan en cualquier lugar.", "A thin steel sheet recessed into the container floor and magnets under each box: the boxes stick anywhere."],
+        ["Imants aparellats", "Imanes emparejados", "Paired magnets"],
+        ["Imants a sota de cada caixa i, a la base, un disc o volandera d'acer just a sota de cadascun: cada caixa troba el seu lloc i no cal vigilar la polaritat.", "Imanes debajo de cada caja y, en la base, un disco o arandela de acero justo debajo de cada uno: cada caja encuentra su sitio y no hay que vigilar la polaridad.", "Magnets under each box and, in the base, a steel disc or washer right below each one: every box finds its place and polarity doesn't matter."],
+        ["Fixació de les caixes al contenidor", "Fijación de las cajas al contenedor", "Fixing the boxes to the container"],
+        ["Fixació", "Fijación", "Fixing"],
+        ["Gruix de la làmina d'acer (mm)", "Grosor de la lámina de acero (mm)", "Steel sheet thickness (mm)"],
+        ["Diàmetre del disc d'acer (mm)", "Diámetro del disco de acero (mm)", "Steel disc diameter (mm)"],
+        ["Gruix del disc d'acer (mm)", "Grosor del disco de acero (mm)", "Steel disc thickness (mm)"],
+        ["Només afecta les caixes que van dins un contenidor (formats contenidor i mixt). Els imants de les caixes són els mateixos de les tapes (diàmetre i alçada de dalt); en porten 2 en diagonal, o 4 si la caixa plena pesa més de {g} g.", "Solo afecta a las cajas que van dentro de un contenedor (formatos contenedor y mixto). Los imanes de las cajas son los mismos de las tapas (diámetro y altura de arriba); llevan 2 en diagonal, o 4 si la caja llena pesa más de {g} g.", "Only affects boxes that go inside a container (container and mixed formats). The box magnets are the same as the lid ones (diameter and height above); they get 2 on a diagonal, or 4 if the full box weighs more than {g} g."],
+        ["{n} imants de {d} × {h} mm a sota de les caixes, a ras i amb una gota de cianoacrilat", "{n} imanes de {d} × {h} mm debajo de las cajas, a ras y con una gota de cianoacrilato", "{n} magnets of {d} × {h} mm under the boxes, flush and with a drop of cyanoacrylate"],
+        ["{n} discs o volanderes d'acer de {d} × {h} mm encastats al terra dels contenidors", "{n} discos o arandelas de acero de {d} × {h} mm encastrados en el suelo de los contenedores", "{n} steel discs or washers of {d} × {h} mm set into the container floors"],
+        ["Làmina d'acer de {w} × {d} × {g} mm per al contenidor {id} (pas {p})", "Lámina de acero de {w} × {d} × {g} mm para el contenedor {id} (paso {p})", "Steel sheet {w} × {d} × {g} mm for container {id} (step {p})"],
+        ["Fixació de les caixes", "Fijación de las cajas", "Box fixing"],
+        ["FIXACIÓ DE LES CAIXES", "FIJACIÓN DE LAS CAJAS", "BOX FIXING"],
+        ["Acer normal o galvanitzat (no inoxidable ni alumini). La polaritat no importa: els imants s'enganxen a l'acer.", "Acero normal o galvanizado (no inoxidable ni aluminio). La polaridad no importa: los imanes se pegan al acero.", "Plain or galvanised steel (not stainless or aluminium). Polarity doesn't matter: the magnets stick to the steel."]
     ];
     FO.TRAD = { es: {}, en: {} };
     D.forEach(([ca, es, en]) => { FO.TRAD.es[ca] = es; FO.TRAD.en[ca] = en; });
