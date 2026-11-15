@@ -39,6 +39,7 @@
         maxApilat: { nom: t('Màx. apilat'), sin: ['max apilado', 'max apilados', 'max apilat', 'màx apilat', 'max stack', 'maxapilat'] },
         fragil: { nom: t('Fragilitat 0-10'), sin: ['fragilidad', 'fragil', 'fràgil', 'fragilitat', 'fragile', 'fragility', 'fragilidad'] },
         disposicio: { nom: t('Disposició'), sin: ['disposicio', 'disposició', 'disposicion', 'layout', 'arrangement'] },
+        orientacio: { nom: t('Orientació'), sin: ['orientacio', 'orientació', 'orientacion', 'orientación', 'orientation', 'part orientation'] },
         col: { nom: t('Color'), sin: ['color', 'colour', 'col'] },
         origen: { nom: t('Origen'), sin: ['origen', 'origin', 'make/buy', 'make buy', 'fabricat/comprat'] },
         proveidor: { nom: t('Proveïdor'), sin: ['proveidor', 'proveïdor', 'proveedor', 'supplier', 'vendor', 'fabricant', 'manufacturer'] },
@@ -164,6 +165,8 @@
         ['angleMax', 'maxApilat', 'fragil'].forEach(k => { if (n(k) !== undefined) m[k] = n(k); });
         const disp = net(v('disposicio'));
         if (disp) m.disposicio = /indiv/.test(disp) ? 'individual' : /apil|stack/.test(disp) ? 'apilat' : /granel|bulk|loose/.test(disp) ? 'granel' : /capa|layer/.test(disp) ? 'capa' : 'auto';
+        const orn = net(v('orientacio'));
+        if (orn) m.orientacio = /cant|edge|costat|lado|canto|vertical/.test(orn) ? 'cantell' : /dret|punta|upright|end|pie|standing/.test(orn) ? 'dreta' : /plan|flat|horitz|horiz|tumbad|estirad/.test(orn) ? 'plana' : 'auto';
         const col = String(v('col') || '').trim();
         if (/^#?[0-9a-f]{6}$/i.test(col)) m.col = col[0] === '#' ? col : '#' + col;
         const ori = net(v('origen'));
@@ -324,7 +327,7 @@
     };
 
     // ─── Revisions: què canvia entre dues versions del projecte ───
-    const CAMPS_MAT_DIFF = ['nom', 'tipus', 'forma', 'x', 'y', 'z', 'pes', 'esd', 'liquid', 'angleMax', 'apilable', 'maxApilat', 'fragil', 'disposicio'];
+    const CAMPS_MAT_DIFF = ['nom', 'tipus', 'forma', 'x', 'y', 'z', 'pes', 'esd', 'liquid', 'angleMax', 'apilable', 'maxApilat', 'fragil', 'disposicio', 'orientacio'];
     // Signatura d'un objecte imprès: si canvia, cal tornar-lo a imprimir
     const signatura = o => [o.forma, o.W, o.D, o.H, o.material, o.color, o.tancament,
         (o.caixetins || []).map(c => [c.mat.codi, c.qty, c.x, c.y, c.w, c.d, c.z, c.llavi || 0].join(':')).join(','),
@@ -377,16 +380,16 @@
     FO.plantillaCSV = function () {
         // capçaleres en l'idioma triat: l'importador les reconeix en català, castellà i anglès
         const cap = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'x', 'y', 'z', 'pes', 'tipus', 'forma', 'esd', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes',
-            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa', 'tracabilitat'].map(c => t('csv:' + c).replace(/^csv:/, ''));
+            'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa', 'tracabilitat', 'orientacio'].map(c => t('csv:' + c).replace(/^csv:/, ''));
         const buit = n => Array(n).fill('');
         const f = [
-            ['MAQ', t('Màquina completa'), '', '', '', '1', ...buit(13), '#4A90D9', '', '', t('fila de conjunt (sense codi de material)'), '', '', t('Muntatge final | Prova de funcionament'), '', '', 'mixt', '', '', ''],
-            ['XAS', t('Xassís'), 'MAQ', 'PL-001', t('Placa base alumini'), '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', t('Presentar les plaques | Muntar els escaires | Collar en creu'), t('Clau Allen 3 mm, clau dinamomètrica'), 'llavi', '', '', '', ''],
-            ['XAS', t('Xassís'), 'MAQ', 'CRG-M4x10', t('Cargol DIN912 M4x10'), '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', t('En creu'), '', '', '', '', '', '', ''],
-            ['XAS', t('Xassís'), 'MAQ', 'CON-01', t('Frenafils 243'), '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', t('Una gota a cada cargol'), '', '', '', '', 'PETG', '#FDD835', 'lot'],
-            ['MOT', t('Grup motor'), 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', t('conjunt muntat: mides de la peça acabada, 2 unitats'), '', '', t('Encarar el motor | Collar els 4 cargols'), t('Clau Allen 2,5 mm'), 'pressio', 'contenidor', '', '', ''],
-            ['MOT', t('Grup motor'), 'XAS', 'MT-050', t('Motor NEMA17'), '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', '', 'serie'],
-            ['ELE', t('Electrònica'), 'MAQ', 'PCB-100', t('Placa de control'), '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', t('Manipular per les vores'), t('Polsera antiestàtica | Muntar els separadors'), t('Tornavís PH1'), 'imants', '', '', '', 'serie']
+            ['MAQ', t('Màquina completa'), '', '', '', '1', ...buit(13), '#4A90D9', '', '', t('fila de conjunt (sense codi de material)'), '', '', t('Muntatge final | Prova de funcionament'), '', '', 'mixt', '', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'PL-001', t('Placa base alumini'), '2', '180', '120', '3', '175', 'peca', 'box', '0', '0', '90', '1', '', '0', 'auto', '#9AA5B1', 'propi', '', '', '', '', t('Presentar les plaques | Muntar els escaires | Collar en creu'), t('Clau Allen 3 mm, clau dinamomètrica'), 'llavi', '', '', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'CRG-M4x10', t('Cargol DIN912 M4x10'), '24', '10', '7', '7', '1.6', 'cargol', 'box', '0', '0', '90', '1', '', '0', 'granel', '', 'comprat', 'Würth', '', '2.5', t('En creu'), '', '', '', '', '', '', '', ''],
+            ['XAS', t('Xassís'), 'MAQ', 'CON-01', t('Frenafils 243'), '1', '25', '25', '75', '18', 'consumible', 'cylinder', '0', '1', '30', '0', '', '0', 'individual', '#1565C0', 'comprat', '', '', '', t('Una gota a cada cargol'), '', '', '', '', 'PETG', '#FDD835', 'lot', ''],
+            ['MOT', t('Grup motor'), 'XAS', '', '', '2', '60', '50', '80', '320', '', '', '0', '0', '90', '0', '', '3', '', '#FF7043', '', '', t('conjunt muntat: mides de la peça acabada, 2 unitats'), '', '', t('Encarar el motor | Collar els 4 cargols'), t('Clau Allen 2,5 mm'), 'pressio', 'contenidor', '', '', '', ''],
+            ['MOT', t('Grup motor'), 'XAS', 'MT-050', t('Motor NEMA17'), '1', '42', '42', '48', '280', 'peca', 'box', '0', '0', '90', '0', '', '0', 'auto', '#455A64', 'comprat', '', '', '', '', '', '', '', '', '', '', 'serie', ''],
+            ['ELE', t('Electrònica'), 'MAQ', 'PCB-100', t('Placa de control'), '1', '100', '70', '18', '55', 'peca', 'box', '1', '0', '90', '0', '', '7', 'individual', '#2E7D32', 'propi', '', '', '', t('Manipular per les vores'), t('Polsera antiestàtica | Muntar els separadors'), t('Tornavís PH1'), 'imants', '', '', '', 'serie', 'cantell']
         ];
         return '﻿' + [cap].concat(f).map(r => r.join(';')).join('\n') + '\n';
     };

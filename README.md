@@ -69,6 +69,7 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
    - **Tapa a pressió**: una faldilla que encaixa per dins de les parets (el joc es calibra).
    - **Tapa amb imants**: allotjaments per a imants de disc a la part de dalt de les parets i a la tapa; les parets es fan prou gruixudes per contenir-los.
    Si hi ha peces que sobresurten, la tapa porta un marc que la fa més alta. Amb contenidor, les caixes de dins també poden portar tapa.
+   **Orientació de cada peça** (a la fitxa del material o a la columna `orientacio`): plana, **de cantell** (vertical en una ranura, com targetes en un arxivador: les plaques PCB hi caben més i s'agafen per la vora) o dreta (de punta).
    **Com s'agafen les peces**: dits, pinces, pinça de robot o a mida, amb l'espai d'agafada en mil·límetres (0-100) i, per a pinces i robots, a banda i banda de cada peça.
    **Anivellar l'alçada**: totes les caixes (per conjunt o de tot el projecte) a l'alçada de la més alta; les baixes creixen per sota amb un sòcol i el fons queda a dalt, a l'abast.
    **Compartiments** (opció de configuració): quan un caixetí porta més d'una peça, en lloc d'un cubell únic s'hi fa una cel·la per a cada peça, ordenades i fàcils de comptar (fins a un màxim configurable; la disposició triada a cada material mana).
@@ -86,7 +87,7 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
    - **Full de ruta** imprimible: passos, subconjunts que cal tenir muntats, mapa de cada safata i llista de comprovació.
    - **Llista de materials** (CSV) amb el total de cada material per a tota la màquina.
 
-16. **Contenidors apilables i amb nanses:** tots els contenidors del projecte tenen la mateixa planta, un peu encastat que entra dins el de sota i prou alçada per a les caixes de dins; les nanses dels costats curts s'imprimeixen sense suports.
+16. **Contenidors apilables i amb nanses:** tots els contenidors del projecte tenen la mateixa planta, un peu encastat que entra dins el de sota i prou alçada per a les caixes de dins; les nanses són una pestanya baixa a la base de cada costat curt, per fora, amb un forat per on una màquina (o els dits) els pot agafar: no ocupen espai de dins i s'imprimeixen sense suports.
 17. **Niu amb la forma real:** carrega l'STL d'una peça (plaques amb components, peces corbades o fràgils) i el fons de la seva cel·la reprodueix la cara de sota, amb folgança i un marc de centrat.
 18. **QR en relleu:** gravat a la tapa (i a la cara posterior de les caixes sense tapa, si hi cap), amb les mateixes dades que l'etiqueta.
 

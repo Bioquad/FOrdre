@@ -327,7 +327,39 @@
         FO.rectsText(text, p).forEach(r => ops.push(OP(u + r.u0, v + r.v0, u + r.u1, v + r.v1, c.z - prof, c.z, 0)));
     }
 
+    // ─── Nanses del contenidor ───
+    // Una pestanya baixa a la base de cada costat curt, per fora del cos, amb el forat de
+    // sempre (22 mm × fins a 60 mm): no ocupa espai de dins i una màquina (o els dits)
+    // hi pot entrar des de dalt. Fa 6 mm de gruix (7 mm si és apilable, perquè agafi
+    // prou cos per sobre del peu encastat) i s'imprimeix plana, sense suports.
+    FO.alaNansa = o => o.forma === 'contenidor' && o.nanses ? (o.ala || 0) : 0;
+    FO.gruixNansa = o => o.apilable ? (FO.PEU_APILABLE || 3) + 4 : 6;
+    // El cos del contenidor (sense pestanyes) en coordenades pròpies: x comença a la seva paret
+    const cosContenidor = (o, ala) => Object.assign({}, o, {
+        W: o.W - 2 * ala, nanses: false, ala: 0,
+        caixes: (o.caixes || []).map(q => Object.assign({}, q, { x: q.x - ala }))
+    });
+    const desplaca = (ops, dx) => ops.map(p => Object.assign({}, p, { x0: p.x0 + dx, x1: p.x1 + dx }));
+    function opsNanses(o, ala) {
+        const ops = [], tN = FO.gruixNansa(o), yc = o.D / 2;
+        const mig = Math.max(8, Math.min(36, o.D / 2 - 4)), forat = mig - 6;
+        [[0, 1], [o.W, -1]].forEach(([x0, sg]) => {
+            const X = a => sg > 0 ? x0 + a : x0 - a;
+            const xa = (a, b) => [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
+            const [b0, b1] = xa(0, ala), [f0, f1] = xa(5, Math.min(27, ala - 3));
+            ops.push(OP(b0, yc - mig, b1, yc + mig, 0, tN, 1));
+            if (forat >= 4 && f1 - f0 >= 6) ops.push(OP(f0, yc - forat, f1, yc + forat, 0, tN, 0));
+        });
+        return ops;
+    }
+
     FO.opsObjecte = function (o, cfg) {
+        // contenidor amb nanses: el cos es fa en les seves coordenades i s'hi afegeixen les pestanyes
+        const ala = FO.alaNansa(o);
+        if (ala > 0) {
+            const r = FO.opsObjecte(cosContenidor(o, ala), cfg);
+            return { ops: desplaca(r.ops, ala).concat(opsNanses(o, ala)), avisos: r.avisos };
+        }
         const ops = [], H = o.H, pw = o.paret, tanc = o.tancament || 'cap';
         const avisos = [];
         ops.push(OP(0, 0, o.W, o.D, 0, H, 1));
@@ -338,20 +370,6 @@
             ops.push(OP(pw, pw, o.W - pw, o.D - pw, fons, H, 0));
             ops.push(OP((o.W - osca) / 2, 0, (o.W + osca) / 2, pw, hO, H, 0), OP((o.W - osca) / 2, o.D - pw, (o.W + osca) / 2, o.D, hO, H, 0));
             franjaText = [pw + 1, (o.W - osca) / 2 - 1];
-            // Nanses: a cada costat curt, un bloc amb un forat vertical per als dits;
-            // la barra exterior és l'agafador. S'imprimeix sense suports.
-            if (o.nanses && o.D >= 80) {
-                const z = FO.ZONA_NANSA || 30, yc = o.D / 2, mig = Math.min(36, o.D / 2 - pw - 4), forat = mig - 6;
-                const hN = o.apilable ? H - peu - 0.6 : H;
-                [[0, 1], [o.W, -1]].forEach(([x0, sg]) => {
-                    const X = a => sg > 0 ? x0 + a : x0 - a;
-                    const xa = (a, b) => [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
-                    const [b0, b1] = xa(0, pw + z), [f0, f1] = xa(5, 5 + 22);
-                    ops.push(OP(b0, yc - mig, b1, yc + mig, 0, hN, 1));
-                    ops.push(OP(f0, yc - forat, f1, yc + forat, 0, H, 0));
-                });
-                franjaText = [pw + z + 1, (o.W - osca) / 2 - 1];
-            }
             // Peu encastat: la base és una mica més petita i entra dins el contenidor de sota
             if (o.apilable) {
                 const b = pw + 0.6;
@@ -444,6 +462,9 @@
     FO.opsTapa = function (o, cfg) {
         const tanc = o.tancament;
         if (tanc !== 'pressio' && tanc !== 'imants') return null;
+        // la tapa d'un contenidor amb nanses només tapa el cos
+        const ala = FO.alaNansa(o);
+        if (ala > 0) return desplaca(FO.opsTapa(cosContenidor(o, ala), cfg), ala);
         const W = o.W, D = o.D, pw = o.paret, ops = [];
         const t = tanc === 'imants' ? Math.max(cfg.gruixTapa, cfg.imantH + 1) : cfg.gruixTapa;
         const hf = o.cim > o.H + 0.01 ? Math.ceil(o.cim - o.H + 1) : 0;   // marc si hi ha peces que sobresurten

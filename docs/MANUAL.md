@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versió 1.11** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.12** · Instal·lació, configuració i ús, pas a pas
 
 *També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
@@ -172,7 +172,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.11.0
+  FOrdre · servidor del taller 1.12.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -353,7 +353,7 @@ Prem **⚙ Configuració** a la barra de dalt del configurador. Els canvis s'apl
 | Diàmetre i alçada de l'imant (mm) | 6 × 2 | Els imants de disc que tinguis. |
 | Tapa també a cada caixa de dins | Sí | Amb contenidor. |
 | Contenidors apilables | Sí | Tots amb la mateixa planta i un peu que encaixa al de sota. |
-| Nanses als costats curts | Sí | |
+| Nanses als costats curts | Sí | Una pestanya a la base de cada costat, per fora, amb un forat per a una màquina o els dits (punt 3.3). |
 | QR gravat a les tapes | Sí | Es llegeix millor si el repasses amb un retolador. |
 
 **Com s'agafen les peces**
@@ -447,6 +447,37 @@ Cada impressora imprimeix una mica diferent. La peça de calibratge ajusta les t
 | **Llavi interior** (0–5 mm) | Una vora que entra cap al centre de cada caixetí i reté les peces. | Per defecte: no cal imprimir tapa. |
 | **Tapa a pressió** | Tapa amb una faldilla que encaixa per dins. | Per transportar. Calibra el joc (punt 3.2). |
 | **Tapa amb imants** | Imants de disc a les cantonades de la caixa i de la tapa. | S'obre i es tanca molt de pressa. Les parets es fan més gruixudes per allotjar-los. |
+
+**Orientació de la peça: plana, de cantell o dreta**
+
+A la fitxa de cada material, *Orientació al caixetí* diu com reposa la peça:
+
+| Orientació | Com queda | Quan triar-la |
+|---|---|---|
+| **Automàtica** | Plana (com fins ara). | Per defecte. |
+| **Plana (horitzontal)** | Estirada: la dimensió més petita queda vertical. | Peces que s'han de veure d'un cop d'ull. |
+| **De cantell (vertical)** | Dreta en una **ranura**, com una targeta en un arxivador: la cara gran queda vertical i a la planta només hi ha el gruix. | **Plaques PCB**, targetes, xapes primes: hi caben moltes més en una caixa i s'agafen per la vora que sobresurt. |
+| **Dreta (de punta)** | La dimensió més llarga queda vertical, també en una ranura. | Eixos, tubs o barres que s'agafen millor per dalt. |
+
+- De cantell i dreta, cada peça té la seva ranura (disposició *individual*) perquè no caigui, i l'espai per agafar-la va a les cares grans, que és per on s'agafa.
+- La peça **sobresurt** expressament per dalt (com a mínim hi queda dins la *Part mínima dins de les peces dretes*, 0,6 per defecte), sense avís.
+- Els materials amb **líquids** o que no es poden tombar continuen sempre drets, i els que tenen **niu a mida** (STL) mantenen l'orientació del seu STL.
+- També es pot posar a la columna `orientacio` de la llista de materials.
+
+![Orientació a la fitxa del material](imatges/c24-orientacio.jpg)
+
+![8 plaques de 100 × 70 mm: planes (a l'esquerra) o de cantell (a la dreta), en una caixa molt més petita](imatges/c25-orientacio-3d.jpg)
+
+**Nanses del contenidor: un forat a la base**
+
+Les nanses dels contenidors (⚙ Configuració → *Nanses als costats curts dels contenidors*) són una **pestanya baixa a la base** de cada costat curt, **per fora** del contenidor, amb el mateix forat de sempre (22 mm d'ample i fins a 60 mm de llarg).
+
+- Ja **no ocupen espai de dins**: el contenidor només té l'espai de les caixes.
+- Una **màquina o un robot** pot entrar els dits de la pinça pel forat des de dalt; també serveix per agafar-lo amb la mà.
+- La pestanya fa 6 mm de gruix (7 mm si el contenidor és apilable). S'imprimeix plana i no necessita suports. La tapa només tapa el cos.
+- Ocupen 30 mm a cada costat: FOrdre ho té en compte perquè el contenidor, amb les pestanyes, càpiga al llit de la impressora.
+
+![Contenidor amb les nanses noves: una pestanya amb un forat a la base de cada costat](imatges/c26-nanses-3d.jpg)
 
 **Com s'agafen les peces: dits, pinces o robot**
 
@@ -650,6 +681,7 @@ Descarrega la plantilla amb el botó **Plantilla CSV** del configurador (o obre 
 | `material caixa` | — | Material d'impressió de la caixa d'aquest material. | `PETG` |
 | `color caixa` | — | Color de la caixa d'aquest material. | `#FDD835` |
 | `tracabilitat` | — | Què s'ha d'anotar de cada peça: `lot`, `serie` (número de sèrie) o buit (no cal). Vegeu el [punt 6.11](#611--traçabilitat-lots-números-de-sèrie-i-instruments-iso-9001). | `serie` |
+| `orientacio` | — | Com reposa la peça al caixetí: `plana`, `cantell` (vertical, com una targeta), `dreta` (de punta) o buit (automàtica). | `cantell` |
 
 **Exemple complet** (és la plantilla, llegida com a taula):
 
@@ -774,7 +806,7 @@ La fitxa té aquestes parts:
 - **Etiqueta:** el format (per a tot el projecte), una vista prèvia, les dades del QR/RFID i **🏷 Imprimir aquesta**.
 - **Caixa individual d'aquest material:** material i color de la seva caixa (en formats amb caixes).
 - **Forma real de la peça (niu a mida):** carrega l'**STL** de la peça i el fons de la cel·la tindrà la seva forma. És ideal per a plaques amb components i peces corbades o fràgils.
-- **Material:** codi, nom, tipus, forma, mides (X, Y, Z en mm), pes (g/unitat), color, disposició, inclinació màxima, fragilitat, màxim d'unitats apilades, origen, proveïdor, **Traçabilitat (ISO 9001)** (*No cal*, *Per lot* o *Per número de sèrie*) i les caselles *Sensible a l'ESD*, *Conté líquids* i *Es pot apilar*. Els materials traçables surten amb la marca **LOT** o **S/N** a la pestanya *Materials* i a l'app del taller.
+- **Material:** codi, nom, tipus, forma, mides (X, Y, Z en mm), pes (g/unitat), color, disposició, **orientació** (*Plana*, *De cantell*, *Dreta*), inclinació màxima, fragilitat, màxim d'unitats apilades, origen, proveïdor, **Traçabilitat (ISO 9001)** (*No cal*, *Per lot* o *Per número de sèrie*) i les caselles *Sensible a l'ESD*, *Conté líquids* i *Es pot apilar*. Els materials traçables surten amb la marca **LOT** o **S/N** a la pestanya *Materials* i a l'app del taller.
 
 **Exemple:** el motor NEMA17 (`MT-050`) va en una sola capa, amb 2 cel·les (una per a cada grup motor), dins del contenidor `DX-1.1.1-C`.
 
@@ -812,7 +844,7 @@ La pestanya **Materials** mostra tots els materials de la màquina amb el total 
 
 Consells d'impressió:
 
-- Imprimeix les caixes **sense suports**: els llavis i les nanses estan pensats per imprimir-se a 45°.
+- Imprimeix les caixes **sense suports**: els llavis estan pensats per imprimir-se a 45° i les nanses són una pestanya plana a la base.
 - Farciment del 10–15 % i 2–3 perímetres són suficients.
 - Les caixes ESD, amb filament antiestàtic.
 - Amb tapes a pressió, imprimeix primer la peça de calibratge (punt 3.2).

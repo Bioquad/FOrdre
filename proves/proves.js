@@ -321,6 +321,50 @@ prova('anivellar: totes les caixes a la més alta, amb el fons elevat i sòlides
     const { pla: pl0 } = variant('cap', 'individual');
     assert(new Set(pl0.flatMap(r => FO.imprimibles(r)).map(o => o.H)).size > 1, 'sense anivellar, alçades diferents');
 });
+prova('orientació: de cantell, les plaques van dretes en ranures i ocupen menys planta', () => {
+    const q = FO.exemple(), cfg = q.config;
+    const pcb = { id: 'T', codi: 'T', nom: 'T', tipus: 'peca', forma: 'box', x: 100, y: 70, z: 1.6, pes: 40, angleMax: 90, fragil: 0, disposicio: 'auto', orientacio: 'auto' };
+    const pla = FO.calculaCaixeti(pcb, 10, cfg, 400, 400);
+    const cant = FO.calculaCaixeti(Object.assign({}, pcb, { orientacio: 'cantell' }), 10, cfg, 400, 400);
+    const dreta = FO.orientacio(Object.assign({}, pcb, { orientacio: 'dreta' }));
+    assert(cant.o.h === 70 && cant.o.w === 100 && cant.o.d === 1.6 && cant.mode === 'individual', 'cantell: ' + JSON.stringify(cant.o));
+    assert(dreta.h === 100 && dreta.w === 70 && dreta.d === 1.6, 'dreta');
+    assert(FO.orientacio(Object.assign({}, pcb, { orientacio: 'plana' })).h === 1.6, 'plana');
+    assert(cant.W * cant.D < pla.W * pla.D / 2, `menys planta: ${cant.W}×${cant.D} / ${pla.W}×${pla.D}`);
+    // l'espai per als dits va en el gruix (s'agafa per les cares) i la placa sobresurt sense avís
+    assert(cant.cel.cd === 1.6 + 2 * cfg.joc + cfg.dit && cant.cel.cw === 100 + 2 * cfg.joc, 'espai en el gruix');
+    assert(cant.prof >= 70 * cfg.retencio - 1e-6 && !cant.avisos.length, 'retenció ' + cant.prof);
+    // els líquids es queden drets i l'importador entén la columna
+    assert(FO.orientacio(Object.assign({}, pcb, { liquid: true, orientacio: 'cantell' })).h === 1.6, 'líquid: z vertical');
+    assert(FO.normalitzaMaterial(Object.assign({}, pcb, { orientacio: 'xx' })).orientacio === 'auto', 'normalitza');
+    const f = FO.llegeixCSV('conjunt;codi;nom;quantitat;x;y;z;orientacio\nK;A;a;3;100;70;1.6;de cantell\nK;B;b;2;50;10;5;vertical\nK;C;c;1;9;9;9;flat'), h = FO.trobaCapcalera(f), mp = FO.detectaColumnes(f[h]);
+    const mats = FO.incorporaImport(FO.nouProjecte(), FO.construeixImport(f.slice(h + 1), mp, FO.formatProbable(mp), {}), 'substitueix').materials;
+    assert(mats.find(m => m.codi === 'A').orientacio === 'cantell' && mats.find(m => m.codi === 'B').orientacio === 'cantell' && mats.find(m => m.codi === 'C').orientacio === 'plana', 'importació');
+    // tot el pla d'exemple (amb PCB-101 de cantell) segueix tancat
+    FO.calculaPla(q).forEach(r => FO.imprimibles(r).filter(o => o.caixetins.some(c => c.o.vertical)).forEach(o => assert(esTancada(FO.mallaSafata(o, cfg)), o.id)));
+});
+prova('nanses: pestanya a la base amb el forat, per fora del cos, sense blocs a dins', () => {
+    for (const tanc of ['cap', 'pressio', 'imants']) {
+        const { q, pla: pl } = variant(tanc, 'contenidor', { nanses: true });
+        pl.flatMap(r => r.safates.filter(s => s.forma === 'contenidor')).forEach(c => {
+            const ala = FO.alaNansa(c), tN = FO.gruixNansa(c), ops = FO.opsObjecte(c, q.config).ops;
+            assert(ala === FO.ZONA_NANSA, c.id + ' ala');
+            // dins la franja de la pestanya, res no puja per sobre del seu gruix
+            assert(ops.filter(p => p.s === 1 && (p.x0 < ala - 1e-6 || p.x1 > c.W - ala + 1e-6)).every(p => p.z1 <= tN + 1e-6), c.id + ' pestanya baixa');
+            // i té el forat de sempre (22 mm)
+            assert(ops.some(p => p.s === 0 && p.x0 === 5 && p.x1 === 27 && p.z1 === tN), c.id + ' forat');
+            // les caixes queden dins el cos
+            c.caixes.forEach(k => assert(k.x >= ala + c.paret - 1e-6, k.obj.id));
+            assert(esTancada(FO.mallaSafata(c, q.config)), c.id + ' tancat');
+            const tapa = FO.mallaTapa(c, q.config);
+            if (tapa) {
+                assert(esTancada(tapa), c.id + ' tapa');
+                const xs = tapa.flatMap(t => t.map(v => v[0]));
+                assert(Math.min(...xs) >= ala - 1e-6 && Math.max(...xs) <= c.W - ala + 1e-6, c.id + ' la tapa només tapa el cos');
+            }
+        });
+    }
+});
 prova('QR gravat a les tapes: es llegeix des de la malla', () => {
     const { q, pla: pl } = variant('pressio', 'individual');
     let gravats = 0;
@@ -636,7 +680,7 @@ prova('FO.tMissatge: tradueix missatges del servidor i del registre ja omplerts'
 });
 prova('plantilla CSV en castellà i anglès: l\'importador en reconeix totes les columnes', () => {
     for (const L of ['es', 'en']) {
-        const capcal = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'pes', 'tipus', 'forma', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes', 'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa', 'tracabilitat'].map(c => FO.t('csv:' + c, null, L).replace(/^csv:/, ''));
+        const capcal = ['conjunt', 'nom conjunt', 'pare', 'codi', 'nom', 'quantitat', 'pes', 'tipus', 'forma', 'liquid', 'angle max', 'apilable', 'max apilat', 'fragil', 'disposicio', 'color', 'origen', 'proveidor', 'notes', 'parell', 'nota', 'instruccions', 'eines', 'tancament', 'format kit', 'material caixa', 'color caixa', 'tracabilitat', 'orientacio'].map(c => FO.t('csv:' + c, null, L).replace(/^csv:/, ''));
         const map = FO.detectaColumnes(capcal);
         assert(Object.keys(map).length === capcal.length, `${L}: ${Object.keys(map).length}/${capcal.length} · ${capcal.filter((c, i) => !Object.values(map).includes(i)).join(', ')}`);
     }

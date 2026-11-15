@@ -253,6 +253,7 @@
         ['x', t('Llarg X (mm)'), 'num'], ['y', t('Ample Y (mm)'), 'num'], ['z', t('Alt Z (mm)'), 'num'], ['pes', t('Pes (g/unitat)'), 'num'],
         ['col', t('Color'), 'color'],
         ['disposicio', t('Disposició al caixetí'), 'sel', () => FO.DISPOSICIONS],
+        ['orientacio', t('Orientació al caixetí'), 'sel', () => FO.ORIENTACIONS, t('Plana: estirada. De cantell: dreta en una ranura com una targeta en un arxivador (plaques PCB): hi caben més i s\'agafen bé. Dreta: de punta, la cara llarga vertical. Els líquids i les peces amb niu a mida mantenen la seva orientació.')],
         ['angleMax', t('Inclinació màxima (°)'), 'num', null, t('90 = es pot tombar; 0 = sempre vertical')],
         ['fragil', t('Fragilitat (0-10)'), 'num'],
         ['maxApilat', t('Màx. unitats apilades'), 'num', null, t('0 = sense límit')],
@@ -265,7 +266,7 @@
     ];
     const CAMPS_MUNTAT = [
         ['x', t('Llarg X (mm)'), 'num'], ['y', t('Ample Y (mm)'), 'num'], ['z', t('Alt Z (mm)'), 'num'], ['pes', t('Pes (g)'), 'num'],
-        ['forma', t('Forma'), 'sel', () => FO.FORMES], ['disposicio', t('Disposició'), 'sel', () => FO.DISPOSICIONS],
+        ['forma', t('Forma'), 'sel', () => FO.FORMES], ['disposicio', t('Disposició'), 'sel', () => FO.DISPOSICIONS], ['orientacio', t('Orientació'), 'sel', () => FO.ORIENTACIONS],
         ['angleMax', t('Inclinació màx. (°)'), 'num'], ['fragil', t('Fragilitat (0-10)'), 'num'],
         ['esd', t('Sensible a l\'ESD'), 'ck'], ['liquid', t('Conté líquids'), 'ck'], ['apilable', t('Es pot apilar'), 'ck']
     ];
@@ -430,7 +431,7 @@
             </div></div>
             <div class="ps"><div class="ps-t">${t('Peça muntada (caixa de guarda)')}</div>
                 <label class="ck"><input type="checkbox" id="ckMuntat"${c.muntat ? ' checked' : ''}> ${t('Un cop muntat, guardar-lo com una peça per al conjunt pare')}</label>
-                <div id="muntatForm" style="${c.muntat ? '' : 'display:none'};margin-top:6px">${formulari(Object.assign({ x: 50, y: 50, z: 50, pes: 0, forma: 'box', disposicio: 'auto', angleMax: 90, fragil: 0, esd: false, liquid: false, apilable: false }, m), CAMPS_MUNTAT, 'mu')}</div>
+                <div id="muntatForm" style="${c.muntat ? '' : 'display:none'};margin-top:6px">${formulari(Object.assign({ x: 50, y: 50, z: 50, pes: 0, forma: 'box', disposicio: 'auto', orientacio: 'auto', angleMax: 90, fragil: 0, esd: false, liquid: false, apilable: false }, m), CAMPS_MUNTAT, 'mu')}</div>
                 ${c.muntat && !c.pare ? `<div class="ajuda" style="margin-top:4px">${t('És l\'arrel (la màquina): no necessita caixa de guarda.')}</div>` : ''}
             </div>
             <div class="ps"><div class="ps-t">${t('Format del kit i materials d\'impressió')}</div>
