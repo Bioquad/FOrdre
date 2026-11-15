@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versión 1.9** · Instalación, configuración y uso, paso a paso
+**Versión 1.10** · Instalación, configuración y uso, paso a paso
 
 *También en: [Català](MANUAL.md) · [English](MANUAL.en.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # muestra el registro y el QR (Ctrl+C para sal
 En el registro verás algo así (los mensajes de la consola del servidor están en catalán):
 
 ```
-  FOrdre · servidor del taller 1.9.0
+  FOrdre · servidor del taller 1.10.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -358,6 +358,15 @@ Pulsa **⚙ Configuración** en la barra de arriba del configurador. Los cambios
 | Asas en los lados cortos | Sí | |
 | QR grabado en las tapas | Sí | Se lee mejor si lo repasas con un rotulador. |
 
+**Compartimentos dentro de las cajas**
+
+| Campo | Por defecto | Límites | Notas |
+|---|---|---|---|
+| Un compartimento para cada pieza | No | — | Cuando un cajetín lleva más de una pieza, en lugar de una cubeta única se hace una celda por pieza (vea el [punto 3.3](#33-formatos-de-kit-y-cierres)). |
+| Máximo de piezas con compartimentos | 30 | 2–500 | Por encima, se mantiene la cubeta (tornillería, arandelas…). |
+
+![Compartimentos en la configuración](imatges/es/c19-compartiments.jpg)
+
 **Fijación de las cajas al contenedor**
 
 | Campo | Por defecto | Límites | Notas |
@@ -421,6 +430,17 @@ Cada impresora imprime un poco diferente. La pieza de calibración ajusta las ta
 | **Labio interior** (0–5 mm) | Un borde que entra hacia el centro de cada cajetín y retiene las piezas. | Por defecto: no hace falta imprimir tapa. |
 | **Tapa a presión** | Tapa con una faldilla que encaja por dentro. | Para transportar. Calibra la holgura (punto 3.2). |
 | **Tapa con imanes** | Imanes de disco en las esquinas de la caja y de la tapa. | Se abre y se cierra muy deprisa. Las paredes se hacen más gruesas para alojarlos. |
+
+**Compartimentos: una celda para cada pieza**
+
+Por defecto, FOrdre elige para cada material cómo van las piezas dentro del cajetín: a granel (tornillería), apiladas, en una capa o una por celda. Si quieres que **todas las cajas con más de una pieza** tengan un **compartimento para cada pieza**, marca en ⚙ Configuración → *Compartimentos dentro de las cajas* la opción *Cuando un cajetín lleva más de una pieza, hacer un compartimento para cada pieza*.
+
+- Cada celda tiene la medida de la pieza, la holgura y el espacio para los dedos, separada por divisores finos (*Divisores de celdas*). Las piezas quedan **ordenadas** y se **cuentan de un vistazo**: si falta una, se ve la celda vacía.
+- Con el *Máximo de piezas con compartimentos* (30 por defecto) evitas cajas enormes para la tornillería: por encima de ese número, el cajetín sigue siendo una cubeta.
+- Si una caja con compartimentos no cabe en la cama, FOrdre la parte en dos, como siempre.
+- La **disposición elegida en la ficha de un material** (*Individual*, *Apiladas*, *En una sola capa*, *A granel*) **manda siempre** sobre esta opción. Así puedes dejar, por ejemplo, unas arandelas a granel aunque la opción esté marcada.
+
+![Antes y después: cubeta única y caja con un compartimento para cada pieza](imatges/c20-compartiments-3d.jpg)
 
 **Fijación de las cajas al contenedor**
 

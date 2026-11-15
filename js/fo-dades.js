@@ -15,7 +15,7 @@
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.9.0';
+    FO.VERSIO = '1.10.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -66,6 +66,9 @@
         fixacio: 'cap',             // cap | xapa (làmina d'acer a la base) | imants (imant a la caixa + disc d'acer a la base)
         xapaGruix: 0.5,             // gruix de la làmina d'acer (mm)
         discD: 10, discH: 1,        // disc o volandera d'acer de la base (p. ex. volandera DIN125 M5: 10 × 1 mm)
+        // ─── Compartiments: quan un caixetí porta més d'una peça, una cel·la per peça ───
+        compartiments: false,       // false: cubell únic segons cada material (automàtic)
+        compartimentsMax: 30,       // per sobre d'aquestes peces es manté el cubell (cargoleria…)
         // ─── Identificació física i ergonomia ───
         relleu: true,               // codi gravat a la cara frontal
         rebaixEtiqueta: false,      // rebaix per a l'etiqueta adhesiva (cara frontal o posterior)
@@ -84,7 +87,7 @@
         minCaixeti: [5, 200], profMax: [5, 500], retencio: [0.1, 1], granel: [0.2, 0.9], omplert: [0.3, 1],
         llavi: [0, 20], inclinacio: [0, 45], areaPetit: [0, 1e6], jocCaixes: [0, 5], alcadaContenidor: [0.2, 1],
         factorPes: [0.1, 1], llaviAmple: [0, 5], jocTapa: [0, 1.5], gruixTapa: [0.8, 6], imantD: [2, 30], imantH: [0.5, 10],
-        xapaGruix: [0.2, 3], discD: [3, 30], discH: [0.3, 5],
+        xapaGruix: [0.2, 3], discD: [3, 30], discH: [0.3, 5], compartimentsMax: [2, 500],
         cabal: [1, 60], separacioTanda: [1, 50]
     };
     FO.limita = function (k, v) {

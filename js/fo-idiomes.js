@@ -1262,7 +1262,11 @@
         ["Làmina d'acer de {w} × {d} × {g} mm per al contenidor {id} (pas {p})", "Lámina de acero de {w} × {d} × {g} mm para el contenedor {id} (paso {p})", "Steel sheet {w} × {d} × {g} mm for container {id} (step {p})"],
         ["Fixació de les caixes", "Fijación de las cajas", "Box fixing"],
         ["FIXACIÓ DE LES CAIXES", "FIJACIÓN DE LAS CAJAS", "BOX FIXING"],
-        ["Acer normal o galvanitzat (no inoxidable ni alumini). La polaritat no importa: els imants s'enganxen a l'acer.", "Acero normal o galvanizado (no inoxidable ni aluminio). La polaridad no importa: los imanes se pegan al acero.", "Plain or galvanised steel (not stainless or aluminium). Polarity doesn't matter: the magnets stick to the steel."]
+        ["Acer normal o galvanitzat (no inoxidable ni alumini). La polaritat no importa: els imants s'enganxen a l'acer.", "Acero normal o galvanizado (no inoxidable ni aluminio). La polaridad no importa: los imanes se pegan al acero.", "Plain or galvanised steel (not stainless or aluminium). Polarity doesn't matter: the magnets stick to the steel."],
+        ["Compartiments dins les caixes", "Compartimentos dentro de las cajas", "Compartments inside the boxes"],
+        ["Quan un caixetí porta més d'una peça, fer-hi un compartiment per a cada peça (en lloc d'un cubell únic)", "Cuando un cajetín lleva más de una pieza, hacer un compartimento para cada pieza (en lugar de una cubeta única)", "When a bin holds more than one part, make a compartment for each part (instead of a single tub)"],
+        ["Màxim de peces amb compartiments", "Máximo de piezas con compartimentos", "Maximum parts with compartments"],
+        ["Les peces queden ordenades una per cel·la, amb espai per als dits, i es compten d'un cop d'ull. Per sobre del màxim (cargoleria, volanderes…) es manté el cubell. La disposició triada a la fitxa d'un material mana sempre per sobre d'aquesta opció.", "Las piezas quedan ordenadas una por celda, con espacio para los dedos, y se cuentan de un vistazo. Por encima del máximo (tornillería, arandelas…) se mantiene la cubeta. La disposición elegida en la ficha de un material manda siempre sobre esta opción.", "Parts sit one per cell, with finger room, and can be counted at a glance. Above the maximum (screws, washers…) the single tub is kept. The layout chosen on a material's sheet always overrides this option."]
     ];
     FO.TRAD = { es: {}, en: {} };
     D.forEach(([ca, es, en]) => { FO.TRAD.es[ca] = es; FO.TRAD.en[ca] = en; });

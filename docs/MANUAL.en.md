@@ -1,6 +1,6 @@
 # FOrdre Manual
 
-**Version 1.9** · Installation, configuration and use, step by step
+**Version 1.10** · Installation, configuration and use, step by step
 
 *Also in: [Català](MANUAL.md) · [Español](MANUAL.es.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # shows the log and the QR (Ctrl+C to exit)
 In the log you will see something like this (the server console messages are in Catalan):
 
 ```
-  FOrdre · servidor del taller 1.9.0
+  FOrdre · servidor del taller 1.10.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -360,6 +360,15 @@ Press **⚙ Settings** on the configurator's top bar. Changes apply instantly an
 | Handles on the short sides | Yes | |
 | QR engraved on the lids | Yes | It reads better if you go over it with a marker. |
 
+**Compartments inside the boxes**
+
+| Field | Default | Limits | Notes |
+|---|---|---|---|
+| One compartment for each part | No | — | When a bin holds more than one part, instead of a single tub it gets one cell per part (see [section 3.3](#33-kit-formats-and-closures)). |
+| Maximum parts with compartments | 30 | 2–500 | Above it, the single tub is kept (screws, washers…). |
+
+![Compartments in the configuration](imatges/en/c19-compartiments.jpg)
+
 **Fixing the boxes to the container**
 
 | Field | Default | Limits | Notes |
@@ -423,6 +432,17 @@ Every printer prints slightly differently. The calibration piece adapts the lids
 | **Inner lip** (0–5 mm) | An edge that protrudes towards the centre of each compartment and holds the parts in. | Default: no lid needs printing. |
 | **Press-fit lid** | A lid with a skirt that fits inside. | For transport. Calibrate the clearance (section 3.2). |
 | **Magnetic lid** | Disc magnets in the corners of the box and the lid. | Opens and closes very quickly. The walls are made thicker to house them. |
+
+**Compartments: one cell for each part**
+
+By default, FOrdre chooses for each material how the parts sit in the bin: loose (screws), stacked, in one layer or one per cell. If you want **every box with more than one part** to have **one compartment for each part**, tick in ⚙ Configuration → *Compartments inside the boxes* the option *When a bin holds more than one part, make a compartment for each part*.
+
+- Each cell has the size of the part, the clearance and the finger room, separated by thin dividers (*Cell dividers*). The parts are kept **in order** and can be **counted at a glance**: if one is missing, you see the empty cell.
+- The *Maximum parts with compartments* (30 by default) avoids huge boxes for screws: above that number, the bin stays a single tub.
+- If a box with compartments does not fit on the bed, FOrdre splits it in two, as always.
+- The **layout chosen on a material's sheet** (*Individual*, *Stacked*, *In a single layer*, *Bulk*) **always overrides** this option. So you can keep, for example, some washers in bulk even with the option ticked.
+
+![Before and after: single tub and box with one compartment for each part](imatges/c20-compartiments-3d.jpg)
 
 **Fixing the boxes to the container**
 

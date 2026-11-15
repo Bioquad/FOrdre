@@ -37,9 +37,12 @@
         return { w, d, h, dreta: FO.vaDreta(m) };
     };
 
-    FO.modeDisposicio = function (m, qty) {
+    // cfg (opcional): amb «compartiments», un caixetí de diverses peces es fa amb una cel·la
+    // per peça en lloc d'un cubell únic; la disposició triada a cada material mana sempre
+    FO.modeDisposicio = function (m, qty, cfg) {
         if (m.niu) return 'individual';   // un niu per unitat
         if (m.disposicio && m.disposicio !== 'auto') return m.disposicio;
+        if (cfg && cfg.compartiments && qty > 1 && qty <= (cfg.compartimentsMax || Infinity)) return 'individual';
         const o = FO.orientacio(m);
         const vol = o.w * o.d * o.h;
         if (m.liquid || m.fragil >= 6) return 'individual';
@@ -67,7 +70,7 @@
     // Caixetí per a una quantitat d'un material. maxW/maxD: espai útil del llit.
     FO.calculaCaixeti = function (m, qty, cfg, maxW, maxD) {
         const o = FO.orientacio(m);
-        const mode = FO.modeDisposicio(m, qty);
+        const mode = FO.modeDisposicio(m, qty, cfg);
         const j = cfg.joc, dit = cfg.dit, avisos = [];
         let W, D, prof, cel = null;
 

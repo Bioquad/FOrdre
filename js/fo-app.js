@@ -1124,6 +1124,10 @@
                 ${c.fixacio === 'imants' ? [['discD', 'Diàmetre del disc d\'acer (mm)'], ['discH', 'Gruix del disc d\'acer (mm)']].map(camp).join('') : ''}
             </div>
             <div class="ajuda" style="margin-top:6px">${Object.values(FO.FIXACIONS).map(x => `<b>${esc(x.nom)}</b>: ${esc(x.desc)}`).join('<br>')}<br>${t('Només afecta les caixes que van dins un contenidor (formats contenidor i mixt). Els imants de les caixes són els mateixos de les tapes (diàmetre i alçada de dalt); en porten 2 en diagonal, o 4 si la caixa plena pesa més de {g} g.', { g: FO.PES_QUATRE_IMANTS })}</div></div>
+            <div><div class="ps-t">${t('Compartiments dins les caixes')}</div>
+                <label class="ck"><input type="checkbox" data-cfgck="compartiments"${c.compartiments ? ' checked' : ''}> ${t('Quan un caixetí porta més d\'una peça, fer-hi un compartiment per a cada peça (en lloc d\'un cubell únic)')}</label>
+                <div class="fg3" style="margin-top:4px">${c.compartiments ? camp(['compartimentsMax', 'Màxim de peces amb compartiments']) : ''}</div>
+                <div class="ajuda">${t('Les peces queden ordenades una per cel·la, amb espai per als dits, i es compten d\'un cop d\'ull. Per sobre del màxim (cargoleria, volanderes…) es manté el cubell. La disposició triada a la fitxa d\'un material mana sempre per sobre d\'aquesta opció.')}</div></div>
             <div><div class="ps-t">${t('Identificació i ergonomia')}</div>
                 <label class="ck"><input type="checkbox" data-cfgck="relleu"${c.relleu ? ' checked' : ''}> ${t('Codi gravat en relleu a la cara frontal')}</label>
                 <label class="ck"><input type="checkbox" data-cfgck="rebaixEtiqueta"${c.rebaixEtiqueta ? ' checked' : ''}> ${t('Rebaix per a l\'etiqueta adhesiva (a la cara posterior si ja hi ha relleu al davant)')}</label>
@@ -1168,7 +1172,10 @@
             i.addEventListener('change', () => aplica(true));
         });
         $('bCalibratge').addEventListener('click', obreCalibratge);
-        $('cfgCos').querySelectorAll('[data-cfgck]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgck] = i.checked; recalcula(); }));
+        $('cfgCos').querySelectorAll('[data-cfgck]').forEach(i => i.addEventListener('change', () => {
+            c[i.dataset.cfgck] = i.checked; recalcula();
+            if (i.dataset.cfgck === 'compartiments') renderConfig();   // mostra o amaga el màxim
+        }));
         $('cfgCos').querySelectorAll('[data-cfgsel]').forEach(i => i.addEventListener('change', () => {
             c[i.dataset.cfgsel] = i.value; $('cartell').dataset.clau = ''; recalcula();
             if (i.dataset.cfgsel === 'fixacio') renderConfig();   // els camps depenen del tipus de fixació
