@@ -15,7 +15,7 @@
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.11.0';
+    FO.VERSIO = '1.12.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -185,6 +185,14 @@
         granel: t('A granel (amuntegades)')
     };
 
+    // Com reposa cada peça dins el caixetí
+    FO.ORIENTACIONS = {
+        auto: t('Automàtica (plana)'),
+        plana: t('Plana (horitzontal)'),
+        cantell: t('De cantell (vertical)'),
+        dreta: t('Dreta (de punta)')
+    };
+
     FO.FORMES = { box: t('Prisma'), cylinder: t('Cilindre') };
 
     // Traçabilitat de cada material (ISO 9001, 8.5.2): què cal anotar en posar-lo a la caixa o muntar-lo
@@ -226,6 +234,7 @@
             maxApilat: Math.max(0, Math.round(num(m.maxApilat, 0))), // 0 = sense límit
             fragil: Math.min(10, Math.max(0, Math.round(num(m.fragil, 0)))),
             disposicio: FO.DISPOSICIONS[m.disposicio] ? m.disposicio : 'auto',
+            orientacio: FO.ORIENTACIONS[m.orientacio] ? m.orientacio : 'auto',
             origen: m.origen === 'comprat' ? 'comprat' : 'propi',
             proveidor: String(m.proveidor || ''),
             tracabilitat: m.tracabilitat === 'lot' || m.tracabilitat === 'serie' ? m.tracabilitat : '',
@@ -383,7 +392,7 @@
                 M('3D-021', t('Suport motor (PETG imprès)'), 'peca', 55, 45, 30, 22, { col: '#FF7043' }),
                 M('3D-022', t('Guia cable (PLA imprès)'), 'peca', 60, 12, 10, 4, { col: '#26A69A', disposicio: 'capa' }),
                 M('PCB-100', t('Placa de control'), 'peca', 100, 70, 18, 55, { col: '#2E7D32', esd: true, fragil: 7, apilable: false, tracabilitat: 'serie' }),
-                M('PCB-101', t('Mòdul sensor de pressió'), 'peca', 30, 20, 8, 6, { col: '#388E3C', esd: true, fragil: 6 }),
+                M('PCB-101', t('Mòdul sensor de pressió'), 'peca', 30, 20, 8, 6, { col: '#388E3C', esd: true, fragil: 6, orientacio: 'cantell' }),
                 M('MT-050', t('Motor pas a pas NEMA17'), 'peca', 42, 42, 48, 280, { col: '#455A64', apilable: false, tracabilitat: 'serie' }),
                 M('HID-200', t('Mànega pressió 6 mm (tram)'), 'peca', 120, 14, 14, 18, { col: '#1E88E5', disposicio: 'capa', tracabilitat: 'lot' }),
                 M('HID-201', t('Racord ràpid 1/4"'), 'cargol', 22, 14, 14, 9, { col: '#FBC02D' }),

@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versión 1.11** · Instalación, configuración y uso, paso a paso
+**Versión 1.12** · Instalación, configuración y uso, paso a paso
 
 *También en: [Català](MANUAL.md) · [English](MANUAL.en.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # muestra el registro y el QR (Ctrl+C para sal
 En el registro verás algo así (los mensajes de la consola del servidor están en catalán):
 
 ```
-  FOrdre · servidor del taller 1.11.0
+  FOrdre · servidor del taller 1.12.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -355,7 +355,7 @@ Pulsa **⚙ Configuración** en la barra de arriba del configurador. Los cambios
 | Diámetro y altura del imán (mm) | 6 × 2 | Los imanes de disco que tengas. |
 | Tapa también en cada caja interior | Sí | Con contenedor. |
 | Contenedores apilables | Sí | Todos con la misma planta y un pie que encaja en el de abajo. |
-| Asas en los lados cortos | Sí | |
+| Asas en los lados cortos | Sí | Una pestaña en la base de cada lado, por fuera, con un agujero para una máquina o los dedos (punto 3.3). |
 | QR grabado en las tapas | Sí | Se lee mejor si lo repasas con un rotulador. |
 
 **Cómo se cogen las piezas**
@@ -449,6 +449,37 @@ Cada impresora imprime un poco diferente. La pieza de calibración ajusta las ta
 | **Labio interior** (0–5 mm) | Un borde que entra hacia el centro de cada cajetín y retiene las piezas. | Por defecto: no hace falta imprimir tapa. |
 | **Tapa a presión** | Tapa con una faldilla que encaja por dentro. | Para transportar. Calibra la holgura (punto 3.2). |
 | **Tapa con imanes** | Imanes de disco en las esquinas de la caja y de la tapa. | Se abre y se cierra muy deprisa. Las paredes se hacen más gruesas para alojarlos. |
+
+**Orientación de la pieza: plana, de canto o de pie**
+
+En la ficha de cada material, *Orientación en el cajetín* dice cómo reposa la pieza:
+
+| Orientación | Cómo queda | Cuándo elegirla |
+|---|---|---|
+| **Automática** | Plana (como hasta ahora). | Por defecto. |
+| **Plana (horizontal)** | Tumbada: la dimensión más pequeña queda vertical. | Piezas que se tienen que ver de un vistazo. |
+| **De canto (vertical)** | De pie en una **ranura**, como una ficha en un archivador: la cara grande queda vertical y en planta solo está el grosor. | **Placas PCB**, tarjetas, chapas finas: caben muchas más en una caja y se cogen por el borde que sobresale. |
+| **De pie (de punta)** | La dimensión más larga queda vertical, también en una ranura. | Ejes, tubos o barras que se cogen mejor por arriba. |
+
+- De canto y de pie, cada pieza tiene su ranura (disposición *individual*) para que no caiga, y el espacio para cogerla va en las caras grandes, que es por donde se coge.
+- La pieza **sobresale** expresamente por arriba (como mínimo queda dentro la *Parte mínima dentro de las piezas de pie*, 0,6 por defecto), sin aviso.
+- Los materiales con **líquidos** o que no se pueden tumbar siguen siempre de pie, y los que tienen **nido a medida** (STL) mantienen la orientación de su STL.
+- También se puede poner en la columna `orientacion` de la lista de materiales.
+
+![Orientación en la ficha del material](imatges/es/c24-orientacio.jpg)
+
+![8 placas de 100 × 70 mm: planas (a la izquierda) o de canto (a la derecha), en una caja mucho más pequeña](imatges/c25-orientacio-3d.jpg)
+
+**Asas del contenedor: un agujero en la base**
+
+Las asas de los contenedores (⚙ Configuración → *Asas en los lados cortos de los contenedores*) son una **pestaña baja en la base** de cada lado corto, **por fuera** del contenedor, con el mismo agujero de siempre (22 mm de ancho y hasta 60 mm de largo).
+
+- Ya **no ocupan espacio dentro**: el contenedor solo tiene el espacio de las cajas.
+- Una **máquina o un robot** puede meter los dedos de la pinza por el agujero desde arriba; también sirve para cogerlo con la mano.
+- La pestaña tiene 6 mm de grosor (7 mm si el contenedor es apilable). Se imprime plana y no necesita soportes. La tapa solo tapa el cuerpo.
+- Ocupan 30 mm a cada lado: FOrdre lo tiene en cuenta para que el contenedor, con las pestañas, quepa en la cama de la impresora.
+
+![Contenedor con las asas nuevas: una pestaña con un agujero en la base de cada lado](imatges/c26-nanses-3d.jpg)
 
 **Cómo se cogen las piezas: dedos, pinzas o robot**
 
@@ -654,6 +685,7 @@ Descarga la plantilla con el botón **Plantilla CSV** del configurador: las cabe
 | `material caja` | — | Material de impresión de la caja de este material. | `PETG` |
 | `color caja` | — | Color de la caja de este material. | `#FDD835` |
 | `trazabilidad` | — | Qué hay que anotar de cada pieza: `lote`, `serie` (número de serie) o vacío (no hace falta). Vea el [punto 6.11](#611--trazabilidad-lotes-números-de-serie-e-instrumentos-iso-9001). | `serie` |
+| `orientacion` | — | Cómo reposa la pieza en el cajetín: `plana`, `canto` (vertical, como una ficha), `de pie` (de punta) o vacío (automática). | `canto` |
 
 Los valores también se entienden en catalán e inglés (por ejemplo, `peca`/`part`, `cargol`/`screw`, `llavi`/`lip`).
 
@@ -782,7 +814,7 @@ La ficha tiene estas partes:
 - **Etiqueta:** el formato (para todo el proyecto), una vista previa, los datos del QR/RFID e **Imprimir esta**.
 - **Caja individual de este material:** material y color de su caja (en formatos con cajas).
 - **Forma real de la pieza (nido a medida):** carga el **STL** de la pieza y el fondo de la celda tendrá su forma. Es ideal para placas con componentes y piezas curvadas o frágiles.
-- **Material:** código, nombre, tipo, forma, medidas (X, Y, Z en mm), peso (g/unidad), color, disposición, inclinación máxima, fragilidad, máximo de unidades apiladas, origen, proveedor **Trazabilidad (ISO 9001)** (*No hace falta*, *Por lote* o *Por número de serie*) y las casillas *Sensible a la electricidad estática (ESD)*, *Contiene líquidos / fluidos* y *Se puede apilar*. Los materiales trazables salen con la marca **LOT** o **S/N** en la pestaña *Materiales* y en la app del taller.
+- **Material:** código, nombre, tipo, forma, medidas (X, Y, Z en mm), peso (g/unidad), color, disposición, **orientación** (*Plana*, *De canto*, *De pie*), inclinación máxima, fragilidad, máximo de unidades apiladas, origen, proveedor **Trazabilidad (ISO 9001)** (*No hace falta*, *Por lote* o *Por número de serie*) y las casillas *Sensible a la electricidad estática (ESD)*, *Contiene líquidos / fluidos* y *Se puede apilar*. Los materiales trazables salen con la marca **LOT** o **S/N** en la pestaña *Materiales* y en la app del taller.
 
 **Ejemplo:** el motor NEMA17 (`MT-050`) va en una sola capa, con 2 celdas (una para cada grupo motor), dentro del contenedor `DX-1.1.1-C`.
 
@@ -820,7 +852,7 @@ La pestaña **Materiales** muestra todos los materiales de la máquina con el to
 
 Consejos de impresión:
 
-- Imprime las cajas **sin soportes**: los labios y las asas están pensados para imprimirse a 45°.
+- Imprime las cajas **sin soportes**: los labios están pensados para imprimirse a 45° y las asas son una pestaña plana en la base.
 - Relleno del 10–15 % y 2–3 perímetros son suficientes.
 - Las cajas ESD, con filamento antiestático.
 - Con tapas a presión, imprime primero la pieza de calibración (punto 3.2).

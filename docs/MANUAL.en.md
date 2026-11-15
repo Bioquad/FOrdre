@@ -1,6 +1,6 @@
 # FOrdre Manual
 
-**Version 1.11** · Installation, configuration and use, step by step
+**Version 1.12** · Installation, configuration and use, step by step
 
 *Also in: [Català](MANUAL.md) · [Español](MANUAL.es.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # shows the log and the QR (Ctrl+C to exit)
 In the log you will see something like this (the server console messages are in Catalan):
 
 ```
-  FOrdre · servidor del taller 1.11.0
+  FOrdre · servidor del taller 1.12.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -357,7 +357,7 @@ Press **⚙ Settings** on the configurator's top bar. Changes apply instantly an
 | Magnet diameter and height (mm) | 6 × 2 | The disc magnets you have. |
 | Also a lid on each inner box | Yes | With a container. |
 | Stackable containers | Yes | All with the same footprint and a foot that fits into the one below. |
-| Handles on the short sides | Yes | |
+| Handles on the short sides | Yes | A tab at the base of each side, outside, with a hole for a machine or fingers (section 3.3). |
 | QR engraved on the lids | Yes | It reads better if you go over it with a marker. |
 
 **How the parts are picked**
@@ -451,6 +451,37 @@ Every printer prints slightly differently. The calibration piece adapts the lids
 | **Inner lip** (0–5 mm) | An edge that protrudes towards the centre of each compartment and holds the parts in. | Default: no lid needs printing. |
 | **Press-fit lid** | A lid with a skirt that fits inside. | For transport. Calibrate the clearance (section 3.2). |
 | **Magnetic lid** | Disc magnets in the corners of the box and the lid. | Opens and closes very quickly. The walls are made thicker to house them. |
+
+**Part orientation: flat, on edge or upright**
+
+On each material's sheet, *Orientation in the bin* says how the part rests:
+
+| Orientation | How it sits | When to choose it |
+|---|---|---|
+| **Automatic** | Flat (as before). | Default. |
+| **Flat (horizontal)** | Lying down: the smallest dimension is vertical. | Parts that must be seen at a glance. |
+| **On edge (vertical)** | Standing in a **slot**, like a card in a file box: the large face is vertical and only the thickness takes floor space. | **PCBs**, cards, thin plates: many more fit in one box and they are picked by the edge that sticks out. |
+| **Upright (on end)** | The longest dimension is vertical, also in a slot. | Shafts, tubes or bars that are easier to pick from the top. |
+
+- On edge and upright, each part has its own slot (*individual* layout) so it does not fall, and the picking clearance goes on the large faces, which is where it is gripped.
+- The part **sticks out** at the top on purpose (at least the *Minimum part inside for upright parts*, 0.6 by default, stays inside), with no warning.
+- Materials with **liquids** or that cannot be tipped over always stay upright, and those with a **custom nest** (STL) keep their STL orientation.
+- It can also be set in the `orientation` column of the parts list.
+
+![Orientation on the material sheet](imatges/en/c24-orientacio.jpg)
+
+![8 boards of 100 × 70 mm: flat (left) or on edge (right), in a much smaller box](imatges/c25-orientacio-3d.jpg)
+
+**Container handles: a hole in the base**
+
+Container handles (⚙ Configuration → *Handles on the short sides of the containers*) are a **low tab at the base** of each short side, **outside** the container, with the same hole as before (22 mm wide and up to 60 mm long).
+
+- They **no longer take up space inside**: the container only has the room for the boxes.
+- A **machine or robot** can put its gripper fingers through the hole from above; it also works for carrying by hand.
+- The tab is 6 mm thick (7 mm if the container is stackable). It prints flat and needs no supports. The lid only covers the body.
+- They take 30 mm on each side: FOrdre allows for this so that the container, tabs included, fits on the printer bed.
+
+![Container with the new handles: a tab with a hole at the base of each side](imatges/c26-nanses-3d.jpg)
 
 **How the parts are picked: fingers, tweezers or robot**
 
@@ -656,6 +687,7 @@ Download the template with the configurator's **CSV template** button: the heade
 | `box material` | — | Print material of this material's box. | `PETG` |
 | `box colour` | — | Colour of this material's box. | `#FDD835` |
 | `traceability` | — | What must be recorded for each part: `lot`, `serial` (serial number) or empty (not required). See [section 6.11](#611--traceability-lots-serial-numbers-and-instruments-iso-9001). | `serial` |
+| `orientation` | — | How the part rests in the bin: `flat`, `edge` (vertical, like a card), `upright` (on end) or empty (automatic). | `edge` |
 
 Values are also understood in Catalan and Spanish (for example, `peca`/`pieza`, `cargol`/`tornillo`, `llavi`/`labio`).
 
@@ -784,7 +816,7 @@ The card has these parts:
 - **Label:** the format (for the whole project), a preview, the QR/RFID data and **Print this one**.
 - **Individual box for this material:** material and colour of its box (in formats with boxes).
 - **Real shape of the part (custom nest):** load the part's **STL** and the bottom of the cell will follow its shape. Ideal for boards with components and curved or fragile parts.
-- **Material:** code, name, type, shape, dimensions (X, Y, Z in mm), weight (g/unit), colour, layout, maximum tilt, fragility, maximum stacked units, source, supplier, **Traceability (ISO 9001)** (*Not required*, *By lot* or *By serial number*) and the *Sensitive to static electricity (ESD)*, *Contains liquids / fluids* and *Stackable* checkboxes. Traceable materials carry the **LOT** or **S/N** mark in the *Materials* tab and in the workshop app.
+- **Material:** code, name, type, shape, dimensions (X, Y, Z in mm), weight (g/unit), colour, layout, **orientation** (*Flat*, *On edge*, *Upright*), maximum tilt, fragility, maximum stacked units, source, supplier, **Traceability (ISO 9001)** (*Not required*, *By lot* or *By serial number*) and the *Sensitive to static electricity (ESD)*, *Contains liquids / fluids* and *Stackable* checkboxes. Traceable materials carry the **LOT** or **S/N** mark in the *Materials* tab and in the workshop app.
 
 **Example:** the NEMA17 motor (`MT-050`) goes in a single layer, with 2 cells (one for each motor unit), inside container `DX-1.1.1-C`.
 
@@ -822,7 +854,7 @@ The **Materials** tab shows all the machine's materials with the total for each 
 
 Printing tips:
 
-- Print the boxes **without supports**: the lips and handles are designed to print at 45°.
+- Print the boxes **without supports**: the lips are designed to print at 45° and the handles are a flat tab at the base.
 - 10–15 % infill and 2–3 perimeters are enough.
 - ESD boxes, with antistatic filament.
 - With press-fit lids, print the calibration piece first (section 3.2).

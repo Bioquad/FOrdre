@@ -27,14 +27,20 @@
         if (m.niu) return { w: m.x, d: m.y, h: m.z, dreta: true, niu: true };
         let w, d, h;
         const cil = m.forma === 'cylinder';
-        if (FO.vaDreta(m)) {
+        if (FO.vaDreta(m)) {   // els líquids i les peces que no es poden tombar, sempre drets
             h = m.z;
             if (cil) { w = d = Math.max(m.x, m.y); } else { w = Math.max(m.x, m.y); d = Math.min(m.x, m.y); }
-        } else {
-            const s = [m.x, m.y, m.z].sort((a, b) => a - b);
-            h = s[0]; d = s[1]; w = s[2];
+            return { w, d, h, dreta: true };
         }
-        return { w, d, h, dreta: FO.vaDreta(m) };
+        const s = [m.x, m.y, m.z].sort((a, b) => a - b);
+        // orientació triada a la fitxa del material:
+        //  · cantell: com una targeta en un arxivador (la cara gran vertical, el gruix en planta)
+        //  · dreta:   de punta (la dimensió més llarga vertical)
+        //  · plana / automàtica: estirada (la dimensió més petita vertical)
+        if (m.orientacio === 'cantell') return { w: s[2], d: s[0], h: s[1], dreta: true, vertical: 'cantell' };
+        if (m.orientacio === 'dreta') return { w: s[1], d: s[0], h: s[2], dreta: true, vertical: 'dreta' };
+        h = s[0]; d = s[1]; w = s[2];
+        return { w, d, h, dreta: false };
     };
 
     // cfg (opcional): amb «compartiments», un caixetí de diverses peces es fa amb una cel·la
@@ -42,6 +48,8 @@
     FO.modeDisposicio = function (m, qty, cfg) {
         if (m.niu) return 'individual';   // un niu per unitat
         if (m.disposicio && m.disposicio !== 'auto') return m.disposicio;
+        // de cantell o de punta, cada peça a la seva ranura perquè no caigui
+        if (m.orientacio === 'cantell' || m.orientacio === 'dreta') return 'individual';
         if (cfg && cfg.compartiments && qty > 1 && qty <= (cfg.compartimentsMax || Infinity)) return 'individual';
         const o = FO.orientacio(m);
         const vol = o.w * o.d * o.h;
@@ -84,8 +92,10 @@
             W = Math.max(o.w + 2 * j, Math.sqrt(area), cfg.minCaixeti);
             D = Math.max(o.d + 2 * j, area / W, cfg.minCaixeti);
         } else if (mode === 'individual') {
-            // amb pinces o robot, l'espai d'agafada va a banda i banda de la peça
-            const cw = o.w + 2 * j + dit * (cfg.ditAmbdos ? 2 : 1), cd = o.d + 2 * j;
+            // amb pinces o robot, l'espai d'agafada va a banda i banda de la peça; una peça
+            // de cantell o de punta s'agafa per les cares grans, així que l'espai va en el gruix
+            const esp = dit * (cfg.ditAmbdos ? 2 : 1);
+            const cw = o.w + 2 * j + (o.vertical ? 0 : esp), cd = o.d + 2 * j + (o.vertical ? esp : 0);
             const g = graella(qty, cw, cd, cfg.divisor, 0, maxW, maxD);
             W = g.W; D = g.D;
             cel = { nx: g.nx, ny: g.ny, cw, cd, perCel: 1 };
@@ -109,7 +119,8 @@
         W = r05(Math.max(W, cfg.minCaixeti));
         D = r05(Math.max(D, cfg.minCaixeti));
         prof = r05(Math.max(prof, 5));
-        if (o.h > prof + 0.01 && mode !== 'granel') avisos.push(t('sobresurt {mm} mm del caixetí', { mm: r05(o.h - prof) }));
+        // de cantell o de punta, la peça sobresurt expressament per agafar-la
+        if (o.h > prof + 0.01 && mode !== 'granel' && !o.vertical) avisos.push(t('sobresurt {mm} mm del caixetí', { mm: r05(o.h - prof) }));
         return { mat: m, qty, mode, W, D, prof, cel, o, avisos, pes: qty * m.pes };
     };
 
@@ -394,7 +405,7 @@
 
     // ─── Contenidor general obert per dalt que agrupa caixes ───
     FO.PEU_APILABLE = 3;    // alçada del peu encastat (mm)
-    FO.ZONA_NANSA = 30;     // espai de cada nansa als costats curts (mm)
+    FO.ZONA_NANSA = 30;     // llargada de la pestanya de cada nansa, per fora dels costats curts (mm)
     function contenidors(conj, objs, cfg, prefix) {
         const j = cfg.jocCaixes, pc = cfg.paretContenidor;
         const zona = cfg.nanses ? FO.ZONA_NANSA : 0;
@@ -403,7 +414,7 @@
         if (cfg.fixacio === 'xapa') fons = Math.max(fons, cfg.xapaGruix + 0.1 + 0.8);
         if (cfg.fixacio === 'imants') fons = Math.max(fons, cfg.discH + 0.2 + 0.8);
         fons = Math.ceil(fons * 10) / 10;
-        // les nanses ocupen espai als costats: el llit útil per a les caixes és més estret
+        // les pestanyes de les nanses sobresurten pels costats: el llit útil per a les caixes és més estret
         const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j, llit: Object.assign({}, cfg.llit, { x: cfg.llit.x - 2 * zona }) });
         const items = objs.map(o => ({
             W: o.W, D: o.D, obj: o,
@@ -433,7 +444,7 @@
             if ((cfg.inclinacio || 0) > angle) avisos.push(t('inclinació limitada a {a}° per peces que no es poden tombar', { a: angle }));
             const cont = {
                 id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j) + 2 * zona), D: r05(dist.D + 2 * (pc + j)), H,
-                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0),
+                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, ala: zona, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0),
                 fixacio: cfg.fixacio || 'cap'
             };
             caixes.forEach(c => { c.obj.pare = cont; c.obj.pos = { x: c.x, y: c.y, girat: c.girat }; });
