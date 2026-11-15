@@ -1,6 +1,6 @@
 # FOrdre Manual
 
-**Version 1.10** · Installation, configuration and use, step by step
+**Version 1.11** · Installation, configuration and use, step by step
 
 *Also in: [Català](MANUAL.md) · [Español](MANUAL.es.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # shows the log and the QR (Ctrl+C to exit)
 In the log you will see something like this (the server console messages are in Catalan):
 
 ```
-  FOrdre · servidor del taller 1.10.0
+  FOrdre · servidor del taller 1.11.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -338,7 +338,7 @@ Press **⚙ Settings** on the configurator's top bar. Changes apply instantly an
 | Field | Default | Limits | Notes |
 |---|---|---|---|
 | Clearance around the part (mm) | 1 | 0–10 | Play so the part goes in and out easily. |
-| Finger space (mm) | 8 | 0–40 | Space to pick up the parts. |
+| Picking clearance (mm) | 8 | 0–100 | See *How the parts are picked*, below. |
 | Minimum width (mm) | 18 | 5–200 | A finger has to fit. |
 | Maximum depth (mm) | 45 | 5–500 | |
 | Minimum part inside for upright parts (0–1) | 0.6 | 0.1–1 | Parts that stand upright (liquids): how much stays inside. |
@@ -359,6 +359,25 @@ Press **⚙ Settings** on the configurator's top bar. Changes apply instantly an
 | Stackable containers | Yes | All with the same footprint and a foot that fits into the one below. |
 | Handles on the short sides | Yes | |
 | QR engraved on the lids | Yes | It reads better if you go over it with a marker. |
+
+**How the parts are picked**
+
+| Field | Default | Limits | Notes |
+|---|---|---|---|
+| Picked | By hand (fingers) | — | *By hand* (8 mm on one side), *With tweezers* (4 mm on both sides), *Robot gripper* (15 mm on both sides) or *Custom*. |
+| Picking clearance (mm) | 8 | 0–100 | If you change it by hand, the tool switches to *Custom*. |
+| Clearance on both sides of each part | No | — | For tweezers or robot grippers: one jaw on each side. |
+
+![How the parts are picked in the configuration](imatges/en/c21-agafada.jpg)
+
+**Box height**
+
+| Field | Default | Notes |
+|---|---|---|
+| Raised bottom of the compartments | Only in the small ones | *Only in the small ones*, *In all* or *None*. |
+| Level the box heights | No | *No*, *Per assembly step* or *All boxes in the project* (see [section 3.3](#33-kit-formats-and-closures)). |
+
+![Levelling the height in the configuration](imatges/en/c22-anivellar.jpg)
 
 **Compartments inside the boxes**
 
@@ -432,6 +451,38 @@ Every printer prints slightly differently. The calibration piece adapts the lids
 | **Inner lip** (0–5 mm) | An edge that protrudes towards the centre of each compartment and holds the parts in. | Default: no lid needs printing. |
 | **Press-fit lid** | A lid with a skirt that fits inside. | For transport. Calibrate the clearance (section 3.2). |
 | **Magnetic lid** | Disc magnets in the corners of the box and the lid. | Opens and closes very quickly. The walls are made thicker to house them. |
+
+**How the parts are picked: fingers, tweezers or robot**
+
+Each bin leaves room next to the parts so they can be picked. By default it is for **fingers** (8 mm on one side). If something else picks the parts, choose it in ⚙ Configuration → *How the parts are picked*:
+
+| Tool | Clearance | Where |
+|---|---|---|
+| **By hand (fingers)** | 8 mm | On one side of the part. |
+| **With tweezers** | 4 mm | On both sides of each part. |
+| **Robot gripper** | 15 mm | On both sides of each part. |
+| **Custom** | Whatever you enter (0–100 mm) | You choose one side or both. |
+
+- With a **robot gripper**, enter the thickness of each jaw plus the margin you want (for example, 10 mm jaws + 5 mm margin = 15 mm).
+- With clearance *on both sides*, the cells get wider and parts laid in one layer are spaced apart, so the jaw can reach in from both sides.
+- A robot cannot pick parts from a **bulk tub**: for screws, also turn on **compartments** (below).
+
+**Level the height: every box as tall as the tallest**
+
+With ⚙ Configuration → *Options* → *Level the box heights*, every box takes the height of the tallest one:
+
+| Option | What it does |
+|---|---|
+| **No** | Each box keeps its own height (default). |
+| **Per assembly step** | The boxes of each assembly take the height of the tallest in that assembly. |
+| **All boxes in the project** | Every box in the project has the same height. |
+
+- The lower boxes **grow underneath**, with a **plinth**. The bin floors rise by the same amount and stay at the top, within reach, where the parts are easy to pick (by hand or by a robot that always goes down to the same height).
+- The plinth is **solid** in the STL. The slicer prints it with the infill you choose (10-15 %), so it uses little plastic and **needs no supports**.
+- With a container, all the boxes inside have the same height and the container adapts to them.
+- The **storage boxes** of assembled sub-assemblies are not levelled: they are usually much bigger.
+
+![Before (top) and after (bottom) levelling: the low boxes grow underneath and the floor stays at the top](imatges/c23-anivellar-3d.jpg)
 
 **Compartments: one cell for each part**
 

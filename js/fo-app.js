@@ -1099,8 +1099,17 @@
         ['Impressora 3D', [['llit.x', 'Llit X (mm)'], ['llit.y', 'Llit Y (mm)'], ['llit.z', 'Alçada màx. Z (mm)'], ['cabal', 'Cabal mitjà (mm³/s), per estimar temps'], ['separacioTanda', 'Separació entre peces al llit (mm)']]],
         ['Safata', [['paret', 'Paret exterior (mm)'], ['terra', 'Terra (mm)'], ['separador', 'Parets entre caixetins (mm)'], ['divisor', 'Divisors de cel·les (mm)'], ['llavi', 'Vora alta de les parets (mm)'], ['inclinacio', 'Inclinació de les safates (°)']]],
         ['Caixes i contenidor', [['paretCaixa', 'Paret de les caixes (mm)'], ['paretContenidor', 'Paret del contenidor (mm)'], ['jocCaixes', 'Joc entre caixes (mm)'], ['alcadaContenidor', 'Alçada contenidor / caixa més alta (0-1)'], ['factorPes', 'Plàstic real per estimar grams (0-1)']]],
-        ['Caixetins', [['joc', 'Folgança al voltant de la peça (mm)'], ['dit', 'Espai per als dits (mm)'], ['minCaixeti', 'Amplada mínima (mm)'], ['profMax', 'Fondària màxima (mm)'], ['retencio', 'Part mínima dins de les peces dretes (0-1)'], ['granel', 'Ocupació a granel (0-1)'], ['omplert', 'Nivell d\'ompliment a granel (0-1)'], ['areaPetit', 'Àrea de caixetí petit (mm²)']]]
+        ['Caixetins', [['joc', 'Folgança al voltant de la peça (mm)'], ['minCaixeti', 'Amplada mínima (mm)'], ['profMax', 'Fondària màxima (mm)'], ['retencio', 'Part mínima dins de les peces dretes (0-1)'], ['granel', 'Ocupació a granel (0-1)'], ['omplert', 'Nivell d\'ompliment a granel (0-1)'], ['areaPetit', 'Àrea de caixetí petit (mm²)']]]
     ];
+    // Si es toca l'espai d'agafada a mà i ja no coincideix amb l'eina triada, passa a «A mida»
+    function marcaAgafadaAMida() {
+        const c = cfg(), g = FO.AGAFADES[c.agafada];
+        if (g && g.dit != null && (g.dit !== c.dit || g.ambdos !== !!c.ditAmbdos)) {
+            c.agafada = 'mida';
+            const sel = $('cfgCos').querySelector('[data-cfgsel=agafada]');
+            if (sel) sel.value = 'mida';
+        }
+    }
     function renderConfig() {
         const c = cfg();
         const val = k => k.includes('.') ? c[k.split('.')[0]][k.split('.')[1]] : c[k];
@@ -1124,6 +1133,12 @@
                 ${c.fixacio === 'imants' ? [['discD', 'Diàmetre del disc d\'acer (mm)'], ['discH', 'Gruix del disc d\'acer (mm)']].map(camp).join('') : ''}
             </div>
             <div class="ajuda" style="margin-top:6px">${Object.values(FO.FIXACIONS).map(x => `<b>${esc(x.nom)}</b>: ${esc(x.desc)}`).join('<br>')}<br>${t('Només afecta les caixes que van dins un contenidor (formats contenidor i mixt). Els imants de les caixes són els mateixos de les tapes (diàmetre i alçada de dalt); en porten 2 en diagonal, o 4 si la caixa plena pesa més de {g} g.', { g: FO.PES_QUATRE_IMANTS })}</div></div>
+            <div><div class="ps-t">${t('Com s\'agafen les peces')}</div><div class="fg3">
+                <div class="fi"><label>${t('S\'agafen')}</label><select data-cfgsel="agafada">${Object.entries(FO.AGAFADES).map(([k, x]) => `<option value="${k}"${c.agafada === k ? ' selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></div>
+                ${camp(['dit', 'Espai per agafar la peça (mm)'])}
+            </div>
+            <label class="ck"><input type="checkbox" data-cfgck="ditAmbdos"${c.ditAmbdos ? ' checked' : ''}> ${t('Espai a banda i banda de cada peça (pinces o pinça de robot)')}</label>
+            <div class="ajuda">${t('Amb els dits n\'hi ha prou amb un espai a un costat. Unes pinces o la pinça d\'un robot necessiten lloc a banda i banda de la peça per a cada mordassa: posa-hi el gruix de la mordassa més el marge que vulguis. Si el robot ha d\'agafar cargoleria, activa també els compartiments: d\'un cubell a granel no les pot agafar.')}</div></div>
             <div><div class="ps-t">${t('Compartiments dins les caixes')}</div>
                 <label class="ck"><input type="checkbox" data-cfgck="compartiments"${c.compartiments ? ' checked' : ''}> ${t('Quan un caixetí porta més d\'una peça, fer-hi un compartiment per a cada peça (en lloc d\'un cubell únic)')}</label>
                 <div class="fg3" style="margin-top:4px">${c.compartiments ? camp(['compartimentsMax', 'Màxim de peces amb compartiments']) : ''}</div>
@@ -1154,7 +1169,9 @@
             <div class="fg3" style="margin-top:6px"><div class="fi"><label>${t('Fons elevat dels caixetins')}</label><select data-cfgsel="fonsElevat">
                 <option value="petits"${c.fonsElevat === 'petits' ? ' selected' : ''}>${t('Només als petits (recomanat)')}</option>
                 <option value="tots"${c.fonsElevat === 'tots' ? ' selected' : ''}>${t('A tots')}</option>
-                <option value="cap"${c.fonsElevat === 'cap' ? ' selected' : ''}>${t('Cap (menys plàstic)')}</option></select></div></div></div>
+                <option value="cap"${c.fonsElevat === 'cap' ? ' selected' : ''}>${t('Cap (menys plàstic)')}</option></select></div>
+                <div class="fi"><label>${t('Anivellar l\'alçada de les caixes')}</label><select data-cfgsel="anivella">${Object.entries(FO.ANIVELLAMENTS).map(([k, x]) => `<option value="${k}"${c.anivella === k ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></div></div>
+            <div class="ajuda">${t('Anivellar: totes les caixes fan l\'alçada de la més alta. Les més baixes creixen per sota, amb un sòcol, i el fons dels caixetins queda a dalt, on les peces s\'agafen bé. El sòcol és massís a l\'STL: el laminador l\'omple amb el farciment que triïs (10-15 %), sense suports.')}</div></div>
             <div><div class="ps-t">${t('Etiquetes')}</div><div class="fg3">
                 <div class="fi"><label>${t('Format')}</label><select data-cfgsel="etiqueta">${Object.entries(FO.FORMATS_ETIQUETA).map(([k, f]) => `<option value="${k}"${k === c.etiqueta ? ' selected' : ''}>${esc(f.nom)}</option>`).join('')}</select></div>
                 <div class="fi"><label>${t('Amplada a mida (mm)')}</label><input type="number" step="any" data-cfg="etiquetaW" value="${c.etiquetaW || 40}"></div>
@@ -1162,10 +1179,12 @@
             </div><div class="ajuda" style="margin-top:6px">${t('Les etiquetes porten el codi, el nom, la quantitat, el pas i el conjunt, els colors del material i del conjunt, un QR i (si hi caben) un codi de barres Code 128. El botó <b>RFID / CSV</b> exporta les mateixes dades amb un EPC de 96 bits per a gravadores RFID; al mòbil amb Chrome per a Android es poden escriure etiquetes NFC directament.')}</div></div>`;
         $('cfgCos').querySelectorAll('[data-cfg]').forEach(i => {
             const aplica = final => {
+                if (!i.isConnected) return;   // camp ja substituït (p. ex. en triar una eina d'agafada)
                 const k = i.dataset.cfg; let v = FO.num(i.value, NaN); if (!isFinite(v)) return;
                 const lim = FO.limita(k, v);
                 if (lim !== v) { if (!final) return; v = lim; i.value = v; hint(t('Valor limitat a {v} (entre {a} i {b})', { v, a: FO.RANGS[k][0], b: FO.RANGS[k][1] })); }
                 if (k.includes('.')) c[k.split('.')[0]][k.split('.')[1]] = v; else c[k] = v;
+                if (k === 'dit') marcaAgafadaAMida();
                 $('cartell').dataset.clau = ''; recalcula();
             };
             i.addEventListener('input', () => aplica(false));
@@ -1175,10 +1194,20 @@
         $('cfgCos').querySelectorAll('[data-cfgck]').forEach(i => i.addEventListener('change', () => {
             c[i.dataset.cfgck] = i.checked; recalcula();
             if (i.dataset.cfgck === 'compartiments') renderConfig();   // mostra o amaga el màxim
+            if (i.dataset.cfgck === 'ditAmbdos') marcaAgafadaAMida();
         }));
         $('cfgCos').querySelectorAll('[data-cfgsel]').forEach(i => i.addEventListener('change', () => {
-            c[i.dataset.cfgsel] = i.value; $('cartell').dataset.clau = ''; recalcula();
+            // primer es tanca el camp que s'estava editant (el seu «change» no ha de trepitjar aquesta tria)
+            const v = i.value;
+            if (document.activeElement && document.activeElement !== i && document.activeElement.blur) document.activeElement.blur();
+            i.value = v;
+            c[i.dataset.cfgsel] = v; $('cartell').dataset.clau = ''; recalcula();
             if (i.dataset.cfgsel === 'fixacio') renderConfig();   // els camps depenen del tipus de fixació
+            if (i.dataset.cfgsel === 'agafada') {                  // una eina predefinida omple l'espai i els costats
+                const g = FO.AGAFADES[v];
+                if (g.dit != null) { c.dit = g.dit; c.ditAmbdos = g.ambdos; recalcula(); }
+                renderConfig();
+            }
         }));
         $('cfgCos').querySelectorAll('[data-cfgcol]').forEach(i => i.addEventListener('change', () => { c[i.dataset.cfgcol] = i.value; recalcula(); }));
         $('cfgCos').querySelectorAll('[data-fil]').forEach(i => i.addEventListener('change', () => { c.filaments[+i.dataset.fil] = i.value; recalcula(); }));

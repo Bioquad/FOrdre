@@ -1004,7 +1004,6 @@
         ["Plàstic real per estimar grams (0-1)", "Plástico real para estimar gramos (0-1)", "Real plastic to estimate grams (0-1)"],
         ["Caixetins", "Cajetines", "Compartments"],
         ["Folgança al voltant de la peça (mm)", "Holgura alrededor de la pieza (mm)", "Clearance around the part (mm)"],
-        ["Espai per als dits (mm)", "Espacio para los dedos (mm)", "Finger space (mm)"],
         ["Amplada mínima (mm)", "Ancho mínimo (mm)", "Minimum width (mm)"],
         ["Fondària màxima (mm)", "Profundidad máxima (mm)", "Maximum depth (mm)"],
         ["Part mínima dins de les peces dretes (0-1)", "Parte mínima dentro de las piezas de pie (0-1)", "Minimum part inside for upright parts (0-1)"],
@@ -1266,7 +1265,21 @@
         ["Compartiments dins les caixes", "Compartimentos dentro de las cajas", "Compartments inside the boxes"],
         ["Quan un caixetí porta més d'una peça, fer-hi un compartiment per a cada peça (en lloc d'un cubell únic)", "Cuando un cajetín lleva más de una pieza, hacer un compartimento para cada pieza (en lugar de una cubeta única)", "When a bin holds more than one part, make a compartment for each part (instead of a single tub)"],
         ["Màxim de peces amb compartiments", "Máximo de piezas con compartimentos", "Maximum parts with compartments"],
-        ["Les peces queden ordenades una per cel·la, amb espai per als dits, i es compten d'un cop d'ull. Per sobre del màxim (cargoleria, volanderes…) es manté el cubell. La disposició triada a la fitxa d'un material mana sempre per sobre d'aquesta opció.", "Las piezas quedan ordenadas una por celda, con espacio para los dedos, y se cuentan de un vistazo. Por encima del máximo (tornillería, arandelas…) se mantiene la cubeta. La disposición elegida en la ficha de un material manda siempre sobre esta opción.", "Parts sit one per cell, with finger room, and can be counted at a glance. Above the maximum (screws, washers…) the single tub is kept. The layout chosen on a material's sheet always overrides this option."]
+        ["Les peces queden ordenades una per cel·la, amb espai per als dits, i es compten d'un cop d'ull. Per sobre del màxim (cargoleria, volanderes…) es manté el cubell. La disposició triada a la fitxa d'un material mana sempre per sobre d'aquesta opció.", "Las piezas quedan ordenadas una por celda, con espacio para los dedos, y se cuentan de un vistazo. Por encima del máximo (tornillería, arandelas…) se mantiene la cubeta. La disposición elegida en la ficha de un material manda siempre sobre esta opción.", "Parts sit one per cell, with finger room, and can be counted at a glance. Above the maximum (screws, washers…) the single tub is kept. The layout chosen on a material's sheet always overrides this option."],
+        ["Amb els dits", "Con los dedos", "By hand (fingers)"],
+        ["Amb pinces", "Con pinzas", "With tweezers"],
+        ["Pinça de robot", "Pinza de robot", "Robot gripper"],
+        ["A mida", "A medida", "Custom"],
+        ["No (cada caixa amb la seva alçada)", "No (cada caja con su altura)", "No (each box at its own height)"],
+        ["Per pas de muntatge (les caixes de cada conjunt)", "Por paso de montaje (las cajas de cada conjunto)", "Per assembly step (the boxes of each assembly)"],
+        ["Totes les del projecte", "Todas las del proyecto", "All boxes in the project"],
+        ["Com s'agafen les peces", "Cómo se cogen las piezas", "How the parts are picked"],
+        ["S'agafen", "Se cogen", "Picked"],
+        ["Espai per agafar la peça (mm)", "Espacio para coger la pieza (mm)", "Picking clearance (mm)"],
+        ["Espai a banda i banda de cada peça (pinces o pinça de robot)", "Espacio a ambos lados de cada pieza (pinzas o pinza de robot)", "Clearance on both sides of each part (tweezers or robot gripper)"],
+        ["Amb els dits n'hi ha prou amb un espai a un costat. Unes pinces o la pinça d'un robot necessiten lloc a banda i banda de la peça per a cada mordassa: posa-hi el gruix de la mordassa més el marge que vulguis. Si el robot ha d'agafar cargoleria, activa també els compartiments: d'un cubell a granel no les pot agafar.", "Con los dedos basta con un espacio a un lado. Unas pinzas o la pinza de un robot necesitan sitio a ambos lados de la pieza para cada mordaza: pon el grosor de la mordaza más el margen que quieras. Si el robot debe coger tornillería, activa también los compartimentos: de una cubeta a granel no las puede coger.", "With fingers, clearance on one side is enough. Tweezers or a robot gripper need room on both sides of the part for each jaw: enter the jaw thickness plus the margin you want. If the robot has to pick screws, turn on compartments too: it cannot pick them from a bulk tub."],
+        ["Anivellar l'alçada de les caixes", "Nivelar la altura de las cajas", "Level the box heights"],
+        ["Anivellar: totes les caixes fan l'alçada de la més alta. Les més baixes creixen per sota, amb un sòcol, i el fons dels caixetins queda a dalt, on les peces s'agafen bé. El sòcol és massís a l'STL: el laminador l'omple amb el farciment que triïs (10-15 %), sense suports.", "Nivelar: todas las cajas tienen la altura de la más alta. Las más bajas crecen por debajo, con un zócalo, y el fondo de los cajetines queda arriba, donde las piezas se cogen bien. El zócalo es macizo en el STL: el laminador lo rellena con el relleno que elijas (10-15 %), sin soportes.", "Levelling: every box takes the height of the tallest one. The lower ones grow underneath, with a plinth, and the bin floors stay at the top, where the parts are easy to pick. The plinth is solid in the STL: the slicer fills it with the infill you choose (10-15 %), without supports."]
     ];
     FO.TRAD = { es: {}, en: {} };
     D.forEach(([ca, es, en]) => { FO.TRAD.es[ca] = es; FO.TRAD.en[ca] = en; });

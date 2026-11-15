@@ -283,6 +283,44 @@ prova('compartiments: amb l\'opció, cada peça té la seva cel·la (fins al mà
     assert(pl.some(r => FO.imprimibles(r).some(s => s.caixetins.some(z => z.mode === 'individual' && z.qty > 1))), 'hi ha compartiments');
     pl.forEach(r => FO.imprimibles(r).forEach(s => assert(esTancada(FO.mallaSafata(s, cfg)), s.id)));
 });
+prova('agafada: pinces o robot deixen espai a banda i banda de cada peça', () => {
+    const q = FO.exemple(), cfg = q.config;
+    const m = q.materials.find(x => x.codi === 'SEP-M3'), o = FO.orientacio(m);
+    cfg.compartiments = true;
+    const dits = FO.calculaCaixeti(m, 4, cfg, 200, 200);
+    Object.assign(cfg, { agafada: 'robot', dit: 15, ditAmbdos: true });
+    const robot = FO.calculaCaixeti(m, 4, cfg, 200, 200);
+    assert(dits.cel.cw === o.w + 2 * cfg.joc + 8, 'dits: un costat');
+    assert(robot.cel.cw === o.w + 2 * cfg.joc + 30, 'robot: dos costats ' + robot.cel.cw);
+    cfg.compartiments = false;
+    const capa = q.materials.find(x => x.disposicio === 'capa');
+    const c = FO.calculaCaixeti(capa, 4, cfg, 400, 400);
+    assert(c.cel.cw === FO.orientacio(capa).w + cfg.joc + 15, 'capa: espai entre peces');
+    assert(FO.limita('dit', 90) === 90, 'fins a 100 mm');
+    const n = FO.normalitzaProjecte({ config: { agafada: 'xx', anivella: 'yy' } });
+    assert(n.config.agafada === 'dits' && n.config.anivella === 'cap' && n.config.ditAmbdos === false, 'normalitza');
+});
+prova('anivellar: totes les caixes a la més alta, amb el fons elevat i sòlides', () => {
+    for (const [nivell, format] of [['conjunt', 'contenidor'], ['projecte', 'individual'], ['conjunt', 'mixt'], ['projecte', 'fusionat']]) {
+        const { q, pla: pl } = variant('cap', format, { anivella: nivell });
+        const grup = nivell === 'projecte' ? [pl.flatMap(r => FO.imprimibles(r))] : pl.map(r => FO.imprimibles(r));
+        grup.forEach(objs => {
+            const caixes = objs.filter(o => o.forma !== 'contenidor' && o.tipus !== 'muntat');
+            if (!caixes.length) return;
+            const H = caixes[0].H;
+            assert(caixes.every(o => o.H === H), `${nivell}/${format}: alçades ${[...new Set(caixes.map(o => o.H))].join(',')}`);
+            caixes.forEach(o => {
+                o.caixetins.forEach(c => assert(c.z >= q.config.terra - 1e-6 && c.z + c.prof <= H + 1e-6, o.id + ' fons'));
+                if (o.socol) assert(o.caixetins.every(c => c.z >= o.socol), o.id + ' sòcol');
+            });
+            caixes.slice(0, 4).forEach(o => assert(esTancada(FO.mallaSafata(o, q.config)), o.id + ' tancada'));
+        });
+        // el contenidor encara hi té les caixes a dins
+        pl.flatMap(r => r.safates.filter(s => s.forma === 'contenidor')).forEach(c => assert(c.cim > c.fons, c.id));
+    }
+    const { pla: pl0 } = variant('cap', 'individual');
+    assert(new Set(pl0.flatMap(r => FO.imprimibles(r)).map(o => o.H)).size > 1, 'sense anivellar, alçades diferents');
+});
 prova('QR gravat a les tapes: es llegeix des de la malla', () => {
     const { q, pla: pl } = variant('pressio', 'individual');
     let gravats = 0;

@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versión 1.10** · Instalación, configuración y uso, paso a paso
+**Versión 1.11** · Instalación, configuración y uso, paso a paso
 
 *También en: [Català](MANUAL.md) · [English](MANUAL.en.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # muestra el registro y el QR (Ctrl+C para sal
 En el registro verás algo así (los mensajes de la consola del servidor están en catalán):
 
 ```
-  FOrdre · servidor del taller 1.10.0
+  FOrdre · servidor del taller 1.11.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -336,7 +336,7 @@ Pulsa **⚙ Configuración** en la barra de arriba del configurador. Los cambios
 | Campo | Por defecto | Límites | Notas |
 |---|---|---|---|
 | Holgura alrededor de la pieza (mm) | 1 | 0–10 | Juego para que la pieza entre y salga bien. |
-| Espacio para los dedos (mm) | 8 | 0–40 | Espacio para coger las piezas. |
+| Espacio para coger la pieza (mm) | 8 | 0–100 | Vea *Cómo se cogen las piezas*, abajo. |
 | Ancho mínimo (mm) | 18 | 5–200 | Tiene que caber un dedo. |
 | Profundidad máxima (mm) | 45 | 5–500 | |
 | Parte mínima dentro de las piezas de pie (0–1) | 0,6 | 0,1–1 | Piezas que van de pie (líquidos): qué parte queda dentro. |
@@ -357,6 +357,25 @@ Pulsa **⚙ Configuración** en la barra de arriba del configurador. Los cambios
 | Contenedores apilables | Sí | Todos con la misma planta y un pie que encaja en el de abajo. |
 | Asas en los lados cortos | Sí | |
 | QR grabado en las tapas | Sí | Se lee mejor si lo repasas con un rotulador. |
+
+**Cómo se cogen las piezas**
+
+| Campo | Por defecto | Límites | Notas |
+|---|---|---|---|
+| Se cogen | Con los dedos | — | *Con los dedos* (8 mm a un lado), *Con pinzas* (4 mm a ambos lados), *Pinza de robot* (15 mm a ambos lados) o *A medida*. |
+| Espacio para coger la pieza (mm) | 8 | 0–100 | Si lo cambias a mano, la herramienta pasa a *A medida*. |
+| Espacio a ambos lados de cada pieza | No | — | Para pinzas o pinzas de robot: una mordaza a cada lado. |
+
+![Cómo se cogen las piezas en la configuración](imatges/es/c21-agafada.jpg)
+
+**Altura de las cajas**
+
+| Campo | Por defecto | Notas |
+|---|---|---|
+| Fondo elevado de los cajetines | Solo en los pequeños | *Solo en los pequeños*, *En todos* o *Ninguno*. |
+| Nivelar la altura de las cajas | No | *No*, *Por paso de montaje* o *Todas las del proyecto* (vea el [punto 3.3](#33-formatos-de-kit-y-cierres)). |
+
+![Nivelar la altura en la configuración](imatges/es/c22-anivellar.jpg)
 
 **Compartimentos dentro de las cajas**
 
@@ -430,6 +449,38 @@ Cada impresora imprime un poco diferente. La pieza de calibración ajusta las ta
 | **Labio interior** (0–5 mm) | Un borde que entra hacia el centro de cada cajetín y retiene las piezas. | Por defecto: no hace falta imprimir tapa. |
 | **Tapa a presión** | Tapa con una faldilla que encaja por dentro. | Para transportar. Calibra la holgura (punto 3.2). |
 | **Tapa con imanes** | Imanes de disco en las esquinas de la caja y de la tapa. | Se abre y se cierra muy deprisa. Las paredes se hacen más gruesas para alojarlos. |
+
+**Cómo se cogen las piezas: dedos, pinzas o robot**
+
+Cada cajetín deja un espacio al lado de las piezas para poder cogerlas. Por defecto es para los **dedos** (8 mm a un lado). Si las piezas las coge otra cosa, elígelo en ⚙ Configuración → *Cómo se cogen las piezas*:
+
+| Herramienta | Espacio | Dónde |
+|---|---|---|
+| **Con los dedos** | 8 mm | A un lado de la pieza. |
+| **Con pinzas** | 4 mm | A ambos lados de cada pieza. |
+| **Pinza de robot** | 15 mm | A ambos lados de cada pieza. |
+| **A medida** | El que pongas (0–100 mm) | Tú eliges si va a un lado o a los dos. |
+
+- Con una **pinza de robot**, pon el grosor de cada mordaza más el margen que quieras (por ejemplo, mordazas de 10 mm + 5 mm de margen = 15 mm).
+- Con el espacio *a ambos lados*, las celdas son más anchas y las piezas en una capa quedan separadas entre sí, para que la mordaza entre por los dos lados.
+- Un robot no puede coger piezas de una **cubeta a granel**: para la tornillería activa también los **compartimentos** (más abajo).
+
+**Nivelar la altura: todas las cajas a la más alta**
+
+Con ⚙ Configuración → *Opciones* → *Nivelar la altura de las cajas*, todas las cajas tienen la altura de la más alta:
+
+| Opción | Qué hace |
+|---|---|
+| **No** | Cada caja tiene su altura (por defecto). |
+| **Por paso de montaje** | Las cajas de cada conjunto tienen la altura de la más alta del conjunto. |
+| **Todas las del proyecto** | Todas las cajas del proyecto tienen la misma altura. |
+
+- Las cajas más bajas **crecen por debajo**, con un **zócalo**. El fondo de los cajetines sube la misma diferencia y queda arriba, al alcance, donde las piezas se cogen bien (con la mano o con un robot que siempre baja a la misma altura).
+- El zócalo es **macizo** en el STL. El laminador lo imprime con el relleno que elijas (10-15 %), así que gasta poco plástico y **no necesita soportes**.
+- Con contenedor, todas las cajas de dentro tienen la misma altura y el contenedor se adapta.
+- Las **cajas de guarda** de los subconjuntos montados no se nivelan: suelen ser mucho más grandes.
+
+![Antes (arriba) y después (abajo) de nivelar: las cajas bajas crecen por debajo y el fondo queda arriba](imatges/c23-anivellar-3d.jpg)
 
 **Compartimentos: una celda para cada pieza**
 
