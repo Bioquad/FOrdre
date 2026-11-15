@@ -87,7 +87,7 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
    - **Full de ruta** imprimible: passos, subconjunts que cal tenir muntats, mapa de cada safata i llista de comprovació.
    - **Llista de materials** (CSV) amb el total de cada material per a tota la màquina.
 
-16. **Contenidors apilables i amb nanses:** tots els contenidors del projecte tenen la mateixa planta, un peu encastat que entra dins el de sota i prou alçada per a les caixes de dins; les nanses són una pestanya baixa a la base de cada costat curt, per fora, amb un forat per on una màquina (o els dits) els pot agafar: no ocupen espai de dins i s'imprimeixen sense suports.
+16. **Contenidors apilables i amb nanses:** tots els contenidors del projecte tenen la mateixa planta, un peu encastat que entra dins el de sota i prou alçada per a les caixes de dins; les nanses són una endidura a la base de cada costat curt, cap a dins, on entra una màquina (o els dits): no sobresurten ni ocupen espai de dins i s'imprimeixen sense suports. Les **safates i caixes** també són **apilables** (peu encastat i vora; les d'un mateix conjunt, amb la mateixa planta), i les **tapes porten frontissa**: queden unides a la caixa i es treuen posant-les verticals i estirant amunt.
 17. **Niu amb la forma real:** carrega l'STL d'una peça (plaques amb components, peces corbades o fràgils) i el fons de la seva cel·la reprodueix la cara de sota, amb folgança i un marc de centrat.
 18. **QR en relleu:** gravat a la tapa (i a la cara posterior de les caixes sense tapa, si hi cap), amb les mateixes dades que l'etiqueta.
 

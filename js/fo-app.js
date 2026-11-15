@@ -83,10 +83,16 @@
         sel = s;
         if (s && (s.tipus === 'item' || s.tipus === 'conj')) obreCami(s.conj || s.id);
         if (s && s.tipus === 'conj') oberts.add(s.id);  // en triar un grup se'n veuen els components
+        // en triar una peça (també des de la vista 3D) es desplega el seu conjunt perquè es vegi a la llista
+        if (s && s.tipus === 'item') oberts.add(s.conj);
+        if (s && s.tipus === 'caix') {
+            const r = PLA.find(x => FO.imprimibles(x).some(o => o.id === s.safata));
+            if (r) { obreCami(r.conj.id); oberts.add(r.conj.id); }
+        }
         reaplicaSeleccio(enfocar);
         renderArbre(); renderFitxa(); renderMaterials();
-        const nd = document.querySelector('.nd.sel');
-        if (nd) nd.scrollIntoView({ block: 'nearest' });
+        const nd = document.querySelector('#arbre .nd.sel');
+        if (nd) nd.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
     function obreCami(id) {
         let c = FO.conjunt(P, id), g = 0;
@@ -1125,7 +1131,9 @@
             <div class="ajuda" style="margin-top:6px">${Object.values(FO.TANCAMENTS).map(x => `<b>${esc(x.nom)}</b>: ${esc(x.desc)}`).join('<br>')}<br>${t('Amb imants, les parets es fan prou gruixudes per allotjar-los (diàmetre + 2 mm). Si hi ha peces que sobresurten, la tapa porta un marc que la fa més alta.')}</div>
             <label class="ck" style="margin-top:6px"><input type="checkbox" data-cfgck="tapesInternes"${c.tapesInternes ? ' checked' : ''}> ${t('Amb contenidor, tapa també a cada caixa de dins')}</label>
             <label class="ck"><input type="checkbox" data-cfgck="contenidorsApilables"${c.contenidorsApilables ? ' checked' : ''}> ${t('Contenidors apilables (mateixa planta, peu encastat i prou alçada per a les caixes)')}</label>
-            <label class="ck"><input type="checkbox" data-cfgck="nanses"${c.nanses ? ' checked' : ''}> ${t('Nanses als costats curts dels contenidors')}</label>
+            <label class="ck"><input type="checkbox" data-cfgck="safatesApilables"${c.safatesApilables !== false ? ' checked' : ''}> ${t('Safates i caixes apilables (peu encastat i vora; les d\'un mateix conjunt, amb la mateixa planta)')}</label>
+            <label class="ck"><input type="checkbox" data-cfgck="frontissa"${c.frontissa !== false ? ' checked' : ''}> ${t('Tapes amb frontissa (unides a la caixa; es treuen posant-les verticals i estirant amunt)')}</label>
+            <label class="ck"><input type="checkbox" data-cfgck="nanses"${c.nanses ? ' checked' : ''}> ${t('Nanses als costats curts dels contenidors (endidura a la base)')}</label>
             <label class="ck"><input type="checkbox" data-cfgck="qrRelleu"${c.qrRelleu ? ' checked' : ''}> ${t('QR gravat a les tapes (i a la cara posterior de les caixes sense tapa, si hi cap). Es llegeix millor si el repasses amb un retolador.')}</label>
             <div class="fx" style="margin-top:6px"><button class="b sm" id="bCalibratge">📐 ${t('Peça de calibratge…')}</button></div></div>
             <div><div class="ps-t">${t('Fixació de les caixes al contenidor')}</div><div class="fg3">

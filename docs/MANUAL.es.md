@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versión 1.12** · Instalación, configuración y uso, paso a paso
+**Versión 1.13** · Instalación, configuración y uso, paso a paso
 
 *También en: [Català](MANUAL.md) · [English](MANUAL.en.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # muestra el registro y el QR (Ctrl+C para sal
 En el registro verás algo así (los mensajes de la consola del servidor están en catalán):
 
 ```
-  FOrdre · servidor del taller 1.12.0
+  FOrdre · servidor del taller 1.13.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -355,7 +355,9 @@ Pulsa **⚙ Configuración** en la barra de arriba del configurador. Los cambios
 | Diámetro y altura del imán (mm) | 6 × 2 | Los imanes de disco que tengas. |
 | Tapa también en cada caja interior | Sí | Con contenedor. |
 | Contenedores apilables | Sí | Todos con la misma planta y un pie que encaja en el de abajo. |
-| Asas en los lados cortos | Sí | Una pestaña en la base de cada lado, por fuera, con un agujero para una máquina o los dedos (punto 3.3). |
+| Asas en los lados cortos | Sí | Una hendidura en la base de cada lado, hacia dentro, donde entra una máquina o los dedos (punto 3.3). |
+| Bandejas y cajas apilables | Sí | Pie encastrado y borde; las del mismo conjunto, con la misma planta (punto 3.3). |
+| Tapas con bisagra | Sí | La tapa queda unida a la caja; se saca poniéndola vertical y tirando hacia arriba (punto 3.3). |
 | QR grabado en las tapas | Sí | Se lee mejor si lo repasas con un rotulador. |
 
 **Cómo se cogen las piezas**
@@ -470,16 +472,40 @@ En la ficha de cada material, *Orientación en el cajetín* dice cómo reposa la
 
 ![8 placas de 100 × 70 mm: planas (a la izquierda) o de canto (a la derecha), en una caja mucho más pequeña](imatges/c25-orientacio-3d.jpg)
 
-**Asas del contenedor: un agujero en la base**
+**Asas del contenedor: una hendidura en la base**
 
-Las asas de los contenedores (⚙ Configuración → *Asas en los lados cortos de los contenedores*) son una **pestaña baja en la base** de cada lado corto, **por fuera** del contenedor, con el mismo agujero de siempre (22 mm de ancho y hasta 60 mm de largo).
+Las asas de los contenedores (⚙ Configuración → *Asas en los lados cortos de los contenedores*) son una **hendidura en la base** de cada lado corto, **hacia dentro**: un hueco abierto por fuera y por debajo, con la planta de siempre (22 mm hacia dentro y hasta 60 mm de ancho), donde entran los dedos de una **máquina** (o los tuyos) y se tira hacia arriba.
 
-- Ya **no ocupan espacio dentro**: el contenedor solo tiene el espacio de las cajas.
-- Una **máquina o un robot** puede meter los dedos de la pinza por el agujero desde arriba; también sirve para cogerlo con la mano.
-- La pestaña tiene 6 mm de grosor (7 mm si el contenedor es apilable). Se imprime plana y no necesita soportes. La tapa solo tapa el cuerpo.
-- Ocupan 30 mm a cada lado: FOrdre lo tiene en cuenta para que el contenedor, con las pestañas, quepa en la cama de la impresora.
+- **No sobresale nada** del contenedor y dentro no hay ningún bloque: la hendidura queda **bajo el suelo** del contenedor, que se hace lo bastante grueso (12 mm de hendidura + 2,5 mm de techo). Las cajas de dentro reposan encima.
+- El techo de la hendidura tiene **chaflanes a 45°** en los lados, para que el puente que queda sea corto y se imprima sin soportes.
+- El resto del suelo grueso lleva **canales abiertos por debajo**, como un palé, con el techo en punta a 45°: gasta menos plástico y se imprime sin soportes.
 
-![Contenedor con las asas nuevas: una pestaña con un agujero en la base de cada lado](imatges/c26-nanses-3d.jpg)
+![Hendidura del asa en la base del contenedor, vista desde abajo](imatges/c27-nanses-3d.jpg)
+
+**Bandejas y cajas apilables**
+
+Con ⚙ Configuración → *Bandejas y cajas apilables* (activado por defecto), todas las bandejas y cajas que no van dentro de un contenedor se pueden **apilar**:
+
+- Las **bandejas de un mismo conjunto** (también las ESD) y las **cajas de un mismo material** que se ha tenido que partir en varias se hacen con **la misma planta**, apaisadas. Así todas encajan entre ellas y se ven iguales.
+- Cada una lleva un **pie encastrado** de 3 mm debajo y, si no tiene tapa, un **borde** de 3,5 mm arriba donde entra el pie de la de encima (0,6 mm de juego por lado). Las que tienen tapa se apilan sobre la tapa.
+- Las cajas que van dentro de un contenedor no lo llevan: se apila el contenedor (opción *Contenedores apilables*).
+
+![Dos bandejas del mismo conjunto, con la misma planta, a punto de apilarse](imatges/c30-apilables-3d.jpg)
+
+**Tapas con bisagra**
+
+Con ⚙ Configuración → *Tapas con bisagra* (activado por defecto), las tapas a presión y con imanes quedan **unidas a la caja**:
+
+- En la pared del fondo, la caja lleva una o dos bisagras (dos si tiene más de 70 mm de ancho). Cada bisagra son **dos orejas** con un **pasador** corto de 3 mm que entran por los dos lados en el **nudo** de la tapa.
+- El nudo tiene una **ranura** hacia atrás algo más estrecha que el pasador. Con la tapa cerrada o abierta, queda sujeta. Si la pones **vertical y tiras hacia arriba**, el pasador sale por la ranura y la tapa se saca.
+- Ocupa **poco**: sobresale unos 7 mm por detrás de la caja, a ras de la tapa, y las orejas tienen un tirante a 45° debajo para imprimirlas sin soportes. La tapa tiene una pequeña muesca sobre cada oreja para no tocarlas al girar.
+- Las cajas de dentro de un contenedor no la llevan (no habría sitio por detrás).
+
+![Tapa cerrada con dos bisagras](imatges/c28-frontissa-3d.jpg)
+
+![Tapa abierta del todo, vertical: tirando hacia arriba se saca](imatges/c29-frontissa-oberta-3d.jpg)
+
+> **Consejo:** el pasador y la ranura están pensados para PLA o PETG con boquilla de 0,4 mm. Si la tapa se saca demasiado fácilmente o cuesta demasiado, imprime una caja pequeña de prueba antes de hacerlas todas.
 
 **Cómo se cogen las piezas: dedos, pinzas o robot**
 
@@ -852,7 +878,7 @@ La pestaña **Materiales** muestra todos los materiales de la máquina con el to
 
 Consejos de impresión:
 
-- Imprime las cajas **sin soportes**: los labios están pensados para imprimirse a 45° y las asas son una pestaña plana en la base.
+- Imprime las cajas **sin soportes**: los labios están pensados para imprimirse a 45°, y las hendiduras de las asas y las orejas de las bisagras tienen chaflanes a 45°.
 - Relleno del 10–15 % y 2–3 perímetros son suficientes.
 - Las cajas ESD, con filamento antiestático.
 - Con tapas a presión, imprime primero la pieza de calibración (punto 3.2).

@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versió 1.12** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.13** · Instal·lació, configuració i ús, pas a pas
 
 *També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
@@ -172,7 +172,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.12.0
+  FOrdre · servidor del taller 1.13.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -353,7 +353,9 @@ Prem **⚙ Configuració** a la barra de dalt del configurador. Els canvis s'apl
 | Diàmetre i alçada de l'imant (mm) | 6 × 2 | Els imants de disc que tinguis. |
 | Tapa també a cada caixa de dins | Sí | Amb contenidor. |
 | Contenidors apilables | Sí | Tots amb la mateixa planta i un peu que encaixa al de sota. |
-| Nanses als costats curts | Sí | Una pestanya a la base de cada costat, per fora, amb un forat per a una màquina o els dits (punt 3.3). |
+| Nanses als costats curts | Sí | Una endidura a la base de cada costat, cap a dins, on entra una màquina o els dits (punt 3.3). |
+| Safates i caixes apilables | Sí | Peu encastat i vora; les del mateix conjunt, amb la mateixa planta (punt 3.3). |
+| Tapes amb frontissa | Sí | La tapa queda unida a la caixa; es treu posant-la vertical i estirant amunt (punt 3.3). |
 | QR gravat a les tapes | Sí | Es llegeix millor si el repasses amb un retolador. |
 
 **Com s'agafen les peces**
@@ -468,16 +470,40 @@ A la fitxa de cada material, *Orientació al caixetí* diu com reposa la peça:
 
 ![8 plaques de 100 × 70 mm: planes (a l'esquerra) o de cantell (a la dreta), en una caixa molt més petita](imatges/c25-orientacio-3d.jpg)
 
-**Nanses del contenidor: un forat a la base**
+**Nanses del contenidor: una endidura a la base**
 
-Les nanses dels contenidors (⚙ Configuració → *Nanses als costats curts dels contenidors*) són una **pestanya baixa a la base** de cada costat curt, **per fora** del contenidor, amb el mateix forat de sempre (22 mm d'ample i fins a 60 mm de llarg).
+Les nanses dels contenidors (⚙ Configuració → *Nanses als costats curts dels contenidors*) són una **endidura a la base** de cada costat curt, **cap a dins**: un forat obert per fora i per sota, amb la planta de sempre (22 mm cap a dins i fins a 60 mm d'ample), on entren els dits d'una **màquina** (o els teus) i s'estira cap amunt.
 
-- Ja **no ocupen espai de dins**: el contenidor només té l'espai de les caixes.
-- Una **màquina o un robot** pot entrar els dits de la pinça pel forat des de dalt; també serveix per agafar-lo amb la mà.
-- La pestanya fa 6 mm de gruix (7 mm si el contenidor és apilable). S'imprimeix plana i no necessita suports. La tapa només tapa el cos.
-- Ocupen 30 mm a cada costat: FOrdre ho té en compte perquè el contenidor, amb les pestanyes, càpiga al llit de la impressora.
+- **No sobresurt res** del contenidor i dins no hi ha cap bloc: l'endidura queda **sota el terra** del contenidor, que es fa prou gruixut (12 mm d'endidura + 2,5 mm de sostre). Les caixes de dins hi reposen a sobre.
+- El sostre de l'endidura té **xamfrans a 45°** als costats, perquè el pont que queda sigui curt i s'imprimeixi sense suports.
+- La resta del terra gruixut porta **canals oberts per sota**, com un palet, amb el sostre en punta a 45°: gasta menys plàstic i s'imprimeix sense suports.
 
-![Contenidor amb les nanses noves: una pestanya amb un forat a la base de cada costat](imatges/c26-nanses-3d.jpg)
+![Endidura de la nansa a la base del contenidor, vista des de sota](imatges/c27-nanses-3d.jpg)
+
+**Safates i caixes apilables**
+
+Amb ⚙ Configuració → *Safates i caixes apilables* (activat per defecte), totes les safates i caixes que no van dins un contenidor es poden **apilar**:
+
+- Les **safates d'un mateix conjunt** (també les ESD) i les **caixes d'un mateix material** que s'ha hagut de partir en diverses es fan amb **la mateixa planta**, apaïsades. Així totes encaixen entre elles i es veuen iguals.
+- Cada una porta un **peu encastat** de 3 mm a sota i, si no té tapa, una **vora** de 3,5 mm a dalt on entra el peu de la de sobre (0,6 mm de joc per banda). Les que tenen tapa s'apilen sobre la tapa.
+- Les caixes que van dins d'un contenidor no en porten: s'apila el contenidor (opció *Contenidors apilables*).
+
+![Dues safates del mateix conjunt, amb la mateixa planta, a punt d'apilar-se](imatges/c30-apilables-3d.jpg)
+
+**Tapes amb frontissa**
+
+Amb ⚙ Configuració → *Tapes amb frontissa* (activat per defecte), les tapes a pressió i amb imants queden **unides a la caixa**:
+
+- A la paret del fons, la caixa porta una o dues frontisses (dues si fa més de 70 mm d'ample). Cada frontissa són **dues orelles** amb un **passador** curt de 3 mm que entren pels dos costats al **nus** de la tapa.
+- El nus té una **ranura** cap enrere una mica més estreta que el passador. Amb la tapa tancada o oberta, queda subjecta. Si la poses **vertical i estires cap amunt**, el passador surt per la ranura i la tapa es treu.
+- Ocupa **poc**: sobresurt uns 7 mm pel darrere de la caixa, a ras de la tapa, i les orelles tenen un tirant a 45° a sota per imprimir-les sense suports. La tapa té una petita osca sobre cada orella perquè no les toqui en girar.
+- Les caixes de dins d'un contenidor no en porten (no hi hauria lloc pel darrere).
+
+![Tapa tancada amb dues frontisses](imatges/c28-frontissa-3d.jpg)
+
+![Tapa oberta del tot, vertical: estirant amunt es treu](imatges/c29-frontissa-oberta-3d.jpg)
+
+> **Consell:** el passador i la ranura estan pensats per a PLA o PETG amb 0,4 mm de broquet. Si la tapa es treu massa fàcilment o costa massa, imprimeix una caixa petita de prova abans de fer-les totes.
 
 **Com s'agafen les peces: dits, pinces o robot**
 
@@ -844,7 +870,7 @@ La pestanya **Materials** mostra tots els materials de la màquina amb el total 
 
 Consells d'impressió:
 
-- Imprimeix les caixes **sense suports**: els llavis estan pensats per imprimir-se a 45° i les nanses són una pestanya plana a la base.
+- Imprimeix les caixes **sense suports**: els llavis estan pensats per imprimir-se a 45°, i les endidures de les nanses i les orelles de les frontisses tenen xamfrans a 45°.
 - Farciment del 10–15 % i 2–3 perímetres són suficients.
 - Les caixes ESD, amb filament antiestàtic.
 - Amb tapes a pressió, imprimeix primer la peça de calibratge (punt 3.2).
