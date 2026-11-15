@@ -1,6 +1,6 @@
 # FOrdre Manual
 
-**Version 1.12** · Installation, configuration and use, step by step
+**Version 1.13** · Installation, configuration and use, step by step
 
 *Also in: [Català](MANUAL.md) · [Español](MANUAL.es.md)*
 
@@ -174,7 +174,7 @@ journalctl -u fordre -f           # shows the log and the QR (Ctrl+C to exit)
 In the log you will see something like this (the server console messages are in Catalan):
 
 ```
-  FOrdre · servidor del taller 1.12.0
+  FOrdre · servidor del taller 1.13.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -357,7 +357,9 @@ Press **⚙ Settings** on the configurator's top bar. Changes apply instantly an
 | Magnet diameter and height (mm) | 6 × 2 | The disc magnets you have. |
 | Also a lid on each inner box | Yes | With a container. |
 | Stackable containers | Yes | All with the same footprint and a foot that fits into the one below. |
-| Handles on the short sides | Yes | A tab at the base of each side, outside, with a hole for a machine or fingers (section 3.3). |
+| Handles on the short sides | Yes | A recess in the base of each side, inwards, where a machine or fingers go in (section 3.3). |
+| Stackable trays and boxes | Yes | Recessed foot and rim; those of the same assembly with the same footprint (section 3.3). |
+| Hinged lids | Yes | The lid stays attached to the box; it comes off when held vertical and pulled up (section 3.3). |
 | QR engraved on the lids | Yes | It reads better if you go over it with a marker. |
 
 **How the parts are picked**
@@ -472,16 +474,40 @@ On each material's sheet, *Orientation in the bin* says how the part rests:
 
 ![8 boards of 100 × 70 mm: flat (left) or on edge (right), in a much smaller box](imatges/c25-orientacio-3d.jpg)
 
-**Container handles: a hole in the base**
+**Container handles: a recess in the base**
 
-Container handles (⚙ Configuration → *Handles on the short sides of the containers*) are a **low tab at the base** of each short side, **outside** the container, with the same hole as before (22 mm wide and up to 60 mm long).
+Container handles (⚙ Configuration → *Handles on the short sides of the containers*) are a **recess in the base** of each short side, **inwards**: a pocket open on the outside and underneath, with the same footprint as before (22 mm deep and up to 60 mm wide), where a **machine's** fingers (or yours) go in and pull up.
 
-- They **no longer take up space inside**: the container only has the room for the boxes.
-- A **machine or robot** can put its gripper fingers through the hole from above; it also works for carrying by hand.
-- The tab is 6 mm thick (7 mm if the container is stackable). It prints flat and needs no supports. The lid only covers the body.
-- They take 30 mm on each side: FOrdre allows for this so that the container, tabs included, fits on the printer bed.
+- **Nothing sticks out** of the container and there are no blocks inside: the recess sits **under the floor** of the container, which is made thick enough (12 mm recess + 2.5 mm ceiling). The boxes inside rest on top.
+- The recess ceiling has **45° chamfers** at the sides, so the bridge left is short and prints without supports.
+- The rest of the thick floor has **channels open underneath**, like a pallet, with a 45° pointed ceiling: it uses less plastic and prints without supports.
 
-![Container with the new handles: a tab with a hole at the base of each side](imatges/c26-nanses-3d.jpg)
+![Handle recess in the base of the container, seen from below](imatges/c27-nanses-3d.jpg)
+
+**Stackable trays and boxes**
+
+With ⚙ Configuration → *Stackable trays and boxes* (on by default), every tray and box that does not go inside a container can be **stacked**:
+
+- The **trays of the same assembly** (ESD ones included) and the **boxes of the same material** that had to be split into several get **the same footprint**, in landscape. So they all fit together and look the same.
+- Each has a **recessed foot** of 3 mm underneath and, if it has no lid, a **rim** of 3.5 mm at the top where the foot of the one above fits (0.6 mm clearance per side). Those with a lid stack on the lid.
+- Boxes inside a container don't have it: the container is stacked instead (*Stackable containers* option).
+
+![Two trays of the same assembly, with the same footprint, about to be stacked](imatges/c30-apilables-3d.jpg)
+
+**Hinged lids**
+
+With ⚙ Configuration → *Hinged lids* (on by default), press-fit and magnetic lids stay **attached to the box**:
+
+- On the back wall, the box has one or two hinges (two if it is wider than 70 mm). Each hinge is **two lugs** with a short 3 mm **pin** that go into the lid's **knuckle** from both sides.
+- The knuckle has a **slot** towards the back, slightly narrower than the pin. With the lid closed or open, it stays on. If you hold it **vertical and pull up**, the pin comes out through the slot and the lid comes off.
+- It takes **little space**: it sticks out about 7 mm behind the box, flush with the lid, and the lugs have a 45° gusset underneath so they print without supports. The lid has a small notch over each lug so it doesn't touch them when turning.
+- Boxes inside a container don't have it (there would be no room behind).
+
+![Closed lid with two hinges](imatges/c28-frontissa-3d.jpg)
+
+![Lid fully open, vertical: pulling up takes it off](imatges/c29-frontissa-oberta-3d.jpg)
+
+> **Tip:** the pin and slot are designed for PLA or PETG with a 0.4 mm nozzle. If the lid comes off too easily or is too stiff, print a small test box before printing them all.
 
 **How the parts are picked: fingers, tweezers or robot**
 
@@ -854,7 +880,7 @@ The **Materials** tab shows all the machine's materials with the total for each 
 
 Printing tips:
 
-- Print the boxes **without supports**: the lips are designed to print at 45° and the handles are a flat tab at the base.
+- Print the boxes **without supports**: the lips are designed to print at 45°, and the handle recesses and the hinge lugs have 45° chamfers.
 - 10–15 % infill and 2–3 perimeters are enough.
 - ESD boxes, with antistatic filament.
 - With press-fit lids, print the calibration piece first (section 3.2).

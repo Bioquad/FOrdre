@@ -15,7 +15,7 @@
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.12.0';
+    FO.VERSIO = '1.13.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -72,6 +72,8 @@
         compartiments: false,       // false: cubell únic segons cada material (automàtic)
         compartimentsMax: 30,       // per sobre d'aquestes peces es manté el cubell (cargoleria…)
         // ─── Anivellar l'alçada: totes les caixes a la més alta, amb el fons elevat ───
+        safatesApilables: true,     // safates i caixes amb peu encastat i vora (les d'un conjunt, amb la mateixa planta)
+        frontissa: true,            // tapes amb frontissa: unides a la caixa, i es treuen posant-les verticals
         anivella: 'cap',            // cap | conjunt (les de cada pas) | projecte (totes)
         // ─── Identificació física i ergonomia ───
         relleu: true,               // codi gravat a la cara frontal

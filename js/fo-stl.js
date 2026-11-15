@@ -327,40 +327,106 @@
         FO.rectsText(text, p).forEach(r => ops.push(OP(u + r.u0, v + r.v0, u + r.u1, v + r.v1, c.z - prof, c.z, 0)));
     }
 
-    // ─── Nanses del contenidor ───
-    // Una pestanya baixa a la base de cada costat curt, per fora del cos, amb el forat de
-    // sempre (22 mm × fins a 60 mm): no ocupa espai de dins i una màquina (o els dits)
-    // hi pot entrar des de dalt. Fa 6 mm de gruix (7 mm si és apilable, perquè agafi
-    // prou cos per sobre del peu encastat) i s'imprimeix plana, sense suports.
-    FO.alaNansa = o => o.forma === 'contenidor' && o.nanses ? (o.ala || 0) : 0;
-    FO.gruixNansa = o => o.apilable ? (FO.PEU_APILABLE || 3) + 4 : 6;
-    // El cos del contenidor (sense pestanyes) en coordenades pròpies: x comença a la seva paret
-    const cosContenidor = (o, ala) => Object.assign({}, o, {
-        W: o.W - 2 * ala, nanses: false, ala: 0,
-        caixes: (o.caixes || []).map(q => Object.assign({}, q, { x: q.x - ala }))
-    });
-    const desplaca = (ops, dx) => ops.map(p => Object.assign({}, p, { x0: p.x0 + dx, x1: p.x1 + dx }));
-    function opsNanses(o, ala) {
-        const ops = [], tN = FO.gruixNansa(o), yc = o.D / 2;
-        const mig = Math.max(8, Math.min(36, o.D / 2 - 4)), forat = mig - 6;
-        [[0, 1], [o.W, -1]].forEach(([x0, sg]) => {
-            const X = a => sg > 0 ? x0 + a : x0 - a;
-            const xa = (a, b) => [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
-            const [b0, b1] = xa(0, ala), [f0, f1] = xa(5, Math.min(27, ala - 3));
-            ops.push(OP(b0, yc - mig, b1, yc + mig, 0, tN, 1));
-            if (forat >= 4 && f1 - f0 >= 6) ops.push(OP(f0, yc - forat, f1, yc + forat, 0, tN, 0));
+    // ─── Nanses del contenidor: endidures a la base ───
+    // A cada costat curt, una endidura oberta per fora i per sota, sota el terra del
+    // contenidor, amb la planta de sempre (22 mm cap a dins × fins a 60 mm). Una màquina
+    // (o els dits) hi entra i estira cap amunt pel sostre. No ocupa espai de dins: el terra
+    // del contenidor és prou gruixut per tenir-la a sota. El sostre fa xamfrans de 45° als
+    // costats perquè el pont que queda sigui curt i s'imprimeixi sense suports. La resta del
+    // terra gruixut porta canals per sota perquè no gasti plàstic de més.
+    FO.NANSA = { fons: 22, alt: FO.NANSA_ALT || 12, xamfra: 10 };
+    function endidures(o) {
+        const ops = [], N = FO.NANSA, yc = o.D / 2, pw = o.paret;
+        const mig = Math.min(30, o.D / 2 - pw - 4);
+        if (mig < 8) return ops;
+        const ch = Math.min(N.xamfra, mig - 8), z1 = N.alt - ch, pas = 0.5;
+        [[0, N.fons], [o.W - N.fons, o.W]].forEach(([x0, x1]) => {
+            ops.push(OP(x0, yc - mig, x1, yc + mig, 0, z1, 0));
+            for (let z = z1, k = 1; z < N.alt - 1e-6; z += pas, k++) ops.push(OP(x0, yc - mig + k * pas, x1, yc + mig - k * pas, z, Math.min(z + pas, N.alt), 0));
         });
+        // El terra gruixut s'alleugereix amb canals oberts per sota, com un palet: de 20 mm,
+        // amb el sostre en punta a 45° (sense ponts) i nervis de 4 mm entre canals.
+        const marge = pw + 0.6 + 2, xa = N.fons + 4, xb = o.W - N.fons - 4, wc = 20, nervi = 4;
+        const n = Math.floor((xb - xa + nervi) / (wc + nervi));
+        if (n > 0) {
+            const x0 = xa + (xb - xa - (n * wc + (n - 1) * nervi)) / 2, chc = wc / 2 - 1, zc = Math.max(0, N.alt - chc);
+            for (let i = 0; i < n; i++) {
+                const a = x0 + i * (wc + nervi);
+                ops.push(OP(a, marge, a + wc, o.D - marge, 0, zc, 0));
+                for (let z = zc, k = 1; z < N.alt - 1e-6; z += pas, k++) ops.push(OP(a + k * pas, marge, a + wc - k * pas, o.D - marge, z, Math.min(z + pas, N.alt), 0));
+            }
+        }
+        return ops;
+    }
+
+    // ─── Frontissa de les tapes ───
+    // Una o dues frontisses a la paret del fons. La caixa porta dues orelles amb un
+    // passador curt cadascuna (Ø 3 mm) que entren pels dos costats al nus de la tapa.
+    // El nus té una ranura cap enrere una mica més estreta que el passador: tancada, la
+    // tapa queda subjecta; posada vertical i estirant amunt, el passador surt per la ranura.
+    // El nus queda a ras de la cara de dalt de la tapa i les orelles a ras també; tot plegat
+    // sobresurt uns 7 mm pel darrere. Les orelles tenen un tirant a 45° a sota (sense suports).
+    FO.FRONTISSA = { rp: 1.5, rk: 3.1, joc: 0.3, nus: 8, orella: 3, folga: 0.4, ranura: 2.7 };
+    FO.teFrontissa = (o, cfg) => cfg.frontissa !== false && !o.pare && (o.tancament === 'pressio' || o.tancament === 'imants');
+    FO.geomFrontissa = function (o, cfg) {
+        const F = FO.FRONTISSA;
+        const t = o.tancament === 'imants' ? Math.max(cfg.gruixTapa, cfg.imantH + 1) : cfg.gruixTapa;
+        const hf = o.cim > o.H + 0.01 ? Math.ceil(o.cim - o.H + 1) : 0;   // marc de la tapa
+        const zL = o.H + hf, zP = zL + t - F.rk, yP = o.D + F.rk + 0.6;
+        const ample = F.nus + 2 * (F.folga + F.orella);
+        const xs = o.W >= 70 ? [Math.max(ample / 2 + 3, o.W * 0.2), Math.min(o.W - ample / 2 - 3, o.W * 0.8)] : [o.W / 2];
+        // orelles de la caixa: [x0, x1, cara interior, sentit del passador]
+        const orelles = xs.flatMap(xc => [
+            [xc - F.nus / 2 - F.folga - F.orella, xc - F.nus / 2 - F.folga, xc - F.nus / 2 - F.folga, 1],
+            [xc + F.nus / 2 + F.folga, xc + F.nus / 2 + F.folga + F.orella, xc + F.nus / 2 + F.folga, -1]
+        ]);
+        return { F, t, hf, zL, zP, yP, xs, orelles };
+    };
+    // Cercle d'eix X en llesques de 0,5 mm: dins (passador, nus) o fora (forat) del cercle real
+    function cercle(yc, zc, r, x0, x1, s, fora, zmax) {
+        const ops = [], pas = 0.5;
+        for (let z = zc - r; z < zc + r - 1e-6; z += pas) {
+            const za = z, zb = Math.min(z + pas, zc + r, zmax == null ? Infinity : zmax);
+            if (zb <= za + 1e-6) break;
+            const dz = fora ? (za <= zc && zb >= zc ? 0 : Math.min(Math.abs(za - zc), Math.abs(zb - zc))) : Math.max(Math.abs(za - zc), Math.abs(zb - zc));
+            const h = Math.sqrt(Math.max(0, r * r - dz * dz));
+            if (h > 0.05) ops.push(OP(x0, yc - h, x1, yc + h, za, zb, s));
+        }
+        return ops;
+    }
+    // Orelles i passadors a la caixa (coordenades de la caixa)
+    function opsFrontissaCaixa(o, cfg) {
+        const g = FO.geomFrontissa(o, cfg), F = g.F, ops = [], D = o.D;
+        const zT = g.zP + F.rk, zB = g.zP - F.rk, e = g.yP + F.rk - D;
+        g.orelles.forEach(([x0, x1, xi, sg]) => {
+            ops.push(OP(x0, D, x1, D + e, Math.max(0, zB), zT, 1));
+            // tirant a 45° per sota
+            for (let k = 0.5; k < e - 1e-6 && zB - k >= 0; k += 0.5) ops.push(OP(x0, D, x1, D + e - k, zB - k, zB - k + 0.5, 1));
+            // passador cap al nus
+            const p0 = sg > 0 ? xi : xi - F.folga - 3, p1 = sg > 0 ? xi + F.folga + 3 : xi;
+            cercle(g.yP, g.zP, F.rp, p0, p1, 1, false).forEach(op => ops.push(op));
+        });
+        return ops;
+    }
+    // Nus de la tapa i osques per a les orelles (coordenades del món: tapa tancada)
+    function opsFrontissaTapa(o, cfg) {
+        const g = FO.geomFrontissa(o, cfg), F = g.F, ops = [], D = o.D, top = g.zL + g.t;
+        g.xs.forEach(xc => {
+            const x0 = xc - F.nus / 2, x1 = xc + F.nus / 2;
+            ops.push(OP(x0, D - 1, x1, g.yP, g.zL, top, 1));                       // pont fins a la placa
+            cercle(g.yP, g.zP, F.rk, x0, x1, 1, false, top).forEach(op => ops.push(op));
+            cercle(g.yP, g.zP, F.rp + F.joc, x0, x1, 0, true).forEach(op => ops.push(op));
+            ops.push(OP(x0, g.yP, x1, g.yP + F.rk + 0.5, g.zP - F.ranura / 2, g.zP + F.ranura / 2, 0));   // ranura
+        });
+        // osques a la tapa sobre cada orella perquè, en girar, la tapa no les toqui
+        g.orelles.forEach(([a, b]) => ops.push(OP(a - 0.4, D - o.paret, b + 0.4, D, o.H, top, 0)));
         return ops;
     }
 
     FO.opsObjecte = function (o, cfg) {
-        // contenidor amb nanses: el cos es fa en les seves coordenades i s'hi afegeixen les pestanyes
-        const ala = FO.alaNansa(o);
-        if (ala > 0) {
-            const r = FO.opsObjecte(cosContenidor(o, ala), cfg);
-            return { ops: desplaca(r.ops, ala).concat(opsNanses(o, ala)), avisos: r.avisos };
-        }
-        const ops = [], H = o.H, pw = o.paret, tanc = o.tancament || 'cap';
+        // safata o caixa apilable: H és el cos; la vora (collar) va per sobre
+        const collar = o.forma !== 'contenidor' ? (o.collar || 0) : 0;
+        const ops = [], H = o.H - collar, pw = o.paret, tanc = o.tancament || 'cap';
         const avisos = [];
         ops.push(OP(0, 0, o.W, o.D, 0, H, 1));
         let franjaText = [pw + 1, o.W - pw - 1];
@@ -375,6 +441,7 @@
                 const b = pw + 0.6;
                 ops.push(OP(0, 0, o.W, b, 0, peu, 0), OP(0, o.D - b, o.W, o.D, 0, peu, 0), OP(0, 0, b, o.D, 0, peu, 0), OP(o.W - b, 0, o.W, o.D, 0, peu, 0));
             }
+            if (o.nanses) endidures(o).forEach(op => ops.push(op));
             // Fixació de les caixes: rebaix per a la làmina d'acer o allotjaments per als discs
             const fx = FO.fixacioContenidor && FO.fixacioContenidor(o, cfg);
             if (fx && fx.tipus === 'xapa') {
@@ -408,6 +475,12 @@
                 if (cfg.codiFons) gravaFons(ops, c, c.mat.codi);
                 if (tanc === 'llavi') llavi(ops, c, c.llavi || 0, H);
             });
+            // apilable: vora a dalt on encaixa el peu de la de sobre, i peu encastat a sota
+            if (collar > 0) ops.push(OP(0, 0, o.W, o.D, H, H + collar, 1), OP(pw, pw, o.W - pw, o.D - pw, H, H + collar, 0));
+            if (o.peu > 0) {
+                const b = pw + 0.6, pe = o.peu;
+                ops.push(OP(0, 0, o.W, b, 0, pe, 0), OP(0, o.D - b, o.W, o.D, 0, pe, 0), OP(0, 0, b, o.D, 0, pe, 0), OP(o.W - b, 0, o.W, o.D, 0, pe, 0));
+            }
         }
         // Caixa dins un contenidor amb fixació: imants encastats a la cara de sota (oberts per sota)
         if (o.pare && o.pare.fixacio && o.pare.fixacio !== 'cap' && FO.posImantsFons) {
@@ -422,7 +495,9 @@
         // identificació a la cara frontal (i posterior si cal)
         const profG = Math.min(0.6, pw / 2);
         const text = o.forma === 'caixa' && o.caixetins[0] ? o.caixetins[0].mat.codi : o.id;
-        const zText0 = cfg.terra + 0.8, zText1 = H - Math.max(cfg.llavi, 1) - 0.8;
+        // el text no pot caure al peu encastat (allà la cara està entrada)
+        const peuBase = o.peu || (o.forma === 'contenidor' && o.apilable ? (FO.PEU_APILABLE || 3) : 0);
+        const zText0 = peuBase + cfg.terra + 0.8, zText1 = H - Math.max(cfg.llavi, 1) - 0.8;
         let cara = 'davant';
         if (cfg.relleu && zText1 - zText0 > 3) {
             if (gravaFront(ops, o, text, franjaText[0], franjaText[1], zText0, zText1, false, profG)) cara = 'darrere';
@@ -451,6 +526,7 @@
                 }
             }
         }
+        if (FO.teFrontissa(o, cfg)) opsFrontissaCaixa(o, cfg).forEach(op => ops.push(op));
         return { ops, avisos };
     };
 
@@ -462,9 +538,6 @@
     FO.opsTapa = function (o, cfg) {
         const tanc = o.tancament;
         if (tanc !== 'pressio' && tanc !== 'imants') return null;
-        // la tapa d'un contenidor amb nanses només tapa el cos
-        const ala = FO.alaNansa(o);
-        if (ala > 0) return desplaca(FO.opsTapa(cosContenidor(o, ala), cfg), ala);
         const W = o.W, D = o.D, pw = o.paret, ops = [];
         const t = tanc === 'imants' ? Math.max(cfg.gruixTapa, cfg.imantH + 1) : cfg.gruixTapa;
         const hf = o.cim > o.H + 0.01 ? Math.ceil(o.cim - o.H + 1) : 0;   // marc si hi ha peces que sobresurten
@@ -486,6 +559,11 @@
         } else {
             const s = cfg.imantD + 0.3, h = cfg.imantH + 0.2;
             FO.posImants(o).forEach(([x, y]) => { const [a, b] = my(y - s / 2, y + s / 2); ops.push(OP(x - s / 2, a, x + s / 2, b, z0 - h, z0, 0)); });
+        }
+        // frontissa: el nus es dissenya amb la tapa tancada i es passa a la posició d'impressió
+        if (FO.teFrontissa(o, cfg)) {
+            const top = o.H + hf + t;
+            opsFrontissaTapa(o, cfg).forEach(p => ops.push(OP(p.x0, D - p.y1, p.x1, D - p.y0, top - p.z1, top - p.z0, p.s)));
         }
         // QR gravat a la cara de la tapa que toca el llit (la de dalt quan està posada)
         if (cfg.qrRelleu) {
@@ -572,7 +650,13 @@
         const tapa = FO.mallaTapa(o, cfg);
         if (tapa) peces.push({ tipus: 'tapa', nom: o.id + ' tapa', tri: tapa, W: o.W, D: o.D });
         if (o.angle > 0 && !o.pare) peces.push({ tipus: 'falca', nom: o.id + ' falca', tri: FO.mallaFalca(o), W: o.W, D: o.D + 3 });
-        peces.forEach(p => { p.vol = FO.volumMalla(p.tri); });
+        peces.forEach(p => {
+            p.vol = FO.volumMalla(p.tri);
+            // planta real (les frontisses sobresurten de W × D): x0, y0 i mides per a les tandes
+            let a0 = Infinity, b0 = Infinity, a1 = -Infinity, b1 = -Infinity;
+            p.tri.forEach(tr => tr.forEach(v => { if (v[0] < a0) a0 = v[0]; if (v[0] > a1) a1 = v[0]; if (v[1] < b0) b0 = v[1]; if (v[1] > b1) b1 = v[1]; }));
+            if (isFinite(a0)) { p.x0 = a0; p.y0 = b0; p.W = Math.max(p.W, a1 - a0); p.D = Math.max(p.D, b1 - b0); }
+        });
         Object.defineProperty(o, '_peces', { value: peces, enumerable: false, configurable: true });
         return peces;
     };
@@ -648,7 +732,8 @@
                 verts.map(v => `<vertex x="${fmt(v[0])}" y="${fmt(v[1])}" z="${fmt(v[2])}"/>`).join('') + '</vertices><triangles>' +
                 tris.map(t => `<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`).join('') + '</triangles></mesh></object>';
             // girat 90° sobre Z: x' = −y + D, y' = x
-            const tr = it.girat ? `0 1 0 -1 0 0 0 0 1 ${fmt(it.x + it.p.D)} ${fmt(it.y)} 0` : `1 0 0 0 1 0 0 0 1 ${fmt(it.x)} ${fmt(it.y)} 0`;
+            const ox = it.p.x0 || 0, oy = it.p.y0 || 0;   // la peça pot començar abans de 0 (frontissa)
+            const tr = it.girat ? `0 1 0 -1 0 0 0 0 1 ${fmt(it.x + it.p.D + oy)} ${fmt(it.y - ox)} 0` : `1 0 0 0 1 0 0 0 1 ${fmt(it.x - ox)} ${fmt(it.y - oy)} 0`;
             items += `<item objectid="${id}" transform="${tr}"/>`;
             id++;
         });

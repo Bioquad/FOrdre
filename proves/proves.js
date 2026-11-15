@@ -231,7 +231,7 @@ prova('contenidors apilables: mateixa planta, peu encastat i nanses tancades', (
     assert(conts.length > 1 && conts.every(c => c.W === conts[0].W && c.D === conts[0].D), 'mateixa planta');
     conts.forEach(c => {
         assert(c.H >= c.cim + FO.PEU_APILABLE, c.id + ': massa baix per apilar');
-        assert(c.caixes.every(q => q.x >= FO.ZONA_NANSA), c.id + ': caixes a la zona de la nansa');
+        assert(!c.nanses || c.fons >= FO.NANSA_ALT + FO.NANSA_SOSTRE - 1e-6, c.id + ': terra massa prim per a les nanses');
     });
 });
 prova('fixació de les caixes: làmina d\'acer o imants aparellats, sòlids tancats i alineats', () => {
@@ -343,30 +343,77 @@ prova('orientació: de cantell, les plaques van dretes en ranures i ocupen menys
     // tot el pla d'exemple (amb PCB-101 de cantell) segueix tancat
     FO.calculaPla(q).forEach(r => FO.imprimibles(r).filter(o => o.caixetins.some(c => c.o.vertical)).forEach(o => assert(esTancada(FO.mallaSafata(o, cfg)), o.id)));
 });
-prova('nanses: pestanya a la base amb el forat, per fora del cos, sense blocs a dins', () => {
+prova('nanses: endidures a la base, cap a dins, sense res que sobresurti ni blocs a dins', () => {
     for (const tanc of ['cap', 'pressio', 'imants']) {
         const { q, pla: pl } = variant(tanc, 'contenidor', { nanses: true });
         pl.flatMap(r => r.safates.filter(s => s.forma === 'contenidor')).forEach(c => {
-            const ala = FO.alaNansa(c), tN = FO.gruixNansa(c), ops = FO.opsObjecte(c, q.config).ops;
-            assert(ala === FO.ZONA_NANSA, c.id + ' ala');
-            // dins la franja de la pestanya, res no puja per sobre del seu gruix
-            assert(ops.filter(p => p.s === 1 && (p.x0 < ala - 1e-6 || p.x1 > c.W - ala + 1e-6)).every(p => p.z1 <= tN + 1e-6), c.id + ' pestanya baixa');
-            // i té el forat de sempre (22 mm)
-            assert(ops.some(p => p.s === 0 && p.x0 === 5 && p.x1 === 27 && p.z1 === tN), c.id + ' forat');
-            // les caixes queden dins el cos
-            c.caixes.forEach(k => assert(k.x >= ala + c.paret - 1e-6, k.obj.id));
+            const ops = FO.opsObjecte(c, q.config).ops;
+            // res fora de la planta del contenidor (només la frontissa, pel darrere)
+            const darrere = FO.teFrontissa(c, q.config) ? 8 : 0;
+            assert(ops.filter(p => p.s === 1).every(p => p.x0 >= -1e-6 && p.x1 <= c.W + 1e-6 && p.y0 >= -1e-6 && p.y1 <= c.D + darrere + 1e-6), c.id + ' fora de la planta');
+            // l'endidura: 22 mm cap a dins, oberta per sota, i el sostre per sota del terra
+            const end = ops.filter(p => p.s === 0 && p.z0 === 0 && p.x0 === 0 && p.x1 === FO.NANSA.fons);
+            assert(end.length === 1 && end[0].y1 - end[0].y0 >= 16, c.id + ' endidura');
+            assert(c.fons >= FO.NANSA_ALT + FO.NANSA_SOSTRE - 1e-6, c.id + ' sostre');
             assert(esTancada(FO.mallaSafata(c, q.config)), c.id + ' tancat');
             const tapa = FO.mallaTapa(c, q.config);
-            if (tapa) {
-                assert(esTancada(tapa), c.id + ' tapa');
-                const xs = tapa.flatMap(t => t.map(v => v[0]));
-                assert(Math.min(...xs) >= ala - 1e-6 && Math.max(...xs) <= c.W - ala + 1e-6, c.id + ' la tapa només tapa el cos');
-            }
+            if (tapa) assert(esTancada(tapa), c.id + ' tapa');
         });
+        // sense nanses no hi ha endidura i el contenidor és igual d'ample
+        const { q: q0, pla: pl0 } = variant(tanc, 'contenidor', { nanses: false });
+        pl0.flatMap(r => r.safates.filter(s => s.forma === 'contenidor')).forEach(c => assert(!FO.opsObjecte(c, q0.config).ops.some(p => p.s === 0 && p.z0 === 0 && p.x1 === FO.NANSA.fons), c.id));
     }
 });
+prova('apilables: les safates d\'un conjunt amb la mateixa planta, peu encastat i vora que hi encaixa', () => {
+    for (const tanc of ['cap', 'llavi', 'pressio']) {
+        const { q, pla: pl } = variant(tanc, 'fusionat');
+        const cfg = q.config, peu = FO.PEU_APILABLE;
+        pl.forEach(r => {
+            const saf = r.safates.filter(o => o.forma === 'safata' && o.tipus !== 'muntat');
+            if (saf.length > 1) assert(saf.every(o => o.W === saf[0].W && o.D === saf[0].D), r.conj.codi + ' mateixa planta');
+            r.safates.forEach(o => {
+                assert(o.peu === peu && o.caixetins.every(c => c.z >= cfg.terra + peu - 1e-6), o.id + ' peu');
+                assert(o.collar === (tanc === 'pressio' ? 0 : peu + 0.5), o.id + ' vora');
+                o.caixetins.forEach(c => assert(c.x >= o.paret - 1e-6 && c.x + c.w <= o.W - o.paret + 1e-6 && c.y + c.d <= o.D - o.paret + 1e-6, o.id + ' caixetí dins'));
+                assert(esTancada(FO.mallaSafata(o, cfg)), o.id + ' tancada');
+            });
+        });
+    }
+    // el peu de la de sobre entra a la vora de la de sota amb 0,6 mm de joc
+    const { q: q2, pla: p2 } = variant('cap', 'individual');
+    const o = p2[0].safates[0], ops = FO.opsObjecte(o, q2.config).ops;
+    assert(ops.some(p => p.s === 0 && p.x0 === o.paret && p.z0 === o.H - o.collar), 'buit de la vora');
+    assert(ops.some(p => p.s === 0 && p.x1 === o.paret + 0.6 && p.z1 === FO.PEU_APILABLE), 'peu entrat');
+    const { pla: p3 } = variant('cap', 'fusionat', { safatesApilables: false });
+    assert(p3.every(r => r.safates.every(s => !s.peu && !s.collar)), 'es pot desactivar');
+});
+prova('frontissa: orelles amb passador a la caixa i nus amb ranura a la tapa, peces tancades', () => {
+    for (const tanc of ['pressio', 'imants']) {
+        for (const format of ['individual', 'fusionat', 'contenidor']) {
+            const { q, pla: pl } = variant(tanc, format);
+            pl.forEach(r => obj(r).filter(o => FO.teFrontissa(o, q.config)).forEach(o => {
+                const g = FO.geomFrontissa(o, q.config), cos = FO.mallaSafata(o, q.config), tapa = FO.mallaTapa(o, q.config);
+                assert(esTancada(cos) && esTancada(tapa), o.id + ' tancades');
+                const ys = cos.flatMap(t => t.map(v => v[1]));
+                assert(Math.max(...ys) > o.D + 5 && Math.max(...ys) < o.D + 8, o.id + ' orelles pel darrere');
+                const zs = tapa.flatMap(t => t.map(v => v[2])), yt = tapa.flatMap(t => t.map(v => v[1]));
+                assert(Math.min(...zs) >= -1e-6, o.id + ' la tapa no baixa del llit');
+                assert(Math.min(...yt) < -5, o.id + ' nus de la tapa');
+                assert(g.zP + g.F.rk <= g.zL + g.t + 1e-6 && g.yP - g.F.rk >= o.D + 0.5, o.id + ' el nus no toca la paret');
+            }));
+        }
+    }
+    // les caixes de dins d'un contenidor no en porten, i es pot desactivar
+    const { q, pla: pl } = variant('pressio', 'contenidor', { tapesInternes: true });
+    pl.forEach(r => r.safates.filter(s => s.caixes).forEach(c => c.caixes.forEach(k => assert(!FO.teFrontissa(k.obj, q.config), k.obj.id))));
+    const { q: q0, pla: p0 } = variant('pressio', 'individual', { frontissa: false });
+    assert(p0.every(r => r.safates.every(o => !FO.teFrontissa(o, q0.config))), 'desactivada');
+    // a les tandes, la planta inclou la frontissa
+    const pc = FO.pecesImpressio(pl[0].safates[0], q.config);
+    assert(pc.every(p => p.W > 0 && p.D > 0 && p.x0 != null), 'planta real');
+});
 prova('QR gravat a les tapes: es llegeix des de la malla', () => {
-    const { q, pla: pl } = variant('pressio', 'individual');
+    const { q, pla: pl } = variant('pressio', 'individual', { frontissa: false });   // el nus de la frontissa no és del QR
     let gravats = 0;
     pl.forEach(r => obj(r).forEach(o => {
         const t = FO.mallaTapa(o, q.config); if (!t) return;

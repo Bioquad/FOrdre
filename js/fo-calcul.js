@@ -315,6 +315,50 @@
         }
     }
 
+    // ─── Safates i caixes apilables ───
+    // Les safates d'un mateix conjunt, també les ESD (i les caixes d'un mateix material
+    // partit en diverses), es fan amb la mateixa planta, apaïsades. Totes porten un peu encastat
+    // de 3 mm a sota i, si no tenen tapa, una vora de 3,5 mm a dalt on encaixa el peu
+    // de la de sobre (0,6 mm de joc per banda).
+    function transposa(o) {
+        o.caixetins.forEach(c => { [c.x, c.y] = [c.y, c.x]; [c.w, c.d] = [c.d, c.w]; c.girat = !c.girat; });
+        [o.W, o.D] = [o.D, o.W];
+    }
+    function eixampla(o, W, D) {
+        const dW = W - o.W, dD = D - o.D, pw = o.paret;
+        o.caixetins.forEach(c => {
+            if (c.x + c.w >= o.W - pw - 0.01) c.w += dW;   // els que toquen la paret dreta
+            if (c.y + c.d >= o.D - pw - 0.01) c.d += dD;   // els que toquen la del fons
+        });
+        o.W = W; o.D = D;
+    }
+    function apilables(objs, cfg, tanc) {
+        if (cfg.safatesApilables === false) return;
+        const solts = objs.filter(o => o.forma !== 'contenidor');
+        const grups = new Map();
+        solts.forEach(o => {
+            // totes les safates del conjunt (també les ESD) juntes; les caixes, per material
+            const k = o.forma === 'safata' && o.tipus !== 'muntat' ? 'safata' : 'caixa:' + (o.caixetins[0] ? o.caixetins[0].mat.id : o.id);
+            if (!grups.has(k)) grups.set(k, []);
+            grups.get(k).push(o);
+        });
+        grups.forEach(g => {
+            if (g.length < 2) return;
+            // apaïsades (si cap no porta un niu amb forma, que no es pot girar)
+            g.forEach(o => { if (o.D > o.W && !o.caixetins.some(c => c.mat.niu)) transposa(o); });
+            const W = Math.max(...g.map(o => o.W)), D = Math.max(...g.map(o => o.D));
+            g.forEach(o => eixampla(o, W, D));
+        });
+        const peu = FO.PEU_APILABLE, ambTapa = tanc === 'pressio' || tanc === 'imants';
+        solts.forEach(o => {
+            o.peu = peu;
+            o.collar = ambTapa ? 0 : peu + 0.5;
+            o.H = r05(o.H + peu + o.collar);
+            o.caixetins.forEach(c => { c.z += peu; if (c.profReal != null) c.profReal = o.H - o.collar - c.z; });
+            if (o.H > cfg.llit.z) o.avisos.push(t('alçada {h} mm superior a la del llit ({z} mm)', { h: o.H, z: cfg.llit.z }));
+        });
+    }
+
     // ─── Anivellar l'alçada: totes les caixes a la més alta ───
     // Les més baixes creixen per sota: el fons dels caixetins puja la diferència i queda
     // un sòcol massís (l'imprimeix el laminador amb el farciment), sense suports.
@@ -405,17 +449,18 @@
 
     // ─── Contenidor general obert per dalt que agrupa caixes ───
     FO.PEU_APILABLE = 3;    // alçada del peu encastat (mm)
-    FO.ZONA_NANSA = 30;     // llargada de la pestanya de cada nansa, per fora dels costats curts (mm)
+    FO.NANSA_ALT = 12;      // alçada de l'endidura de cada nansa, a la base dels costats curts (mm)
+    FO.NANSA_SOSTRE = 2.5;  // plàstic que queda per sobre de l'endidura (mm)
     function contenidors(conj, objs, cfg, prefix) {
         const j = cfg.jocCaixes, pc = cfg.paretContenidor;
-        const zona = cfg.nanses ? FO.ZONA_NANSA : 0;
         let fons = cfg.terra + (cfg.contenidorsApilables ? FO.PEU_APILABLE : 0);
+        // amb nanses, el terra ha de tenir l'endidura a sota (més el sostre)
+        if (cfg.nanses) fons = Math.max(fons, FO.NANSA_ALT + FO.NANSA_SOSTRE);
         // amb fixació, el terra ha de poder encastar la làmina o els discs d'acer
         if (cfg.fixacio === 'xapa') fons = Math.max(fons, cfg.xapaGruix + 0.1 + 0.8);
         if (cfg.fixacio === 'imants') fons = Math.max(fons, cfg.discH + 0.2 + 0.8);
         fons = Math.ceil(fons * 10) / 10;
-        // les pestanyes de les nanses sobresurten pels costats: el llit útil per a les caixes és més estret
-        const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j, llit: Object.assign({}, cfg.llit, { x: cfg.llit.x - 2 * zona }) });
+        const cfgC = Object.assign({}, cfg, { separador: j, paret: pc + j });
         const items = objs.map(o => ({
             W: o.W, D: o.D, obj: o,
             mat: { tipus: o.caixetins.length && o.caixetins.every(c => c.mat.tipus === 'consumible') ? 'consumible' : 'x' }
@@ -433,7 +478,7 @@
                     const W = q.girat ? q.d : q.w, D = q.girat ? q.w : q.d;
                     redimensiona(o, W, D, cfg);
                 }
-                return { obj: o, x: q.x + zona, y: q.y, girat: q.girat };
+                return { obj: o, x: q.x, y: q.y, girat: q.girat };
             });
             const hMax = Math.max(...objs.map(o => o.H));
             const H = r05(Math.min(hMax + fons, Math.max(15, fons + hMax * cfg.alcadaContenidor)));
@@ -443,8 +488,8 @@
             const avisos = [];
             if ((cfg.inclinacio || 0) > angle) avisos.push(t('inclinació limitada a {a}° per peces que no es poden tombar', { a: angle }));
             const cont = {
-                id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j) + 2 * zona), D: r05(dist.D + 2 * (pc + j)), H,
-                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: zona > 0, ala: zona, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0),
+                id, tipus: 'contenidor', forma: 'contenidor', conj, W: r05(dist.W + 2 * (pc + j)), D: r05(dist.D + 2 * (pc + j)), H,
+                angle, paret: pc, fons, apilable: !!cfg.contenidorsApilables, nanses: !!cfg.nanses, caixes, caixetins: [], avisos, pes: caixes.reduce((a, c) => a + c.obj.pes, 0),
                 fixacio: cfg.fixacio || 'cap'
             };
             caixes.forEach(c => { c.obj.pare = cont; c.obj.pos = { x: c.x, y: c.y, girat: c.girat }; });
@@ -531,9 +576,11 @@
         let safates = [];
         if (format === 'fusionat' || !caix.length) {
             safates = agrupa(conj, caix, cfg, '');
+            apilables(safates, cfg, tanc);
             anivella(safates, cfg);
         } else if (format === 'individual') {
             safates = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
+            apilables(safates, cfg, tanc);
             anivella(safates, cfg);
         } else {
             let objs;
@@ -561,6 +608,7 @@
                 ? agrupa(conj, guarda, cfg, '-M')
                 : guarda.map((c, i) => caixaIndividual(conj.codi + '-M' + (guarda.length > 1 ? '-' + (i + 1) : ''), c, cfg, conj, 'muntat'));
             muntat.forEach(o => { o.tipus = 'muntat'; });
+            apilables(muntat, cfg, tanc);
         }
         const r = { conj, format, tancament: tanc, multiplicador: k, safates: safates.concat(muntat), fora, entrades };
         r.safates.forEach(o => { assignaImpressio(o, conj, cfg); finalitza(o, tanc, cfg); });
