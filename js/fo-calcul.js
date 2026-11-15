@@ -72,6 +72,8 @@
         const o = FO.orientacio(m);
         const mode = FO.modeDisposicio(m, qty, cfg);
         const j = cfg.joc, dit = cfg.dit, avisos = [];
+        // en capa o apilades, amb pinces o robot cal espai d'agafada també entre peça i peça
+        const entre = cfg.ditAmbdos ? dit : 0;
         let W, D, prof, cel = null;
 
         if (mode === 'granel') {
@@ -82,7 +84,8 @@
             W = Math.max(o.w + 2 * j, Math.sqrt(area), cfg.minCaixeti);
             D = Math.max(o.d + 2 * j, area / W, cfg.minCaixeti);
         } else if (mode === 'individual') {
-            const cw = o.w + 2 * j + dit, cd = o.d + 2 * j;
+            // amb pinces o robot, l'espai d'agafada va a banda i banda de la peça
+            const cw = o.w + 2 * j + dit * (cfg.ditAmbdos ? 2 : 1), cd = o.d + 2 * j;
             const g = graella(qty, cw, cd, cfg.divisor, 0, maxW, maxD);
             W = g.W; D = g.D;
             cel = { nx: g.nx, ny: g.ny, cw, cd, perCel: 1 };
@@ -93,14 +96,14 @@
             if (m.maxApilat > 0) porPila = Math.min(porPila, m.maxApilat);
             const piles = Math.ceil(qty / porPila);
             porPila = Math.ceil(qty / piles);
-            const g = graella(piles, o.w + j, o.d + j, 0, j + dit, maxW, maxD);
+            const g = graella(piles, o.w + j + entre, o.d + j, 0, j + dit, maxW, maxD);
             W = g.W; D = g.D + j;
-            cel = { nx: g.nx, ny: g.ny, cw: o.w + j, cd: o.d + j, perCel: porPila, obert: true };
+            cel = { nx: g.nx, ny: g.ny, cw: o.w + j + entre, cd: o.d + j, perCel: porPila, obert: true };
             prof = Math.min(porPila * o.h + j, Math.max(cfg.profMax, o.h + j));
         } else { // capa
-            const g = graella(qty, o.w + j, o.d + j, 0, j + dit, maxW, maxD);
+            const g = graella(qty, o.w + j + entre, o.d + j, 0, j + dit, maxW, maxD);
             W = g.W; D = g.D + j;
-            cel = { nx: g.nx, ny: g.ny, cw: o.w + j, cd: o.d + j, perCel: 1, obert: true };
+            cel = { nx: g.nx, ny: g.ny, cw: o.w + j + entre, cd: o.d + j, perCel: 1, obert: true };
             prof = Math.min(o.h + j, cfg.profMax);
         }
         W = r05(Math.max(W, cfg.minCaixeti));
@@ -301,6 +304,25 @@
         }
     }
 
+    // ─── Anivellar l'alçada: totes les caixes a la més alta ───
+    // Les més baixes creixen per sota: el fons dels caixetins puja la diferència i queda
+    // un sòcol massís (l'imprimeix el laminador amb el farciment), sense suports.
+    // Les caixes de guarda dels subconjunts muntats no s'hi compten.
+    const anivellables = objs => objs.filter(o => o.forma !== 'contenidor' && o.tipus !== 'muntat');
+    function anivella(objs, cfg) {
+        if (!cfg.anivella || cfg.anivella === 'cap') return;
+        const llista = anivellables(objs);
+        if (!llista.length) return;
+        const H = Math.max(cfg.alcadaAnivell || 0, ...llista.map(o => o.H));
+        llista.forEach(o => {
+            const dH = r05(H - o.H);
+            if (dH <= 0) return;
+            o.H = H; o.socol = dH;
+            o.caixetins.forEach(c => { c.z += dH; if (c.profReal != null) c.profReal = H - c.z; });
+            if (H > cfg.llit.z) o.avisos.push(t('alçada {h} mm superior a la del llit ({z} mm)', { h: H, z: cfg.llit.z }));
+        });
+    }
+
     // ─── Caixa individual: un sol caixetí amb parets pròpies ───
     function caixaIndividual(id, c, cfg, conj, tipus) {
         const p = cfg.paretCaixa;
@@ -496,9 +518,13 @@
         const usats = new Map();
         const idCaixa = c => { const b = conj.codi + '-' + c.mat.codi, n = (usats.get(b) || 0) + 1; usats.set(b, n); return n > 1 ? b + '-' + n : b; };
         let safates = [];
-        if (format === 'fusionat' || !caix.length) safates = agrupa(conj, caix, cfg, '');
-        else if (format === 'individual') safates = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
-        else {
+        if (format === 'fusionat' || !caix.length) {
+            safates = agrupa(conj, caix, cfg, '');
+            anivella(safates, cfg);
+        } else if (format === 'individual') {
+            safates = caix.map(c => caixaIndividual(idCaixa(c), c, cfg, conj));
+            anivella(safates, cfg);
+        } else {
             let objs;
             // les caixes que van dins el contenidor amb imants a sota necessiten un terra prou gruixut
             const cfgDins = cfg.fixacio && cfg.fixacio !== 'cap' ? Object.assign({}, cfg, { terra: terraAmbImants(cfg) }) : cfg;
@@ -509,6 +535,7 @@
                 blocs.forEach(b => { b.bloc = true; });
                 objs = blocs.concat((petits.length > 1 ? grans : caix).map(c => caixaIndividual(idCaixa(c), c, cfgDins, conj)));
             } else objs = caix.map(c => caixaIndividual(idCaixa(c), c, cfgDins, conj));
+            anivella(objs, cfg);
             safates = contenidors(conj, objs, cfg, '-C');
         }
         // Entrades: subconjunts que ja s'han d'haver muntat abans
@@ -531,7 +558,13 @@
 
     // Resultat complet: un pla per conjunt, en ordre de muntatge
     FO.calculaPla = function (p) {
-        const pla = FO.ordreMuntatge(p).map(o => Object.assign(FO.safatesConjunt(p, o.conj, p.config), { pas: o.pas, nivell: o.nivell }));
+        const fes = cfg => FO.ordreMuntatge(p).map(o => Object.assign(FO.safatesConjunt(p, o.conj, cfg), { pas: o.pas, nivell: o.nivell }));
+        let pla = fes(p.config);
+        // anivellar tot el projecte: primer es mira quina és la caixa més alta i es torna a calcular
+        if (p.config.anivella === 'projecte') {
+            const H = Math.max(0, ...pla.flatMap(r => anivellables(FO.imprimibles(r)).map(o => o.H)));
+            pla = fes(Object.assign({}, p.config, { alcadaAnivell: H }));
+        }
         // contenidors apilables: tots de la mateixa planta perquè encaixin uns sobre els altres
         const conts = pla.flatMap(r => r.safates.filter(s => s.forma === 'contenidor' && s.apilable));
         if (conts.length > 1) {

@@ -15,7 +15,7 @@
     const FO = G.FO || (G.FO = {});
     const t = (s, v) => (FO.t ? FO.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, k) => (v && v[k] != null ? v[k] : m)));   // textos visibles: js/fo-i18n.js
 
-    FO.VERSIO = '1.10.0';
+    FO.VERSIO = '1.11.0';
 
     // Paràmetres de fabricació de les safates (mm) i de les etiquetes
     FO.CONFIG_DEFECTE = {
@@ -25,7 +25,9 @@
         separador: 1.2,    // gruix de les parets entre caixetins
         divisor: 0.8,      // gruix de les cel·les internes (peces individuals)
         joc: 1.0,          // folgança al voltant de cada peça
-        dit: 8,            // espai extra per poder agafar una peça amb els dits
+        dit: 8,            // espai extra per poder agafar una peça (dits, pinces o pinça de robot)
+        agafada: 'dits',   // dits | pinces | robot | mida: amb què s'agafen les peces (omple dit i ditAmbdos)
+        ditAmbdos: false,  // true: l'espai d'agafada va a banda i banda de cada peça (pinces, robot)
         minCaixeti: 18,    // amplada mínima d'un caixetí (hi ha de cabre un dit)
         profMax: 45,       // profunditat màxima d'un caixetí
         retencio: 0.6,     // fracció mínima de l'alçada d'una peça dreta que queda dins
@@ -69,6 +71,8 @@
         // ─── Compartiments: quan un caixetí porta més d'una peça, una cel·la per peça ───
         compartiments: false,       // false: cubell únic segons cada material (automàtic)
         compartimentsMax: 30,       // per sobre d'aquestes peces es manté el cubell (cargoleria…)
+        // ─── Anivellar l'alçada: totes les caixes a la més alta, amb el fons elevat ───
+        anivella: 'cap',            // cap | conjunt (les de cada pas) | projecte (totes)
         // ─── Identificació física i ergonomia ───
         relleu: true,               // codi gravat a la cara frontal
         rebaixEtiqueta: false,      // rebaix per a l'etiqueta adhesiva (cara frontal o posterior)
@@ -83,7 +87,7 @@
     FO.RANGS = {
         'llit.x': [150, 2000], 'llit.y': [150, 2000], 'llit.z': [50, 2000],
         paret: [1, 10], paretCaixa: [1, 10], paretContenidor: [1, 10],
-        terra: [0.6, 10], separador: [0.6, 10], divisor: [0.4, 5], joc: [0, 10], dit: [0, 40],
+        terra: [0.6, 10], separador: [0.6, 10], divisor: [0.4, 5], joc: [0, 10], dit: [0, 100],
         minCaixeti: [5, 200], profMax: [5, 500], retencio: [0.1, 1], granel: [0.2, 0.9], omplert: [0.3, 1],
         llavi: [0, 20], inclinacio: [0, 45], areaPetit: [0, 1e6], jocCaixes: [0, 5], alcadaContenidor: [0.2, 1],
         factorPes: [0.1, 1], llaviAmple: [0, 5], jocTapa: [0, 1.5], gruixTapa: [0.8, 6], imantD: [2, 30], imantH: [0.5, 10],
@@ -99,6 +103,19 @@
     // Cada caixa porta imants de disc encastats a la cara de sota; a la base hi va:
     //   xapa:   una làmina d'acer encastada al terra (les caixes s'enganxen a qualsevol lloc)
     //   imants: un disc o volandera d'acer just a sota de cada imant (cada caixa troba el seu lloc)
+    // Amb què s'agafen les peces: espai d'agafada (mm) i si va a banda i banda de la peça
+    FO.AGAFADES = {
+        dits: { nom: t('Amb els dits'), dit: 8, ambdos: false },
+        pinces: { nom: t('Amb pinces'), dit: 4, ambdos: true },
+        robot: { nom: t('Pinça de robot'), dit: 15, ambdos: true },
+        mida: { nom: t('A mida') }
+    };
+    FO.ANIVELLAMENTS = {
+        cap: t('No (cada caixa amb la seva alçada)'),
+        conjunt: t('Per pas de muntatge (les caixes de cada conjunt)'),
+        projecte: t('Totes les del projecte')
+    };
+
     FO.FIXACIONS = {
         cap: { nom: t('Sense fixació'), desc: t('Les caixes només les aguanten les parets del contenidor.') },
         xapa: { nom: t('Làmina d\'acer a la base'), desc: t('Una làmina prima d\'acer encastada al terra del contenidor i imants a sota de cada caixa: les caixes s\'enganxen a qualsevol lloc.') },
@@ -264,6 +281,9 @@
         if (!FO.FORMATS_KIT[cfg.formatKit]) cfg.formatKit = FO.CONFIG_DEFECTE.formatKit;
         if (!FO.TANCAMENTS[cfg.tancament]) cfg.tancament = FO.CONFIG_DEFECTE.tancament;
         if (!FO.FIXACIONS[cfg.fixacio]) cfg.fixacio = 'cap';
+        if (!FO.AGAFADES[cfg.agafada]) cfg.agafada = 'dits';
+        cfg.ditAmbdos = !!cfg.ditAmbdos;
+        if (!FO.ANIVELLAMENTS[cfg.anivella]) cfg.anivella = 'cap';
         Object.keys(FO.RANGS).forEach(k => {
             const [a, b] = k.split('.');
             if (b) cfg[a][b] = FO.limita(k, num(cfg[a][b], FO.CONFIG_DEFECTE[a][b]));

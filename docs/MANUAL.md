@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versió 1.10** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.11** · Instal·lació, configuració i ús, pas a pas
 
 *També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
@@ -172,7 +172,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.10.0
+  FOrdre · servidor del taller 1.11.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -334,7 +334,7 @@ Prem **⚙ Configuració** a la barra de dalt del configurador. Els canvis s'apl
 | Camp | Per defecte | Límits | Notes |
 |---|---|---|---|
 | Folgança al voltant de la peça (mm) | 1 | 0–10 | Joc perquè la peça entri i surti bé. |
-| Espai per als dits (mm) | 8 | 0–40 | Espai per agafar les peces. |
+| Espai per agafar la peça (mm) | 8 | 0–100 | Vegeu *Com s'agafen les peces*, a sota. |
 | Amplada mínima (mm) | 18 | 5–200 | Hi ha de cabre un dit. |
 | Fondària màxima (mm) | 45 | 5–500 | |
 | Part mínima dins de les peces dretes (0–1) | 0,6 | 0,1–1 | Peces que van dretes (líquids): quina part queda dins. |
@@ -355,6 +355,25 @@ Prem **⚙ Configuració** a la barra de dalt del configurador. Els canvis s'apl
 | Contenidors apilables | Sí | Tots amb la mateixa planta i un peu que encaixa al de sota. |
 | Nanses als costats curts | Sí | |
 | QR gravat a les tapes | Sí | Es llegeix millor si el repasses amb un retolador. |
+
+**Com s'agafen les peces**
+
+| Camp | Per defecte | Límits | Notes |
+|---|---|---|---|
+| S'agafen | Amb els dits | — | *Amb els dits* (8 mm a un costat), *Amb pinces* (4 mm a banda i banda), *Pinça de robot* (15 mm a banda i banda) o *A mida*. |
+| Espai per agafar la peça (mm) | 8 | 0–100 | Si el canvies a mà, l'eina passa a *A mida*. |
+| Espai a banda i banda de cada peça | No | — | Per a pinces o pinces de robot: una mordassa a cada costat. |
+
+![Com s'agafen les peces a la configuració](imatges/c21-agafada.jpg)
+
+**Alçada de les caixes**
+
+| Camp | Per defecte | Notes |
+|---|---|---|
+| Fons elevat dels caixetins | Només als petits | *Només als petits*, *A tots* o *Cap*. |
+| Anivellar l'alçada de les caixes | No | *No*, *Per pas de muntatge* o *Totes les del projecte* (vegeu el [punt 3.3](#33-formats-de-kit-i-tancaments)). |
+
+![Anivellar l'alçada a la configuració](imatges/c22-anivellar.jpg)
 
 **Compartiments dins les caixes**
 
@@ -428,6 +447,38 @@ Cada impressora imprimeix una mica diferent. La peça de calibratge ajusta les t
 | **Llavi interior** (0–5 mm) | Una vora que entra cap al centre de cada caixetí i reté les peces. | Per defecte: no cal imprimir tapa. |
 | **Tapa a pressió** | Tapa amb una faldilla que encaixa per dins. | Per transportar. Calibra el joc (punt 3.2). |
 | **Tapa amb imants** | Imants de disc a les cantonades de la caixa i de la tapa. | S'obre i es tanca molt de pressa. Les parets es fan més gruixudes per allotjar-los. |
+
+**Com s'agafen les peces: dits, pinces o robot**
+
+Cada caixetí deixa un espai al costat de les peces per poder-les agafar. Per defecte és per als **dits** (8 mm a un costat). Si les peces les agafa una altra cosa, tria-ho a ⚙ Configuració → *Com s'agafen les peces*:
+
+| Eina | Espai | On |
+|---|---|---|
+| **Amb els dits** | 8 mm | A un costat de la peça. |
+| **Amb pinces** | 4 mm | A banda i banda de cada peça. |
+| **Pinça de robot** | 15 mm | A banda i banda de cada peça. |
+| **A mida** | El que hi posis (0–100 mm) | Tu tries si va a un costat o a tots dos. |
+
+- Amb una **pinça de robot**, posa-hi el gruix de cada mordassa més el marge que vulguis (per exemple, mordasses de 10 mm + 5 mm de marge = 15 mm).
+- Amb l'espai *a banda i banda*, les cel·les es fan més amples i les peces en una capa queden separades entre si, perquè la mordassa hi entri per tots dos costats.
+- Un robot no pot agafar peces d'un **cubell a granel**: per a la cargoleria activa també els **compartiments** (més avall).
+
+**Anivellar l'alçada: totes les caixes a la més alta**
+
+Amb ⚙ Configuració → *Opcions* → *Anivellar l'alçada de les caixes*, totes les caixes fan l'alçada de la més alta:
+
+| Opció | Què fa |
+|---|---|
+| **No** | Cada caixa té la seva alçada (per defecte). |
+| **Per pas de muntatge** | Les caixes de cada conjunt fan l'alçada de la més alta del conjunt. |
+| **Totes les del projecte** | Totes les caixes del projecte fan la mateixa alçada. |
+
+- Les caixes més baixes **creixen per sota**, amb un **sòcol**. El fons dels caixetins puja la mateixa diferència i queda a dalt, a l'abast, on les peces s'agafen bé (amb la mà o amb un robot que sempre baixa a la mateixa alçada).
+- El sòcol és **massís** a l'STL. El laminador l'imprimeix amb el farciment que triïs (10-15 %), així que gasta poc plàstic i **no necessita suports**.
+- Amb contenidor, totes les caixes de dins tenen la mateixa alçada i el contenidor s'hi adapta.
+- Les **caixes de guarda** dels subconjunts muntats no s'anivellen: solen ser molt més grans.
+
+![Abans (a dalt) i després (a baix) d'anivellar: les caixes baixes creixen per sota i el fons queda a dalt](imatges/c23-anivellar-3d.jpg)
 
 **Compartiments: una cel·la per a cada peça**
 

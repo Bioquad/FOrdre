@@ -69,6 +69,8 @@ Quan una màquina té centenars de peces (plaques metàl·liques, peces de fibra
    - **Tapa a pressió**: una faldilla que encaixa per dins de les parets (el joc es calibra).
    - **Tapa amb imants**: allotjaments per a imants de disc a la part de dalt de les parets i a la tapa; les parets es fan prou gruixudes per contenir-los.
    Si hi ha peces que sobresurten, la tapa porta un marc que la fa més alta. Amb contenidor, les caixes de dins també poden portar tapa.
+   **Com s'agafen les peces**: dits, pinces, pinça de robot o a mida, amb l'espai d'agafada en mil·límetres (0-100) i, per a pinces i robots, a banda i banda de cada peça.
+   **Anivellar l'alçada**: totes les caixes (per conjunt o de tot el projecte) a l'alçada de la més alta; les baixes creixen per sota amb un sòcol i el fons queda a dalt, a l'abast.
    **Compartiments** (opció de configuració): quan un caixetí porta més d'una peça, en lloc d'un cubell únic s'hi fa una cel·la per a cada peça, ordenades i fàcils de comptar (fins a un màxim configurable; la disposició triada a cada material mana).
    **Fixació de les caixes al contenidor** (formats contenidor i mixt): una **làmina prima d'acer** encastada al terra del contenidor, o **imants aparellats** amb un disc o volandera d'acer just a sota de cada imant. Les caixes porten els imants encastats a la cara de sota (2 en diagonal, o 4 si pesen més de 250 g) i el resum diu quants imants, discs i quina làmina cal.
 9. **Identificació i ergonomia:** codi **gravat en relleu** a la cara frontal, **rebaix** per a l'etiqueta adhesiva, **codi gravat al fons** de cada caixetí i **fons arrodonit** als caixetins de cargoleria per treure les peces fent lliscar el dit.
