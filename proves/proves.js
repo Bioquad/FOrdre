@@ -266,6 +266,23 @@ prova('fixació de les caixes: làmina d\'acer o imants aparellats, sòlids tanc
     const { pla: pl0 } = variant('cap', 'contenidor');
     assert(pl0.flatMap(r => r.safates).every(c => !FO.fixacioContenidor(c, cfg) || c.forma !== 'contenidor'), 'cap');
 });
+prova('compartiments: amb l\'opció, cada peça té la seva cel·la (fins al màxim) i la disposició del material mana', () => {
+    const q = FO.exemple(), cfg = q.config;
+    const cargol = q.materials.find(m => m.tipus === 'cargol' && m.disposicio === 'auto');
+    const capa = q.materials.find(m => m.disposicio === 'capa');
+    assert(FO.modeDisposicio(cargol, 8, cfg) === 'granel', 'sense opció, cargols a granel');
+    cfg.compartiments = true; cfg.compartimentsMax = 30;
+    assert(FO.modeDisposicio(cargol, 8, cfg) === 'individual', 'amb opció, compartiments');
+    assert(FO.modeDisposicio(cargol, 1, cfg) !== 'individual' || cargol.niu, 'una sola peça: cubell');
+    assert(FO.modeDisposicio(cargol, 31, cfg) === 'granel', 'per sobre del màxim, cubell');
+    assert(FO.modeDisposicio(capa, 4, cfg) === 'capa', 'la disposició del material mana');
+    const c = FO.calculaCaixeti(cargol, 8, cfg, 200, 200);
+    assert(c.cel && c.cel.nx * c.cel.ny >= 8 && c.cel.perCel === 1, 'una cel·la per peça');
+    // tot el pla segueix sent vàlid i tancat
+    const pl = FO.calculaPla(q);
+    assert(pl.some(r => FO.imprimibles(r).some(s => s.caixetins.some(z => z.mode === 'individual' && z.qty > 1))), 'hi ha compartiments');
+    pl.forEach(r => FO.imprimibles(r).forEach(s => assert(esTancada(FO.mallaSafata(s, cfg)), s.id)));
+});
 prova('QR gravat a les tapes: es llegeix des de la malla', () => {
     const { q, pla: pl } = variant('pressio', 'individual');
     let gravats = 0;

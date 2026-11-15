@@ -1,6 +1,6 @@
 # Manual de FOrdre
 
-**Versió 1.9** · Instal·lació, configuració i ús, pas a pas
+**Versió 1.10** · Instal·lació, configuració i ús, pas a pas
 
 *També en: [Español](MANUAL.es.md) · [English](MANUAL.en.md)*
 
@@ -172,7 +172,7 @@ journalctl -u fordre -f           # mostra el registre i el QR (Ctrl+C per sorti
 Al registre hi veuràs una cosa així:
 
 ```
-  FOrdre · servidor del taller 1.9.0
+  FOrdre · servidor del taller 1.10.0
   ────────────────────────────────────
   Dades:        /home/taller/FOrdre/servidor/dades
   App taller:   https://192.168.1.50:8443/muntatge.html   (per rol: …/muntatge.html?rol=magatzem · muntador · qualitat · responsable)
@@ -356,6 +356,15 @@ Prem **⚙ Configuració** a la barra de dalt del configurador. Els canvis s'apl
 | Nanses als costats curts | Sí | |
 | QR gravat a les tapes | Sí | Es llegeix millor si el repasses amb un retolador. |
 
+**Compartiments dins les caixes**
+
+| Camp | Per defecte | Límits | Notes |
+|---|---|---|---|
+| Un compartiment per a cada peça | No | — | Quan un caixetí porta més d'una peça, en lloc d'un cubell únic s'hi fa una cel·la per peça (vegeu el [punt 3.3](#33-formats-de-kit-i-tancaments)). |
+| Màxim de peces amb compartiments | 30 | 2–500 | Per sobre, es manté el cubell (cargoleria, volanderes…). |
+
+![Compartiments a la configuració](imatges/c19-compartiments.jpg)
+
 **Fixació de les caixes al contenidor**
 
 | Camp | Per defecte | Límits | Notes |
@@ -419,6 +428,17 @@ Cada impressora imprimeix una mica diferent. La peça de calibratge ajusta les t
 | **Llavi interior** (0–5 mm) | Una vora que entra cap al centre de cada caixetí i reté les peces. | Per defecte: no cal imprimir tapa. |
 | **Tapa a pressió** | Tapa amb una faldilla que encaixa per dins. | Per transportar. Calibra el joc (punt 3.2). |
 | **Tapa amb imants** | Imants de disc a les cantonades de la caixa i de la tapa. | S'obre i es tanca molt de pressa. Les parets es fan més gruixudes per allotjar-los. |
+
+**Compartiments: una cel·la per a cada peça**
+
+Per defecte, FOrdre tria per a cada material com van les peces dins el caixetí: a granel (cargoleria), apilades, en una capa o una per cel·la. Si vols que **totes les caixes amb més d'una peça** tinguin un **compartiment per a cada peça**, marca a ⚙ Configuració → *Compartiments dins les caixes* l'opció *Quan un caixetí porta més d'una peça, fer-hi un compartiment per a cada peça*.
+
+- Cada cel·la té la mida de la peça, la folgança i l'espai per als dits, separada per divisors prims (*Divisors de cel·les*). Les peces queden **ordenades** i es **compten d'un cop d'ull**: si en falta una, es veu la cel·la buida.
+- Amb el *Màxim de peces amb compartiments* (30 per defecte) evites caixes enormes per a la cargoleria: per sobre d'aquest nombre, el caixetí continua sent un cubell.
+- Si una caixa amb compartiments no cap al llit, FOrdre la parteix en dues, com sempre.
+- La **disposició triada a la fitxa d'un material** (*Individual*, *Apilades*, *En una sola capa*, *A granel*) **mana sempre** per sobre d'aquesta opció. Així pots deixar, per exemple, unes volanderes a granel encara que l'opció estigui marcada.
+
+![Abans i després: cubell únic i caixa amb un compartiment per a cada peça](imatges/c20-compartiments-3d.jpg)
 
 **Fixació de les caixes al contenidor**
 
